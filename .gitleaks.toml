@@ -1,0 +1,16 @@
+# Secret scanning configuration (used by the CI security job).
+#
+# The files below contain intentionally fake credentials that exercise Kara's
+# secret redaction. Nothing else is exempt.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake credentials used to test secret redaction"
+paths = [
+  '''crates/[a-z]+-sandbox/src/secrets\.rs''',
+  '''crates/[a-z]+-tools/src/output\.rs''',
+  '''tests/integration/tests/security\.rs''',
+  '''training/tests/test_training_tools\.py''',
+]
