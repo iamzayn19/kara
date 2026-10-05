@@ -1,7 +1,7 @@
 {
   "name": "kara",
-  "displayName": "Kara: Local AI Engineering Agent",
-  "description": "A free, open-source AI engineering agent that runs on your machine. No account, no subscription, no code uploads.",
+  "displayName": "Kara",
+  "description": "Local-first coding agent. Chat, edits, tests and reviews in VS Code, driven by the Kara binary on your machine.",
   "version": "0.1.0",
   "publisher": "iamzayn19",
   "author": "iamzayn19",
@@ -20,17 +20,15 @@
   },
   "categories": [
     "Programming Languages",
-    "Machine Learning",
     "Other"
   ],
   "keywords": [
-    "ai",
-    "agent",
+    "coding agent",
     "local",
-    "llm",
     "offline",
-    "llama.cpp",
-    "code review"
+    "code review",
+    "refactoring",
+    "tests"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -92,6 +90,11 @@
         "category": "Kara"
       },
       {
+        "command": "kara.connect",
+        "title": "Kara: Connect to Inference Machine",
+        "category": "Kara"
+      },
+      {
         "command": "kara.doctor",
         "title": "Kara: Doctor",
         "category": "Kara"
@@ -134,26 +137,61 @@
     "configuration": {
       "title": "Kara",
       "properties": {
-        "kara.binaryPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to the kara binary. Empty: search PATH, then the copy managed by this extension."
-        },
-        "kara.permissionProfile": {
+        "kara.permissions.mode": {
           "type": "string",
           "enum": [
             "",
-            "safe",
-            "balanced",
-            "autonomous"
+            "ask",
+            "workspace",
+            "full"
           ],
           "default": "",
-          "description": "Permission mode for editor sessions. Empty uses your Kara user configuration."
+          "scope": "application",
+          "enumDescriptions": [
+            "Use your Kara user configuration (`kara config get permissions.mode`).",
+            "Ask before edits and shell commands.",
+            "Edit, test and build inside the workspace freely; ask for risky actions.",
+            "Broad tool execution without asking; high-risk boundaries still ask."
+          ],
+          "markdownDescription": "Permission mode for editor sessions. User setting only: workspace settings cannot change it. Empty uses your Kara user configuration."
+        },
+        "kara.inference.provider": {
+          "type": "string",
+          "enum": [
+            "",
+            "local",
+            "kara",
+            "openai_compat",
+            "ollama",
+            "lmstudio",
+            "vllm"
+          ],
+          "default": "",
+          "scope": "application",
+          "markdownDescription": "Where inference runs for editor sessions. Empty uses your Kara user configuration. Endpoints and tokens are configured with `kara config` / `kara connect`."
+        },
+        "kara.model": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "markdownDescription": "Model for editor sessions: a local model id (see `kara models`), `auto`, or the model name an endpoint serves. Empty uses your Kara user configuration. Choosing a model never downloads anything without confirmation."
+        },
+        "kara.binary.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Path to the `kara` binary. Empty: use `kara` on PATH, then the copy managed in Kara's data directory. Machine setting only."
+        },
+        "kara.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "markdownDescription": "Start Kara when a folder opens. When off, Kara starts the first time you use it."
         },
         "kara.includeDiagnostics": {
           "type": "boolean",
           "default": true,
-          "description": "Send the current file's diagnostics with selection commands."
+          "markdownDescription": "Send the current file's diagnostics with selection commands."
         }
       }
     }

@@ -17,9 +17,6 @@ pub struct EvalArgs {
     /// Only run these task ids (comma-separated), or tasks whose id starts with a prefix ending in `*`.
     #[arg(long)]
     tasks: Option<String>,
-    /// Registry model id to evaluate (default: the configured or recommended model).
-    #[arg(long)]
-    model: Option<String>,
     /// Replay reference solutions instead of a model. Validates fixtures and
     /// the harness; says nothing about model quality.
     #[arg(long)]
@@ -84,7 +81,7 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
         let r = rt.block_on(models::start_inference(
             &app,
             consent,
-            args.model.as_deref(),
+            opts.model.as_deref(),
             &ui,
         ))?;
         if r.provider.is_none() {

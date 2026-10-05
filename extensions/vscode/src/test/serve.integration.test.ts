@@ -63,6 +63,14 @@ test("serve --stdio protocol round trip", { skip: !bin }, async () => {
 
     await assert.rejects(client.request("no/such/method"), /unknown method/);
 
+    // A user-level mode from the editor applies to the session.
+    const again: any = await client.request("initialize", { workspace: repo, clientName: "test", permissionsMode: "ask" });
+    assert.equal(again.permissionsMode, "ask");
+    await assert.rejects(
+      client.request("initialize", { workspace: repo, clientName: "test", permissionsMode: "everything" }),
+      /unknown permission mode/,
+    );
+
     if (!info.model.available) {
       await assert.rejects(client.request("session/prompt", { text: "hi" }), /kara connect/);
     }

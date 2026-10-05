@@ -17,6 +17,10 @@ pub struct Options {
     pub dir: Option<PathBuf>,
     /// Per-session permission mode override (`--permissions`).
     pub permissions: Option<String>,
+    /// Per-session inference provider override (`--provider`).
+    pub provider: Option<String>,
+    /// Per-session model override (`--model`).
+    pub model: Option<String>,
 }
 
 /// The repository to work in: `--dir`, else the git root containing the
@@ -64,6 +68,16 @@ impl App {
             config.permissions.mode = Mode::parse(p).ok_or_else(|| {
                 anyhow::anyhow!("unknown permission mode `{p}` (ask, workspace, full)")
             })?;
+        }
+        if let Some(p) = opts.provider.as_deref().filter(|p| !p.is_empty()) {
+            config.inference.provider = kara_core::config::ProviderKind::parse(p).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "unknown inference provider `{p}` (local, kara, openai_compat, ollama, lmstudio, vllm)"
+                )
+            })?;
+        }
+        if let Some(m) = opts.model.as_deref().filter(|m| !m.is_empty()) {
+            config.inference.model = m.to_string();
         }
         match config.ui.color.as_str() {
             "never" => console::set_colors_enabled(false),

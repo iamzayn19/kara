@@ -88,3 +88,14 @@ test("SHA256SUMS parsing and hashing", async () => {
   assert.equal(which(path.basename(f), path.dirname(f)), f);
   assert.equal(which("definitely-not-a-binary", path.dirname(f)), undefined);
 });
+
+test("Kara data directory matches Kara Core on every platform", async () => {
+  const { karaDataDir, managedBinaryPath } = await import("../platform");
+  assert.equal(karaDataDir("darwin", {}, "/Users/a"), "/Users/a/Library/Application Support/Kara");
+  assert.equal(karaDataDir("linux", {}, "/home/a"), "/home/a/.local/share/kara");
+  assert.equal(karaDataDir("linux", { XDG_DATA_HOME: "/data" }, "/home/a"), "/data/kara");
+  assert.equal(karaDataDir("win32", { LOCALAPPDATA: "C:\\Users\\a\\AppData\\Local" }, "C:\\Users\\a"), "C:\\Users\\a\\AppData\\Local\\Kara");
+  assert.equal(karaDataDir("linux", { KARA_HOME: "/k" }, "/home/a"), "/k");
+  assert.equal(managedBinaryPath("win32", { LOCALAPPDATA: "C:\\L" }, "C:\\U"), "C:\\L\\Kara\\bin\\kara.exe");
+  assert.equal(managedBinaryPath("darwin", {}, "/Users/a"), "/Users/a/Library/Application Support/Kara/bin/kara");
+});

@@ -128,6 +128,12 @@
         head.appendChild(name);
         head.appendChild(el("span", "kind", c.kind));
         head.appendChild(button("View diff", () => vscode.postMessage({ type: "viewDiff", path: c.path })));
+        const accept = button("Accept", () => {
+          card.classList.add("accepted");
+          accept.disabled = true;
+          accept.textContent = "Accepted";
+        });
+        head.appendChild(accept);
         head.appendChild(button("Reject", () => vscode.postMessage({ type: "reject", path: c.path }), "secondary"));
         card.appendChild(head);
         const lines = c.diff.split("\n").length;
@@ -216,6 +222,16 @@
       }
       case "result":
         break;
+      case "guidance": {
+        endStream();
+        const box = add(el("div", "guidance"));
+        box.appendChild(el("div", "", m.text));
+        const row = el("div", "actions");
+        row.appendChild(button("Choose local model", () => vscode.postMessage({ type: "chooseModel" })));
+        row.appendChild(button("Connect to a Kara machine", () => vscode.postMessage({ type: "connect" }), "secondary"));
+        box.appendChild(row);
+        break;
+      }
       case "command":
         renderCommand(m.name, m.result);
         break;

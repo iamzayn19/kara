@@ -270,3 +270,23 @@ pre.diff div {
     transform: rotate(360deg);
   }
 }
+
+.guidance {
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+
+.guidance .actions {
+  margin-top: 8px;
+}
+
+.guidance .actions button:first-child {
+  margin-left: 0;
+}
+
+.change.accepted .change-head {
+  opacity: 0.7;
+}

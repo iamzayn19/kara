@@ -4,12 +4,16 @@
 import * as cp from "child_process";
 import * as vscode from "vscode";
 import { RpcClient } from "./rpc";
+import { sessionSettings } from "./settings";
 
 export interface ModelInfo {
   available: boolean;
   label: string;
+  provider?: string;
   id?: string | null;
   context?: number | null;
+  /** When no inference is available: why, and what to do. */
+  guidance?: string | null;
 }
 
 export interface InitializeResult {
@@ -78,11 +82,14 @@ export class AgentProcess implements vscode.Disposable {
       throw new Error(`unsupported request ${method}`);
     });
 
-    const profile = vscode.workspace.getConfiguration("kara").get<string>("permissionProfile", "");
+    // User-scoped settings only (see settings.ts).
+    const settings = sessionSettings();
     this.info = await client.request<InitializeResult>("initialize", {
       workspace,
       clientName: "vscode",
-      ...(profile ? { permissionsMode: profile } : {}),
+      ...(settings.permissionsMode ? { permissionsMode: settings.permissionsMode } : {}),
+      ...(settings.inferenceProvider ? { inferenceProvider: settings.inferenceProvider } : {}),
+      ...(settings.model ? { model: settings.model } : {}),
     });
     this.stateEmitter.fire();
     return this.info;

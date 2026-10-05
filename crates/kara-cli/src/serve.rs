@@ -221,6 +221,18 @@ impl Server {
         {
             opts.permissions = Some(p.to_string());
         }
+        for (key, slot) in [
+            ("inferenceProvider", &mut opts.provider),
+            ("model", &mut opts.model),
+        ] {
+            if let Some(v) = params
+                .get(key)
+                .and_then(Value::as_str)
+                .filter(|v| !v.is_empty())
+            {
+                *slot = Some(v.to_string());
+            }
+        }
         let app = App::load(&opts).map_err(internal)?;
         for w in &app.warnings {
             self.peer.log("warning", w.clone());

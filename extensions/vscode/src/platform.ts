@@ -3,6 +3,7 @@
 
 import * as crypto from "crypto";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 
 export const REPO = "iamzayn19/kara";
@@ -68,4 +69,38 @@ export function sha256File(file: string): Promise<string> {
       .on("error", reject)
       .on("end", () => resolve(h.digest("hex")));
   });
+}
+
+/**
+ * Kara's data directory, matching Kara Core: KARA_HOME, else
+ * ~/Library/Application Support/Kara (macOS), %LOCALAPPDATA%\Kara (Windows),
+ * $XDG_DATA_HOME/kara or ~/.local/share/kara (Linux). The CLI and the editor
+ * share it, so models and the managed binary exist once.
+ */
+export function karaDataDir(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  home: string = os.homedir(),
+): string {
+  if (env.KARA_HOME) {
+    return env.KARA_HOME;
+  }
+  const join = platform === "win32" ? path.win32.join : path.posix.join;
+  if (platform === "darwin") {
+    return join(home, "Library", "Application Support", "Kara");
+  }
+  if (platform === "win32") {
+    return join(env.LOCALAPPDATA || join(home, "AppData", "Local"), "Kara");
+  }
+  return join(env.XDG_DATA_HOME || join(home, ".local", "share"), "kara");
+}
+
+export function managedBinaryPath(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  home?: string,
+): string {
+  const dir = karaDataDir(platform, env, home ?? os.homedir());
+  const join = platform === "win32" ? path.win32.join : path.posix.join;
+  return join(dir, "bin", exeName(platform));
 }

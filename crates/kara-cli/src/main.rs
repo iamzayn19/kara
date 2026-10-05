@@ -28,6 +28,14 @@ struct Cli {
     #[arg(long, global = true)]
     permissions: Option<String>,
 
+    /// Where inference runs for this session: local, kara, openai_compat, ollama, lmstudio or vllm.
+    #[arg(long, global = true)]
+    provider: Option<String>,
+
+    /// Model for this session (local model id, `auto`, or an endpoint's model name).
+    #[arg(long, global = true)]
+    model: Option<String>,
+
     /// Resume the most recent session for this repository.
     #[arg(long)]
     resume: bool,
@@ -164,6 +172,8 @@ fn run(cli: Cli, rt: &tokio::runtime::Runtime) -> anyhow::Result<i32> {
     let opts = app::Options {
         dir: cli.dir.clone(),
         permissions: cli.permissions.clone(),
+        provider: cli.provider.clone(),
+        model: cli.model.clone(),
     };
     match cli.command {
         None => tui::interactive(rt, &opts, cli.resume),

@@ -17,8 +17,22 @@ export async function run(): Promise<void> {
     "kara.runTests",
     "kara.chooseModel",
     "kara.doctor",
+    "kara.connect",
   ]) {
     assert.ok(commands.includes(id), `command ${id} is registered`);
   }
+  // A workspace must not be able to escalate permissions.
+  const config = vscode.workspace.getConfiguration("kara");
+  let workspaceWriteRejected = false;
+  try {
+    await config.update("permissions.mode", "full", vscode.ConfigurationTarget.Workspace);
+  } catch {
+    workspaceWriteRejected = true;
+  }
+  const { userSetting } = await import("../../settings");
+  assert.ok(
+    workspaceWriteRejected || userSetting<string>("permissions.mode", "") !== "full",
+    "workspace settings cannot set kara.permissions.mode",
+  );
   await vscode.commands.executeCommand("kara.open");
 }

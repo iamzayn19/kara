@@ -1,26 +1,30 @@
 // Locate the kara binary, or download an official release from GitHub
-// (after asking) and verify it against the release's SHA256SUMS.
+// (after asking) and verify it against the release's SHA256SUMS. The managed
+// copy lives in Kara's data directory (shared with the CLI), not in the
+// project and not in editor storage. No model is ever downloaded here.
 
 import * as fs from "fs";
 import * as https from "https";
 import * as path from "path";
 import * as cp from "child_process";
 import * as vscode from "vscode";
-import { REPO, archiveName, exeName, parseSha256Sums, releaseTarget, sha256File, which } from "./platform";
+import { REPO, archiveName, exeName, managedBinaryPath, parseSha256Sums, releaseTarget, sha256File, which } from "./platform";
+import { binaryPathSetting } from "./settings";
 
 export async function locateBinary(context: vscode.ExtensionContext): Promise<string | undefined> {
-  const configured = vscode.workspace.getConfiguration("kara").get<string>("binaryPath", "").trim();
+  const configured = binaryPathSetting();
   if (configured) {
     if (fs.existsSync(configured)) {
       return configured;
     }
-    void vscode.window.showWarningMessage(`kara.binaryPath points to a missing file: ${configured}`);
+    void vscode.window.showWarningMessage(`kara.binary.path points to a missing file: ${configured}`);
   }
   const onPath = which(exeName());
   if (onPath) {
     return onPath;
   }
-  const managed = path.join(context.globalStorageUri.fsPath, "bin", exeName());
+  // Shared with the CLI: Kara's own data directory, never inside a project.
+  const managed = managedBinaryPath();
   if (fs.existsSync(managed)) {
     return managed;
   }
@@ -79,7 +83,7 @@ export async function downloadBinary(context: vscode.ExtensionContext): Promise<
       if (archive.status !== 200) {
         throw new Error(`download failed (HTTP ${archive.status})`);
       }
-      const dir = path.join(context.globalStorageUri.fsPath, "bin");
+      const dir = path.dirname(managedBinaryPath());
       fs.mkdirSync(dir, { recursive: true });
       const archivePath = path.join(dir, asset);
       fs.writeFileSync(archivePath, archive.body);

@@ -28,6 +28,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       undo: () => Promise<void>;
       newSession: () => Promise<void>;
       showChanges: () => Promise<void>;
+      connect: () => Promise<void>;
+      ensureStarted: () => Promise<void>;
     },
   ) {}
 
@@ -67,8 +69,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   async prompt(text: string, options: PromptOptions = {}): Promise<void> {
-    const agent = this.getAgent();
     this.reveal();
+    await this.actions.ensureStarted();
+    const agent = this.getAgent();
     if (!agent || !agent.running) {
       this.post({ type: "error", text: "Kara is not running. Open a folder and run \"Kara: Restart Agent\"." });
       return;
@@ -89,7 +92,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.post({ type: "result", result });
     } catch (e: any) {
       if (e?.code === -32002) {
-        this.post({ type: "error", text: `${e.message}`, action: "chooseModel" });
+        this.post({ type: "guidance", text: `${e.message}` });
       } else {
         this.post({ type: "error", text: String(e?.message ?? e) });
       }
@@ -110,6 +113,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         case "ready":
           this.updateStatus();
           break;
+        case "start":
+          await this.actions.ensureStarted();
+          break;
         case "send":
           await this.handleInput(String(m.text ?? ""));
           break;
@@ -128,6 +134,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           break;
         case "chooseModel":
           await this.actions.chooseModel();
+          break;
+        case "connect":
+          await this.actions.connect();
           break;
         case "openFile":
           if (agent?.info?.workspace) {
@@ -190,6 +199,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return;
       case "/doctor":
         await this.actions.doctor();
+        return;
+      case "/connect":
+        await this.actions.connect();
         return;
       case "/new":
         await this.actions.newSession();

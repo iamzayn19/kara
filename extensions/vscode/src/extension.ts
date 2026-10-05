@@ -1,11 +1,13 @@
 // Kara for VS Code: a UI over the local `kara` binary.
 
 import * as path from "path";
+import { execFile } from "child_process";
 import * as vscode from "vscode";
 import { AgentProcess } from "./agent";
 import { downloadBinary, locateBinary } from "./binary";
 import { ORIGINAL_SCHEME, OriginalContentProvider, pickAndShowChanges, rejectChange, showDiff } from "./changes";
 import { ChatViewProvider } from "./chatView";
+import { autoStart } from "./settings";
 
 let agent: AgentProcess | undefined;
 
@@ -98,12 +100,61 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     viewDiff: async (p) => (agent ? showDiff(agent, originals, p) : undefined),
     reject: async (p) => (agent ? rejectChange(agent, p) : undefined),
     chooseModel: () => chooseModel(),
+    connect: () => connectMachine(),
+    ensureStarted: () => ensureStarted(),
     doctor: () => doctor(),
     undo: () => undo(),
     newSession: () => newSession(),
     showChanges: async () => (agent ? pickAndShowChanges(agent, originals) : undefined),
   });
   context.subscriptions.push(vscode.window.registerWebviewViewProvider("kara.chat", chat, { webviewOptions: { retainContextWhenHidden: true } }));
+
+  let starting: Promise<void> | undefined;
+  /** Start once; concurrent callers share the same start. */
+  function ensureStarted(): Promise<void> {
+    if (agent?.running) {
+      return Promise.resolve();
+    }
+    starting ??= start().finally(() => (starting = undefined));
+    return starting;
+  }
+
+  async function connectMachine(): Promise<void> {
+    const url = await vscode.window.showInputBox({
+      prompt: "Address of a machine running `kara serve --inference`",
+      placeHolder: "http://192.168.1.20:7878",
+      ignoreFocusOut: true,
+    });
+    if (!url) {
+      return;
+    }
+    const token = await vscode.window.showInputBox({
+      prompt: "Token printed by `kara serve --inference` on that machine",
+      password: true,
+      ignoreFocusOut: true,
+    });
+    if (!token) {
+      return;
+    }
+    const binary = await locateBinary(context);
+    if (!binary) {
+      void vscode.window.showErrorMessage("The kara binary is not installed.");
+      return;
+    }
+    // Kara Core does the work: verify the server, store the token, update config.
+    const result = await new Promise<{ ok: boolean; out: string }>((resolve) => {
+      execFile(binary, ["connect", url, "--token", token], (err, stdout, stderr) =>
+        resolve({ ok: !err, out: `${stdout}${stderr}`.trim() }),
+      );
+    });
+    output.appendLine(result.out);
+    if (!result.ok) {
+      void vscode.window.showErrorMessage(`Kara could not connect: ${result.out.split("\n").pop()}`);
+      return;
+    }
+    void vscode.window.showInformationMessage(result.out.split("\n")[0]);
+    await start();
+  }
 
   async function start(): Promise<void> {
     const ws = workspaceFolder();
@@ -139,7 +190,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const info = await agent.start(ws);
       output.appendLine(`Kara ${info.karaVersion} · ${info.workspace} · model: ${info.model.label}`);
       if (!info.model.available) {
-        chat.post({ type: "error", text: "No local model is ready yet.", action: "chooseModel" });
+        // Kara still works without inference; explain the options.
+        chat.post({
+          type: "guidance",
+          text:
+            info.model.guidance ??
+            "No inference is configured yet. Choose a local model if this machine can run one, or connect to compute you own.",
+        });
       }
     } catch (e: any) {
       output.appendLine(`initialize failed: ${e?.message ?? e}`);
@@ -234,7 +291,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   const reg = (id: string, fn: (...a: any[]) => unknown) => context.subscriptions.push(vscode.commands.registerCommand(id, fn));
-  reg("kara.open", () => chat.reveal());
+  reg("kara.open", async () => {
+    chat.reveal();
+    await ensureStarted();
+  });
+  reg("kara.connect", () => connectMachine());
   reg("kara.newSession", () => newSession());
   reg("kara.askAboutSelection", async () => {
     const q = await vscode.window.showInputBox({ prompt: "Ask Kara about the selected code", placeHolder: "What does this do? Why could it fail?" });
@@ -259,7 +320,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push({ dispose: () => agent?.dispose() });
   updateStatusBar();
-  void start();
+  if (autoStart()) {
+    void start();
+  }
 }
 
 export function deactivate(): void {
