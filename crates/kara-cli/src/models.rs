@@ -1,28 +1,24 @@
-//! Model selection, consent-gated downloads, and runtime startup.
+//! Terminal front end for inference setup: consent prompts, progress bars and
+//! the `kara models` commands. Resolution itself lives in `kara-inference`.
 
 use crate::app::{display_path, App, Options};
 use clap::Subcommand;
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
-use kara_core::config::ProviderKind;
-use kara_model::hardware::{format_bytes, HardwareInfo};
-use kara_model::openai::OpenAiCompatProvider;
-use kara_model::recommend::{recommend, Placement};
-use kara_model::registry::ModelSpec;
-use kara_model::ModelProvider;
-use kara_runtime::llamacpp::LlamaCppManager;
-use kara_runtime::server::{LlamaServer, ServerOptions};
-use kara_runtime::store::ModelStore;
+use kara_inference::local::hardware::format_bytes;
+use kara_inference::source::{
+    self, Consent, DownloadOffer, InferenceSession, ResolveRequest, RuntimeOffer, SetupUi,
+};
+use std::collections::HashMap;
 use std::io::Write;
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Subcommand)]
 pub enum ModelsCmd {
-    /// List registry models, what is installed, and what fits this machine.
+    /// List local models, what is installed, and what fits this machine.
     List,
-    /// Download a model (asks for confirmation unless --yes).
+    /// Download a model for local inference (asks for confirmation unless --yes).
     Pull {
         id: String,
         #[arg(long)]
@@ -30,47 +26,10 @@ pub enum ModelsCmd {
     },
     /// Re-verify an installed model's SHA-256.
     Verify { id: String },
-    /// Use a specific model by default (writes ~/.kara/config.toml).
+    /// Use a specific local model by default.
     Use { id: String },
-    /// Go back to automatic model selection.
+    /// Pick the local model automatically for this machine.
     Auto,
-}
-
-/// How to handle downloads that need consent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Consent {
-    /// Ask on the terminal.
-    Ask,
-    /// Never download (non-interactive runs); fail with instructions.
-    Never,
-    /// The user already consented (e.g. `models pull --yes`, or the editor UI).
-    Granted,
-}
-
-pub struct ModelRuntime {
-    pub provider: Option<Arc<dyn ModelProvider>>,
-    pub server: Option<LlamaServer>,
-    pub spec: Option<ModelSpec>,
-    pub context: Option<u32>,
-    pub label: String,
-}
-
-impl ModelRuntime {
-    pub fn none(reason: &str) -> Self {
-        Self {
-            provider: None,
-            server: None,
-            spec: None,
-            context: None,
-            label: reason.to_string(),
-        }
-    }
-
-    pub async fn shutdown(&mut self) {
-        if let Some(mut s) = self.server.take() {
-            s.stop().await;
-        }
-    }
 }
 
 pub fn confirm(question: &str, default_yes: bool) -> bool {
@@ -94,358 +53,162 @@ pub fn confirm(question: &str, default_yes: bool) -> bool {
     }
 }
 
-pub fn describe_download(spec: &ModelSpec, context: u32, store: &ModelStore) {
-    let need = spec.memory_needed(context);
+pub fn describe_download(o: &DownloadOffer) {
     println!(
         "  {:<10} {} ({})",
         "Model",
-        style(&spec.name).bold(),
-        spec.quantization
+        style(&o.name).bold(),
+        o.quantization
     );
     println!(
         "  {:<10} {} (revision {})",
         "Source",
-        spec.source_url(),
-        &spec.revision[..12]
+        o.source,
+        &o.revision[..12.min(o.revision.len())]
     );
-    println!("  {:<10} {}", "License", spec.license);
-    let partial = store.partial_bytes(spec);
-    if partial > 0 {
+    println!("  {:<10} {}", "License", o.license);
+    if o.partial_bytes > 0 {
         println!(
             "  {:<10} {} ({} already downloaded, will resume)",
             "Download",
-            format_bytes(spec.size_bytes),
-            format_bytes(partial)
+            format_bytes(o.size_bytes),
+            format_bytes(o.partial_bytes)
         );
     } else {
-        println!("  {:<10} {}", "Download", format_bytes(spec.size_bytes));
+        println!("  {:<10} {}", "Download", format_bytes(o.size_bytes));
     }
     println!(
-        "  {:<10} about {} while running ({context}-token context)",
+        "  {:<10} about {} while running ({}-token context)",
         "Memory",
-        format_bytes(need)
+        format_bytes(o.memory_needed),
+        o.context
     );
-    println!(
-        "  {:<10} {}",
-        "Saved to",
-        display_path(&store.path_for(spec))
-    );
-    if !spec.notes.is_empty() {
-        println!("  {:<10} {}", "Notes", spec.notes);
+    println!("  {:<10} {}", "Saved to", display_path(&o.path));
+    if !o.notes.is_empty() {
+        println!("  {:<10} {}", "Notes", o.notes);
     }
 }
 
-fn progress_bar(total: u64, label: &str) -> ProgressBar {
-    let pb = ProgressBar::new(total);
-    pb.set_style(
-        ProgressStyle::with_template(
-            "  {msg} [{bar:30}] {bytes}/{total_bytes} {bytes_per_sec} eta {eta}",
-        )
-        .unwrap()
-        .progress_chars("=> "),
-    );
-    pb.set_message(label.to_string());
-    pb
+/// Prompts on the terminal, progress bars on stderr.
+#[derive(Default)]
+pub struct TerminalUi {
+    bars: Mutex<HashMap<String, ProgressBar>>,
 }
 
-/// Download with a progress bar; Ctrl-C cancels and keeps the partial file.
-pub async fn download_model(store: &ModelStore, spec: &ModelSpec) -> anyhow::Result<()> {
-    let pb = progress_bar(spec.size_bytes, &spec.name);
-    let cancel = CancellationToken::new();
-    let c2 = cancel.clone();
-    let watcher = tokio::spawn(async move {
-        if tokio::signal::ctrl_c().await.is_ok() {
-            c2.cancel();
-        }
-    });
-    let pb2 = pb.clone();
-    let res = store
-        .download(spec, &move |p| pb2.set_position(p.downloaded), &cancel)
-        .await;
-    watcher.abort();
-    match &res {
-        Ok(_) => pb.finish_with_message(format!("{} (sha256 verified)", spec.name)),
-        Err(_) => pb.abandon(),
-    }
-    res.map(|_| ())
-}
-
-pub async fn install_llama(
-    app: &App,
-    hw: &HardwareInfo,
-    consent: Consent,
-) -> anyhow::Result<std::path::PathBuf> {
-    let mgr = LlamaCppManager::new(&app.paths.runtimes_dir());
-    if let Some(found) = mgr.locate(&app.config.inference.local.server_path) {
-        return Ok(found.binary().to_path_buf());
-    }
-    let asset = mgr
-        .pin
-        .select(hw)
-        .ok_or_else(|| anyhow::anyhow!("no prebuilt llama.cpp for {}/{}; install llama-server and set runtime.llama_server_path", hw.os, hw.arch))?;
-    let total = asset.size + asset.extra_size.unwrap_or(0);
-    match consent {
-        Consent::Never => anyhow::bail!(
-            "llama.cpp is not installed. Run `kara` interactively or `kara models pull <id>` to install it."
-        ),
-        Consent::Ask => {
+impl SetupUi for TerminalUi {
+    fn confirm_model_download(&self, o: &DownloadOffer) -> bool {
+        println!("\nLocal inference is optional. A model that fits this machine:");
+        describe_download(o);
+        if o.size_bytes > 20_000_000_000 {
             println!(
-                "\nKara runs models with llama.cpp. No `llama-server` was found, so Kara can install\nthe official prebuilt build {} ({}, {}, MIT license) from github.com/{}.",
-                mgr.pin.tag,
-                asset.name,
-                format_bytes(total),
-                mgr.pin.repo
+                "  {}",
+                style("This is a large download (over 20 GB).").yellow()
             );
-            if !confirm("Download and install it now?", true) {
-                anyhow::bail!("llama.cpp is required for local models; set runtime.llama_server_path or use another provider");
+        }
+        println!(
+            "  {}",
+            style("Or skip this and use another Kara machine or an endpoint (`kara connect`).")
+                .dim()
+        );
+        confirm("Download it now?", false)
+    }
+
+    fn confirm_runtime_install(&self, o: &RuntimeOffer) -> bool {
+        println!(
+            "\nLocal inference uses {}. Kara can install the official prebuilt build {} ({}, {}, {} license) from {}.",
+            o.name,
+            o.version,
+            o.asset,
+            format_bytes(o.size_bytes),
+            o.license,
+            o.source
+        );
+        confirm("Download and install it now?", true)
+    }
+
+    fn progress(&self, label: &str, done: u64, total: Option<u64>) {
+        let mut bars = self.bars.lock().unwrap();
+        let pb = bars.entry(label.to_string()).or_insert_with(|| {
+            let pb = ProgressBar::new(total.unwrap_or(0));
+            pb.set_style(
+                ProgressStyle::with_template(
+                    "  {msg} [{bar:30}] {bytes}/{total_bytes} {bytes_per_sec} eta {eta}",
+                )
+                .unwrap()
+                .progress_chars("=> "),
+            );
+            pb.set_message(label.to_string());
+            pb
+        });
+        if let Some(t) = total {
+            pb.set_length(t);
+        }
+        pb.set_position(done);
+    }
+
+    fn progress_done(&self, label: &str, ok: bool) {
+        if let Some(pb) = self.bars.lock().unwrap().remove(label) {
+            if ok {
+                pb.finish_with_message(format!("{label} (sha256 verified)"));
+            } else {
+                pb.abandon();
             }
         }
-        Consent::Granted => {}
     }
-    let pb = progress_bar(total, "llama.cpp");
-    let pb2 = pb.clone();
-    let rec = mgr
-        .install(
-            hw,
-            &move |_, p| pb2.set_position(p.downloaded),
-            &CancellationToken::new(),
-        )
-        .await;
-    match rec {
-        Ok(r) => {
-            pb.finish_with_message(format!("llama.cpp {} (sha256 verified)", r.tag));
-            Ok(r.binary)
-        }
-        Err(e) => {
-            pb.abandon();
-            Err(e)
-        }
+
+    fn notice(&self, message: &str) {
+        eprintln!("{}", style(message).dim());
     }
 }
 
-/// Bearer token for an endpoint: from `api_key_env`, else `api_key_file`.
-fn endpoint_key(config: &kara_core::Config) -> Option<String> {
-    let inf = &config.inference;
-    if !inf.api_key_env.is_empty() {
-        if let Ok(v) = std::env::var(&inf.api_key_env) {
-            return Some(v);
-        }
-    }
-    if !inf.api_key_file.is_empty() {
-        return std::fs::read_to_string(&inf.api_key_file)
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty());
-    }
-    None
-}
-
-/// Resolve which registry model to use and with what context/placement.
-pub fn choose_model(
-    app: &App,
-    hw: &HardwareInfo,
-    requested: Option<&str>,
-) -> anyhow::Result<(ModelSpec, u32, Option<Placement>)> {
-    let rec = recommend(&app.models, hw);
-    let id = match requested {
-        Some(id) if id != "auto" => Some(id.to_string()),
-        Some(_) => None,
-        None if !app.config.inference.model.is_empty() && app.config.inference.model != "auto" => {
-            Some(app.config.inference.model.clone())
-        }
-        None => None,
-    };
-    let (spec, ctx, placement) = match id {
-        Some(id) => {
-            let spec = app
-                .models
-                .get(&id)
-                .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`; see `kara models`"))?
-                .clone();
-            let cand = rec.candidates.iter().find(|c| c.id == spec.id);
-            let ctx = cand
-                .filter(|c| c.fits)
-                .map(|c| c.context)
-                .unwrap_or(spec.default_context);
-            (spec, ctx, cand.and_then(|c| c.placement.clone()))
-        }
-        None => {
-            let spec = rec
-                .model
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("{}", rec.summary))?;
-            (spec, rec.context, rec.placement.clone())
-        }
-    };
-    let ctx = if app.config.inference.context_length > 0 {
-        app.config.inference.context_length
-    } else {
-        ctx
-    };
-    Ok((spec, ctx, placement))
-}
-
-/// Start the configured model runtime.
-pub async fn start_runtime(
+/// Resolve inference for this app. Never fails just because no inference is
+/// available: the session then carries guidance instead of a provider.
+pub async fn start_inference(
     app: &App,
     consent: Consent,
-    requested: Option<&str>,
-) -> anyhow::Result<ModelRuntime> {
-    // External OpenAI-compatible runtimes (Ollama, LM Studio, vLLM, ...).
-    if app.config.inference.provider != ProviderKind::Local && requested.is_none() {
-        let endpoint = app.config.endpoint().ok_or_else(|| {
-            anyhow::anyhow!(
-                "inference.endpoint is required for provider {:?}",
-                app.config.inference.provider
-            )
-        })?;
-        let key = endpoint_key(&app.config);
-        let mut provider = OpenAiCompatProvider::new(&endpoint, &app.config.inference.model)
-            .with_api_key(key.clone())
-            .with_label(app.config.inference.provider.label());
-        let mut model = app.config.inference.model.clone();
-        if model.is_empty() {
-            let models = provider.list_models().await.map_err(|e| {
-                anyhow::anyhow!(
-                    "cannot reach {} at {endpoint}: {e}",
-                    app.config.inference.provider.label()
-                )
-            })?;
-            model = models.first().cloned().ok_or_else(|| {
-                anyhow::anyhow!("{endpoint} serves no models; set inference.model")
-            })?;
-            provider = OpenAiCompatProvider::new(&endpoint, &model)
-                .with_api_key(key)
-                .with_label(app.config.inference.provider.label());
-        }
-        let ctx = (app.config.inference.context_length > 0)
-            .then_some(app.config.inference.context_length)
-            .or(Some(32768));
-        let provider = provider.with_context_length(ctx);
-        return Ok(ModelRuntime {
-            label: format!(
-                "{model} ({}, {endpoint})",
-                app.config.inference.provider.label()
-            ),
-            provider: Some(Arc::new(provider)),
-            server: None,
-            spec: None,
-            context: ctx,
-        });
-    }
-
-    let hw = tokio::task::spawn_blocking({
-        let dir = app.paths.models_dir();
-        move || HardwareInfo::detect(&dir)
+    model_override: Option<&str>,
+    ui: &dyn SetupUi,
+) -> anyhow::Result<InferenceSession> {
+    source::resolve(ResolveRequest {
+        config: &app.config,
+        paths: &app.paths,
+        registry: &app.models,
+        consent,
+        ui,
+        model_override,
     })
-    .await?;
-    let (spec, ctx, placement) = choose_model(app, &hw, requested)?;
-    let store = ModelStore::new(&app.paths.models_dir());
-    if !store.is_installed(&spec) {
-        match consent {
-            Consent::Never => anyhow::bail!(
-                "model {} is not downloaded. Run `kara models pull {}` (about {}).",
-                spec.name,
-                spec.id,
-                format_bytes(spec.size_bytes)
-            ),
-            Consent::Ask => {
-                println!("\nKara needs a local model. Recommended for this machine:");
-                describe_download(&spec, ctx, &store);
-                if spec.size_bytes > 20_000_000_000 {
-                    println!(
-                        "  {}",
-                        style("This is a large download (over 20 GB).").yellow()
-                    );
-                }
-                if !confirm("Download it now?", false) {
-                    return Ok(ModelRuntime::none("no model (download declined)"));
-                }
-            }
-            Consent::Granted => {}
-        }
-        download_model(&store, &spec).await?;
-    }
-    let binary = install_llama(app, &hw, consent).await?;
-    let gpu = hw.metal || hw.cuda || hw.rocm || hw.vulkan;
-    let opts = ServerOptions {
-        binary,
-        model_path: store.path_for(&spec),
-        host: app.config.inference.local.bind_host.clone(),
-        context: ctx,
-        gpu_layers: if gpu {
-            app.config.inference.local.gpu_layers
-        } else {
-            0
-        },
-        cpu_moe: placement == Some(Placement::PartialOffload),
-        alias: spec.id.clone(),
-        reasoning: app.config.inference.reasoning.clone(),
-        reasoning_budget: if app.config.inference.reasoning_budget != 0 {
-            app.config.inference.reasoning_budget
-        } else {
-            spec.reasoning_budget
-        },
-        extra_args: app.config.inference.local.extra_args.clone(),
-        log_file: app.paths.logs_dir().join("llama-server.log"),
-        startup_timeout: Duration::from_secs(app.config.inference.local.startup_timeout_secs),
-    };
-    let reaped = kara_runtime::server::reap_stale(&app.paths.logs_dir());
-    if reaped > 0 {
-        eprintln!("stopped {reaped} llama-server process(es) left behind by an earlier Kara run");
-    }
-    let server = LlamaServer::start(opts).await?;
-    let provider = OpenAiCompatProvider::new(&server.base_url, &spec.id)
-        .with_label("llama.cpp")
-        .with_context_length(Some(ctx));
-    Ok(ModelRuntime {
-        label: format!(
-            "{} {} (llama.cpp, {}, {}k context)",
-            spec.name,
-            spec.quantization,
-            server.base_url.trim_end_matches("/v1"),
-            ctx / 1024
-        ),
-        provider: Some(Arc::new(provider)),
-        server: Some(server),
-        spec: Some(spec),
-        context: Some(ctx),
-    })
+    .await
 }
 
 pub fn print_list(app: &App) {
-    let store = ModelStore::new(&app.paths.models_dir());
-    let hw = HardwareInfo::detect(&app.paths.models_dir());
-    let rec = recommend(&app.models, &hw);
-    println!("{}", style("Models").bold());
-    for m in &app.models.models {
-        let c = rec.candidates.iter().find(|c| c.id == m.id);
-        let installed = store.is_installed(m);
-        let mark = if rec.model.as_ref().map(|r| r.id == m.id).unwrap_or(false) {
+    let (entries, summary) = kara_inference::local::catalog(&app.paths, &app.models);
+    println!("{}", style("Local models (optional)").bold());
+    for e in &entries {
+        let mark = if e.recommended {
             style("★ recommended").green().to_string()
-        } else if c.map(|c| c.fits).unwrap_or(false) {
+        } else if e.fits {
             style("fits").cyan().to_string()
         } else {
             style("too large").dim().to_string()
         };
         println!(
             "  {:<26} {:>8}  {:<9} {:<12} {}{}",
-            m.id,
-            format_bytes(m.size_bytes),
-            m.tier,
-            m.license,
+            e.spec.id,
+            format_bytes(e.spec.size_bytes),
+            e.spec.tier,
+            e.spec.license,
             mark,
-            if installed {
+            if e.installed {
                 style("  installed").green().to_string()
             } else {
                 String::new()
             }
         );
-        if let Some(c) = c {
-            println!("  {:<26} {}", "", style(&c.reason).dim());
+        if !e.reason.is_empty() {
+            println!("  {:<26} {}", "", style(&e.reason).dim());
         }
     }
-    println!("\n{}", rec.summary);
+    println!("\n{summary}");
 }
 
 pub fn run(
@@ -454,51 +217,64 @@ pub fn run(
     action: Option<ModelsCmd>,
 ) -> anyhow::Result<i32> {
     let app = App::load(opts)?;
-    let store = ModelStore::new(&app.paths.models_dir());
+    let spec_for = |id: &str| {
+        app.models
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`; see `kara models`"))
+    };
     match action.unwrap_or(ModelsCmd::List) {
         ModelsCmd::List => {
             print_list(&app);
             Ok(0)
         }
         ModelsCmd::Pull { id, yes } => {
-            let spec = app
-                .models
-                .get(&id)
-                .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?
-                .clone();
-            if store.is_installed(&spec) {
+            let spec = spec_for(&id)?;
+            let ui = TerminalUi::default();
+            if kara_inference::local::is_installed(&app.paths, &spec) {
                 println!(
                     "{} is already installed at {}",
                     spec.name,
-                    display_path(&store.path_for(&spec))
+                    display_path(&kara_inference::local::model_path(&app.paths, &spec))
                 );
-                return Ok(0);
+            } else {
+                let store = kara_inference::local::store::ModelStore::new(&app.paths.models_dir());
+                let offer = source::download_offer(&spec, spec.default_context, &store);
+                describe_download(&offer);
+                if !yes && !confirm("Download it now?", false) {
+                    println!("Cancelled.");
+                    return Ok(1);
+                }
+                let cancel = CancellationToken::new();
+                let c2 = cancel.clone();
+                let watcher = rt.spawn(async move {
+                    if tokio::signal::ctrl_c().await.is_ok() {
+                        c2.cancel();
+                    }
+                });
+                let res = rt.block_on(source::download_model(&store, &spec, &ui, &cancel));
+                watcher.abort();
+                res?;
             }
-            describe_download(&spec, spec.default_context, &store);
-            if !yes && !confirm("Download it now?", false) {
-                println!("Cancelled.");
-                return Ok(1);
-            }
-            rt.block_on(download_model(&store, &spec))?;
-            let hw = HardwareInfo::detect(&app.paths.models_dir());
-            rt.block_on(install_llama(
-                &app,
+            let hw = kara_inference::local::hardware::HardwareInfo::detect(&app.paths.models_dir());
+            rt.block_on(source::ensure_runtime(
+                &app.config,
+                &app.paths,
                 &hw,
                 if yes { Consent::Granted } else { Consent::Ask },
+                &ui,
             ))?;
             Ok(0)
         }
         ModelsCmd::Verify { id } => {
-            let spec = app
-                .models
-                .get(&id)
-                .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?;
-            if !store.path_for(spec).exists() {
+            let spec = spec_for(&id)?;
+            let path = kara_inference::local::model_path(&app.paths, &spec);
+            if !path.exists() {
                 anyhow::bail!("{} is not downloaded", spec.name);
             }
-            print!("Hashing {}… ", display_path(&store.path_for(spec)));
+            print!("Hashing {}… ", display_path(&path));
             let _ = std::io::stdout().flush();
-            if store.verify(spec)? {
+            if kara_inference::local::verify_model(&app.paths, &spec)? {
                 println!("{}", style("sha256 OK").green());
                 Ok(0)
             } else {
@@ -510,10 +286,7 @@ pub fn run(
             }
         }
         ModelsCmd::Use { id } => {
-            let spec = app
-                .models
-                .get(&id)
-                .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?;
+            let spec = spec_for(&id)?;
             let f = app.paths.config_file();
             kara_core::config_edit::set_in_file(&f, "inference.provider", "local")?;
             kara_core::config_edit::set_in_file(&f, "inference.model", &spec.id)?;
@@ -523,7 +296,7 @@ pub fn run(
         ModelsCmd::Auto => {
             let f = app.paths.config_file();
             kara_core::config_edit::set_in_file(&f, "inference.model", "auto")?;
-            println!("Model selection set to auto in {}", display_path(&f));
+            println!("Local model selection set to auto in {}", display_path(&f));
             Ok(0)
         }
     }

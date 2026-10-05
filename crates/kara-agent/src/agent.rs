@@ -18,7 +18,9 @@ use crate::prompts;
 use kara_context::{git, orient, CommandCategory};
 use kara_core::permissions::{PermissionPolicy, PolicyDecision};
 use kara_core::state::TaskState;
-use kara_model::{ChatRequest, Message, ModelProvider, Role, StreamEvent, ToolCall, ToolDef};
+use kara_inference::{
+    ChatRequest, InferenceProvider, Message, Role, StreamEvent, ToolCall, ToolDef,
+};
 use kara_protocol::{
     AgentEvent, AgentMode, NoticeLevel, PermissionDecision, PermissionRequest, Phase, PlanStep,
     StepStatus, TestReport, TokenUsage, TurnOutcome,
@@ -84,7 +86,7 @@ pub struct TurnResult {
 }
 
 pub struct Agent {
-    provider: Arc<dyn ModelProvider>,
+    provider: Arc<dyn InferenceProvider>,
     tools: Vec<Arc<dyn Tool>>,
     pub ctx: ToolContext,
     pub policy: PermissionPolicy,
@@ -130,7 +132,7 @@ fn update_plan_def() -> ToolDef {
 
 impl Agent {
     pub fn new(
-        provider: Arc<dyn ModelProvider>,
+        provider: Arc<dyn InferenceProvider>,
         ctx: ToolContext,
         policy: PermissionPolicy,
         approver: Arc<dyn Approver>,
@@ -157,14 +159,14 @@ impl Agent {
         a
     }
 
-    pub fn set_provider(&mut self, provider: Arc<dyn ModelProvider>) {
+    pub fn set_provider(&mut self, provider: Arc<dyn InferenceProvider>) {
         if let Some(n) = provider.info().context_length {
             self.settings.context_window = n;
         }
         self.provider = provider;
     }
 
-    pub fn provider(&self) -> &Arc<dyn ModelProvider> {
+    pub fn provider(&self) -> &Arc<dyn InferenceProvider> {
         &self.provider
     }
 

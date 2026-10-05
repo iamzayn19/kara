@@ -6,7 +6,7 @@ use kara_agent::approver::Approver;
 use kara_agent::{Agent, AgentSettings};
 use kara_context::{LanguageRegistry, ProjectProfile, RepoIndex};
 use kara_core::permissions::{Mode, PermissionPolicy};
-use kara_model::ModelProvider;
+use kara_inference::InferenceProvider;
 use kara_protocol::AgentEvent;
 use kara_sandbox::Workspace;
 use kara_tools::{Journal, ToolContext};
@@ -154,7 +154,7 @@ pub struct Harness {
 impl Harness {
     pub fn new(
         repo: &Repo,
-        provider: Arc<dyn ModelProvider>,
+        provider: Arc<dyn InferenceProvider>,
         profile: Mode,
         approver: Arc<dyn Approver>,
     ) -> Harness {
@@ -163,7 +163,7 @@ impl Harness {
 
     pub fn with_settings(
         repo: &Repo,
-        provider: Arc<dyn ModelProvider>,
+        provider: Arc<dyn InferenceProvider>,
         profile: Mode,
         approver: Arc<dyn Approver>,
         settings: AgentSettings,

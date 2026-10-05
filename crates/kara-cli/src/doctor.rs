@@ -5,10 +5,7 @@ use console::style;
 use kara_context::CommandCategory;
 use kara_core::privacy::PrivacyReport;
 use kara_core::Config;
-use kara_model::hardware::{format_bytes, HardwareInfo};
-use kara_model::recommend::recommend;
-use kara_runtime::llamacpp::{version, LlamaCppManager};
-use kara_runtime::store::ModelStore;
+use kara_inference::local::hardware::format_bytes;
 
 fn row(label: &str, value: impl std::fmt::Display) {
     println!("  {:<20}{}", label, value);
@@ -23,7 +20,8 @@ fn yes_no(b: bool) -> String {
 }
 
 pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
-    let hw = HardwareInfo::detect(&app.paths.models_dir());
+    let status = kara_inference::local::status(&app.config, &app.paths, &app.models);
+    let hw = &status.hardware;
     println!("{}", style("System").bold());
     row(
         "OS",
@@ -67,7 +65,7 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
     row("Vulkan", yes_no(hw.vulkan));
     row("ROCm/HIP", yes_no(hw.rocm));
     row(
-        "Model memory budget",
+        "Memory for models",
         format!(
             "about {} ({})",
             format_bytes(hw.fast_memory_budget()),
@@ -82,38 +80,48 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
             + &format!(" at {}", display_path(&app.paths.models_dir())),
     );
 
-    println!("\n{}", style("Runtime").bold());
-    let mgr = LlamaCppManager::new(&app.paths.runtimes_dir());
-    match mgr.locate(&app.config.inference.local.server_path) {
-        Some(found) => {
-            row("llama.cpp", found.describe());
-            if let Some(v) = version(found.binary()) {
-                row("version", v);
-            }
-        }
-        None => row(
-            "llama.cpp",
-            format!(
-                "not installed (Kara will offer the pinned build {} on first use)",
-                mgr.pin.tag
-            ),
-        ),
-    }
-    if let Some(asset) = mgr.pin.select(&hw) {
-        row("build for this host", &asset.name);
-    }
-    row("bind address", &app.config.inference.local.bind_host);
-    row("provider", app.config.inference.provider.label());
-
-    println!("\n{}", style("Models").bold());
-    let store = ModelStore::new(&app.paths.models_dir());
-    let installed = store.installed();
-    if installed.is_empty() {
-        row("installed", "none");
-    }
-    for m in installed {
+    println!("\n{}", style("Inference").bold());
+    let inf = &app.config.inference;
+    row(
+        "provider",
+        format!("{} ({})", inf.provider.as_str(), inf.provider.label()),
+    );
+    if inf.provider.is_endpoint() {
         row(
-            "installed",
+            "endpoint",
+            app.config.endpoint().unwrap_or_else(|| "not set".into()),
+        );
+        row(
+            "model",
+            if inf.model.is_empty() {
+                "first served"
+            } else {
+                &inf.model
+            },
+        );
+    } else {
+        row("model", &inf.model);
+    }
+
+    println!("\n{}", style("Local inference (optional)").bold());
+    row(
+        "runtime",
+        status.runtime.clone().unwrap_or_else(|| {
+            "not installed (installed only if you choose local inference)".into()
+        }),
+    );
+    if let Some(v) = &status.runtime_version {
+        row("version", v);
+    }
+    if let Some(asset) = &status.runtime_available {
+        row("build for this host", asset);
+    }
+    if status.installed.is_empty() {
+        row("installed models", "none");
+    }
+    for m in &status.installed {
+        row(
+            "installed model",
             format!(
                 "{} ({}, {}, rev {})",
                 m.name,
@@ -123,10 +131,15 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
             ),
         );
     }
-    let rec = recommend(&app.models, &hw);
+    let rec = &status.recommendation;
     row("recommendation", &rec.summary);
     for c in rec.candidates.iter().filter(|c| !c.fits).take(3) {
         row("", style(format!("{}: {}", c.name, c.reason)).dim());
+    }
+    if rec.model.is_none() {
+        for line in kara_inference::source::remote_options().lines() {
+            row("", line.trim());
+        }
     }
 
     println!("\n{}", style("Repository").bold());

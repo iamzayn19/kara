@@ -1,20 +1,25 @@
-//! Model layer.
+//! Inference for Kara.
 //!
-//! The agent talks to models only through [`ModelProvider`]. Implementations:
+//! Kara Core (agent, tools, context, permissions) talks to models only through
+//! [`InferenceProvider`]; where inference runs is irrelevant to it. This crate
+//! owns everything that is specific to inference:
 //!
-//! * [`openai::OpenAiCompatProvider`]: any OpenAI-compatible chat completions
-//!   endpoint. This covers Kara's managed llama.cpp server, Ollama,
-//!   LM Studio, vLLM and others.
-//! * [`scripted::ScriptedProvider`]: deterministic replay for tests, CI and
-//!   offline evaluation of the agent loop.
-//!
-//! Nothing here is specific to one model family.
+//! * [`source`]: resolves the configured source into an [`source::InferenceSession`],
+//!   or into "no inference available" with guidance. Hardware-adaptive.
+//! * [`openai::OpenAiCompatProvider`]: any OpenAI-compatible endpoint (Ollama,
+//!   LM Studio, vLLM, a llama.cpp server, another Kara machine).
+//! * [`remote`]: `kara serve --inference` and `kara connect`, to use compute
+//!   on another machine you own.
+//! * [`local`]: the optional local backend: hardware detection, the model
+//!   registry, verified downloads and the llama.cpp runtime. Nothing outside
+//!   this crate depends on it directly.
+//! * [`scripted::ScriptedProvider`]: deterministic replay for tests and CI.
 
-pub mod hardware;
+pub mod local;
 pub mod openai;
-pub mod recommend;
-pub mod registry;
+pub mod remote;
 pub mod scripted;
+pub mod source;
 pub mod toolparse;
 
 use kara_protocol::TokenUsage;
@@ -145,7 +150,7 @@ pub struct ProviderInfo {
 pub type EventSink<'a> = &'a (dyn Fn(StreamEvent) + Send + Sync);
 
 #[async_trait::async_trait]
-pub trait ModelProvider: Send + Sync {
+pub trait InferenceProvider: Send + Sync {
     fn info(&self) -> ProviderInfo;
     async fn chat(
         &self,

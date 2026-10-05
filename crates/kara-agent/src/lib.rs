@@ -1,6 +1,6 @@
 //! The Kara agent.
 //!
-//! [`Agent`] runs the engineering loop over a [`kara_model::ModelProvider`]
+//! [`Agent`] runs the engineering loop over a [`kara_inference::InferenceProvider`]
 //! and the structured tools from `kara-tools`, enforcing the permission
 //! policy from `kara-core`. Front ends (terminal UI, VS Code bridge) observe
 //! [`kara_protocol::AgentEvent`]s and answer permission requests through an

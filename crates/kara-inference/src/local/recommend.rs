@@ -11,8 +11,8 @@
 //! The context length is reduced (down to `min_context`) before rejecting a
 //! model. Disk space is checked separately and reported.
 
-use crate::hardware::{format_bytes, HardwareInfo};
-use crate::registry::{ModelSpec, Registry};
+use crate::local::hardware::{format_bytes, HardwareInfo};
+use crate::local::registry::{ModelSpec, Registry};
 use serde::Serialize;
 
 pub const PERMITTED_LICENSES: &[&str] = &["Apache-2.0", "MIT", "BSD-3-Clause"];
@@ -209,7 +209,7 @@ pub fn recommend(registry: &Registry, hw: &HardwareInfo) -> Recommendation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hardware::Gpu;
+    use crate::local::hardware::Gpu;
 
     fn mac(gb: u64) -> HardwareInfo {
         HardwareInfo {

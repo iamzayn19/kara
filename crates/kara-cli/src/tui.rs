@@ -2,14 +2,15 @@
 
 use crate::app::{App, Options};
 use crate::commands::{self, Action};
-use crate::models::{self, Consent, ModelRuntime};
+use crate::models::{self, TerminalUi};
 use crate::render::Renderer;
 use console::style;
 use kara_agent::approver::{ApproveOrdinary, Approver, DenyAll};
 use kara_agent::session::TurnRecord;
 use kara_agent::{Agent, TurnResult};
 use kara_core::permissions::PermissionPolicy;
-use kara_model::{ChatRequest, ChatResponse, EventSink, ModelProvider, ProviderInfo};
+use kara_inference::source::{Consent, InferenceSession, SetupUi, SilentUi};
+use kara_inference::{ChatRequest, ChatResponse, EventSink, InferenceProvider, ProviderInfo};
 use kara_protocol::{AgentMode, PermissionDecision, PermissionRequest};
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
@@ -25,7 +26,7 @@ use tokio_util::sync::CancellationToken;
 pub struct NoModel(pub String);
 
 #[async_trait::async_trait]
-impl ModelProvider for NoModel {
+impl InferenceProvider for NoModel {
     fn info(&self) -> ProviderInfo {
         ProviderInfo {
             provider: "none".into(),
@@ -120,7 +121,7 @@ fn prompt_permission(r: &PermissionRequest) -> PermissionDecision {
 
 pub struct Session {
     pub app: App,
-    pub runtime: ModelRuntime,
+    pub inference: InferenceSession,
     pub agent: Agent,
     pub session_id: String,
     pub renderer: Renderer,
@@ -149,7 +150,7 @@ impl Session {
     }
 
     pub fn model_label(&self) -> String {
-        self.runtime.label.clone()
+        self.inference.label.clone()
     }
 
     /// Run one turn with Ctrl-C cancellation.
@@ -191,10 +192,10 @@ impl Session {
         result
     }
 
-    pub fn set_runtime(&mut self, rt: &tokio::runtime::Runtime, new: ModelRuntime) {
-        let mut old = std::mem::replace(&mut self.runtime, new);
+    pub fn set_inference(&mut self, rt: &tokio::runtime::Runtime, new: InferenceSession) {
+        let mut old = std::mem::replace(&mut self.inference, new);
         rt.block_on(old.shutdown());
-        let provider: Arc<dyn ModelProvider> = match &self.runtime.provider {
+        let provider: Arc<dyn InferenceProvider> = match &self.inference.provider {
             Some(p) => p.clone(),
             None => Arc::new(NoModel(no_model_message())),
         };
@@ -203,7 +204,11 @@ impl Session {
 }
 
 pub fn no_model_message() -> String {
-    "No model is running. Use /model auto to pick and download one for this machine, /models to see options, or configure Ollama/LM Studio in ~/.kara/config.toml.".into()
+    format!(
+        "No inference is configured yet. Everything else (search, /matrix, /diff, /test, /undo, ...) works.\n\
+         Use /model auto to set up a local model if this machine can run one, or:\n{}",
+        kara_inference::source::remote_options()
+    )
 }
 
 fn build_session(
@@ -221,16 +226,21 @@ fn build_session(
     let mut renderer = renderer;
     renderer.show_reasoning |= app.config.agent.show_reasoning;
     let indexing = app.refresh_index_in_background();
-    let runtime = match rt.block_on(models::start_runtime(&app, consent, None)) {
+    let ui: Box<dyn SetupUi> = if consent == Consent::Ask {
+        Box::new(TerminalUi::default())
+    } else {
+        Box::new(SilentUi)
+    };
+    let runtime = match rt.block_on(models::start_inference(&app, consent, None, ui.as_ref())) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("{} {e:#}", style("model:").yellow());
-            ModelRuntime::none("no model")
+            InferenceSession::none(format!("{e:#}"))
         }
     };
     let (session_id, resumed) = app.open_session(resume, &runtime.label)?;
     let ctx = app.tool_context(&session_id)?;
-    let provider: Arc<dyn ModelProvider> = match &runtime.provider {
+    let provider: Arc<dyn InferenceProvider> = match &runtime.provider {
         Some(p) => p.clone(),
         None => Arc::new(NoModel(no_model_message())),
     };
@@ -251,7 +261,7 @@ fn build_session(
     let _ = indexing; // keeps running; the agent refreshes again before each turn
     Ok(Session {
         app,
-        runtime,
+        inference: runtime,
         agent,
         session_id,
         renderer,
@@ -264,17 +274,17 @@ fn banner(s: &Session) {
         "{} {}",
         style("Kara").bold().cyan(),
         style(format!(
-            "{} · Your code. Your machine. Your AI.",
+            "{} · Kara runs on your machine. Intelligence runs wherever your compute is.",
             kara_core::VERSION
         ))
         .dim()
     );
-    let model = if s.runtime.provider.is_some() {
+    let model = if s.inference.provider.is_some() {
         s.model_label()
     } else {
-        style("none (try /model auto)").yellow().to_string()
+        style("none yet (see below)").yellow().to_string()
     };
-    println!("{:<13}{}", "Local model:", model);
+    println!("{:<13}{}", "Inference:", model);
     let git = if kara_context::git::is_repo(&app.root) {
         let dirty = kara_context::git::dirty_paths(&app.root).len();
         format!(
@@ -387,6 +397,14 @@ pub fn interactive(
         renderer,
     )?;
     banner(&session);
+    if !session.inference.is_available() {
+        let g = session
+            .inference
+            .guidance
+            .clone()
+            .unwrap_or_else(no_model_message);
+        println!("{}\n", style(g).yellow());
+    }
 
     let mut rl: Editor<KaraHelper, rustyline::history::FileHistory> = Editor::new()?;
     rl.set_helper(Some(KaraHelper {
@@ -432,14 +450,14 @@ pub fn interactive(
             session.approve(rt);
             continue;
         }
-        if session.runtime.provider.is_none() {
+        if session.inference.provider.is_none() {
             println!("{}", style(no_model_message()).yellow());
             continue;
         }
         session.turn(rt, input, AgentMode::Execute);
         println!();
     }
-    rt.block_on(session.runtime.shutdown());
+    rt.block_on(session.inference.shutdown());
     Ok(0)
 }
 
@@ -461,8 +479,15 @@ pub fn run_once(
     };
     let renderer = Renderer::new(false, json);
     let mut session = build_session(rt, opts, false, Consent::Never, approver, renderer)?;
-    if session.runtime.provider.is_none() {
-        anyhow::bail!("{}", no_model_message());
+    if session.inference.provider.is_none() {
+        anyhow::bail!(
+            "{}",
+            session
+                .inference
+                .guidance
+                .clone()
+                .unwrap_or_else(no_model_message)
+        );
     }
     let task = if prompt.trim().is_empty() {
         "Review my current diff."
@@ -470,7 +495,7 @@ pub fn run_once(
         prompt
     };
     let r = session.turn(rt, task, mode);
-    rt.block_on(session.runtime.shutdown());
+    rt.block_on(session.inference.shutdown());
     Ok(match r.outcome {
         kara_protocol::TurnOutcome::Completed | kara_protocol::TurnOutcome::AwaitingApproval => 0,
         _ => 1,

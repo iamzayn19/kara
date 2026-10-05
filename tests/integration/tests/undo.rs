@@ -3,8 +3,8 @@
 
 use kara_agent::approver::DenyAll;
 use kara_core::permissions::Mode;
+use kara_inference::scripted::{call, text, ScriptedProvider};
 use kara_integration_tests::*;
-use kara_model::scripted::{call, text, ScriptedProvider};
 use kara_protocol::AgentMode;
 use serde_json::json;
 use std::sync::Arc;

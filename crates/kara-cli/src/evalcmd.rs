@@ -1,10 +1,11 @@
 //! `kara eval`: run the agent evaluation suite against a model.
 
 use crate::app::{App, Options};
-use crate::models::{self, Consent};
+use crate::models::{self, TerminalUi};
 use clap::Args;
 use console::style;
 use kara_agent::eval::{self, EvalReport};
+use kara_inference::source::Consent;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -79,23 +80,30 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
         } else {
             Consent::Ask
         };
-        let r = rt.block_on(models::start_runtime(&app, consent, args.model.as_deref()))?;
+        let ui = TerminalUi::default();
+        let r = rt.block_on(models::start_inference(
+            &app,
+            consent,
+            args.model.as_deref(),
+            &ui,
+        ))?;
         if r.provider.is_none() {
-            anyhow::bail!("no model available to evaluate");
+            anyhow::bail!(
+                "no inference available to evaluate.\n{}",
+                r.guidance.clone().unwrap_or_default()
+            );
         }
+        let provider_label = r.kind.as_str().to_string();
         let name = r
-            .spec
+            .local_model
             .as_ref()
             .map(|s| format!("{} {}", s.name, s.quantization))
             .unwrap_or_else(|| r.label.clone());
         runtime = Some(r);
-        (name, "llama.cpp".to_string())
+        (name, provider_label)
     };
 
-    let server_pid = runtime
-        .as_ref()
-        .and_then(|r| r.server.as_ref())
-        .and_then(|s| s.pid());
+    let server_pid = runtime.as_ref().and_then(|r| r.runtime_pid());
     let sampler: Option<Arc<dyn Fn() -> Option<u64> + Send + Sync>> = server_pid.map(|pid| {
         let f: Arc<dyn Fn() -> Option<u64> + Send + Sync> = Arc::new(move || {
             let mut sys = sysinfo::System::new();
@@ -141,7 +149,7 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
         print!("  {:<28} ", t.id);
         use std::io::Write;
         let _ = std::io::stdout().flush();
-        let provider: Arc<dyn kara_model::ModelProvider> = if args.oracle {
+        let provider: Arc<dyn kara_inference::InferenceProvider> = if args.oracle {
             Arc::new(eval::oracle_provider(t)?)
         } else {
             runtime

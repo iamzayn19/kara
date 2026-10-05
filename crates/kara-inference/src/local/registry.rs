@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-pub const BUILTIN_REGISTRY: &str = include_str!("../../../models/registry.toml");
+pub const BUILTIN_REGISTRY: &str = include_str!("../../../../models/registry.toml");
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -5,7 +5,7 @@
 //! assert on what the agent sent (tool results, working memory, warnings).
 
 use crate::{
-    ChatRequest, ChatResponse, EventSink, ModelProvider, ProviderInfo, StreamEvent, ToolCall,
+    ChatRequest, ChatResponse, EventSink, InferenceProvider, ProviderInfo, StreamEvent, ToolCall,
 };
 use kara_protocol::TokenUsage;
 use serde::Deserialize;
@@ -117,7 +117,7 @@ impl ScriptedProvider {
 }
 
 #[async_trait::async_trait]
-impl ModelProvider for ScriptedProvider {
+impl InferenceProvider for ScriptedProvider {
     fn info(&self) -> ProviderInfo {
         ProviderInfo {
             provider: self.name.clone(),

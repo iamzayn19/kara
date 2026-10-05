@@ -7,6 +7,7 @@ mod evalcmd;
 mod models;
 mod render;
 mod serve;
+mod share;
 mod tui;
 
 use clap::{Parser, Subcommand};
@@ -71,10 +72,25 @@ enum Command {
     /// List recent sessions.
     Sessions,
     /// Speak JSON-RPC over stdio (used by the VS Code extension).
+    /// Serve an editor over stdio, or share this machine's inference.
     Serve {
-        /// Required: communicate over stdin/stdout. No network port is opened.
-        #[arg(long)]
+        /// Speak JSON-RPC over stdin/stdout (used by editors; no port is opened).
+        #[arg(long, conflicts_with = "inference")]
         stdio: bool,
+        /// Share this machine's inference with your other Kara machines.
+        #[arg(long)]
+        inference: bool,
+        /// Address for --inference (default 127.0.0.1:7878).
+        #[arg(long, requires = "inference")]
+        listen: Option<String>,
+    },
+    /// Use inference from another Kara machine you own.
+    Connect {
+        /// URL or host of the machine running `kara serve --inference`.
+        url: String,
+        /// Token printed by that machine (or KARA_REMOTE_TOKEN).
+        #[arg(long)]
+        token: Option<String>,
     },
     /// Show or initialize configuration.
     Config {
@@ -131,14 +147,14 @@ fn install_signal_handlers(rt: &tokio::runtime::Runtime) {
             _ = term.recv() => {}
             _ = hup.recv() => {}
         }
-        kara_runtime::server::kill_all_started();
+        kara_inference::local::stop_all_runtimes();
         std::process::exit(143);
     });
     #[cfg(windows)]
     rt.spawn(async {
         if let Ok(mut close) = tokio::signal::windows::ctrl_close() {
             close.recv().await;
-            kara_runtime::server::kill_all_started();
+            kara_inference::local::stop_all_runtimes();
             std::process::exit(1);
         }
     });
@@ -173,12 +189,20 @@ fn run(cli: Cli, rt: &tokio::runtime::Runtime) -> anyhow::Result<i32> {
         Some(Command::Eval(args)) => evalcmd::run(rt, &opts, args),
         Some(Command::Undo) => tui::undo_cli(&opts),
         Some(Command::Sessions) => tui::sessions_cli(&opts),
-        Some(Command::Serve { stdio }) => {
-            if !stdio {
-                anyhow::bail!("only `kara serve --stdio` is supported; Kara never opens a network port for editors");
+        Some(Command::Serve {
+            stdio,
+            inference,
+            listen,
+        }) => {
+            if inference {
+                share::serve_inference(rt, &opts, listen)
+            } else if stdio {
+                serve::serve_stdio(rt, &opts)
+            } else {
+                anyhow::bail!("use `kara serve --stdio` (editors) or `kara serve --inference` (share inference)")
             }
-            serve::serve_stdio(rt, &opts)
         }
+        Some(Command::Connect { url, token }) => share::connect(rt, &url, token),
         Some(Command::Config { action }) => {
             let paths = kara_core::KaraPaths::discover()?;
             match action.unwrap_or(ConfigCmd::Show) {

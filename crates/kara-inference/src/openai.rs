@@ -6,8 +6,8 @@
 
 use crate::toolparse::{extract_text_tool_calls, split_thinking};
 use crate::{
-    ChatRequest, ChatResponse, EventSink, Message, ModelProvider, ProviderInfo, Role, StreamEvent,
-    ToolCall,
+    ChatRequest, ChatResponse, EventSink, InferenceProvider, Message, ProviderInfo, Role,
+    StreamEvent, ToolCall,
 };
 use futures_util::StreamExt;
 use kara_protocol::TokenUsage;
@@ -145,7 +145,7 @@ struct PartialCall {
 }
 
 #[async_trait::async_trait]
-impl ModelProvider for OpenAiCompatProvider {
+impl InferenceProvider for OpenAiCompatProvider {
     fn info(&self) -> ProviderInfo {
         ProviderInfo {
             provider: self.provider_label.clone(),

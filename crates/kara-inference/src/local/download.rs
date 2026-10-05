@@ -102,7 +102,7 @@ pub async fn download_verified(
 
     let mut req = client
         .get(url)
-        .header(reqwest::header::USER_AGENT, crate::USER_AGENT);
+        .header(reqwest::header::USER_AGENT, crate::local::USER_AGENT);
     if have > 0 {
         req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
     }

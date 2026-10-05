@@ -47,7 +47,7 @@ pub struct App {
     pub index: Arc<RepoIndex>,
     pub profile: ProjectProfile,
     pub sessions: SessionStore,
-    pub models: kara_model::registry::Registry,
+    pub models: kara_inference::local::registry::Registry,
 }
 
 impl App {
@@ -80,7 +80,7 @@ impl App {
         )?);
         let profile = ProjectProfile::detect(&root, &registry);
         let sessions = SessionStore::open(&paths.database())?;
-        let models = kara_model::registry::Registry::load(&paths.user_models_file())?;
+        let models = kara_inference::local::registry::Registry::load(&paths.user_models_file())?;
         Ok(App {
             paths,
             config,

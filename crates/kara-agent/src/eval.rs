@@ -13,8 +13,8 @@ use crate::agent::{Agent, AgentSettings, TurnResult};
 use crate::approver::ApproveOrdinary;
 use kara_context::{LanguageRegistry, ProjectProfile, RepoIndex};
 use kara_core::permissions::{Mode, PermissionPolicy};
-use kara_model::scripted::{call, text, ScriptedProvider};
-use kara_model::ModelProvider;
+use kara_inference::scripted::{call, text, ScriptedProvider};
+use kara_inference::InferenceProvider;
 use kara_protocol::{AgentMode, TurnOutcome};
 use kara_sandbox::Workspace;
 use kara_tools::{Journal, ToolContext};
@@ -243,10 +243,10 @@ pub fn oracle_provider(task: &EvalTask) -> anyhow::Result<ScriptedProvider> {
 }
 
 /// Run one task with `provider`. `sample_memory` is polled during the run to
-/// record peak runtime memory (e.g. of llama-server).
+/// record peak memory of the inference backend, when it runs locally.
 pub async fn run_task(
     task: &EvalTask,
-    provider: Arc<dyn ModelProvider>,
+    provider: Arc<dyn InferenceProvider>,
     settings: AgentSettings,
     sample_memory: Option<Arc<dyn Fn() -> Option<u64> + Send + Sync>>,
     time_limit: Option<std::time::Duration>,

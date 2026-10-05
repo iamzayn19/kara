@@ -64,7 +64,7 @@ test("serve --stdio protocol round trip", { skip: !bin }, async () => {
     await assert.rejects(client.request("no/such/method"), /unknown method/);
 
     if (!info.model.available) {
-      await assert.rejects(client.request("session/prompt", { text: "hi" }), /No model is running/);
+      await assert.rejects(client.request("session/prompt", { text: "hi" }), /kara connect/);
     }
   } finally {
     proc.kill();

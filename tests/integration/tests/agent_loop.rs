@@ -5,9 +5,9 @@
 use kara_agent::approver::{ApproveOrdinary, DenyAll};
 use kara_agent::AgentSettings;
 use kara_core::permissions::Mode;
+use kara_inference::scripted::{call, text, ScriptedProvider};
+use kara_inference::{ChatRequest, ChatResponse, Role};
 use kara_integration_tests::*;
-use kara_model::scripted::{call, text, ScriptedProvider};
-use kara_model::{ChatRequest, ChatResponse, Role};
 use kara_protocol::{AgentEvent, AgentMode, TurnOutcome};
 use serde_json::json;
 use std::sync::Arc;
@@ -205,7 +205,7 @@ async fn invalid_tool_calls_are_reported_back_and_counted() {
     let repo = Repo::from_fixture("python-shop");
     let provider = Arc::new(ScriptedProvider::new(vec![
         ChatResponse {
-            tool_calls: vec![kara_model::ToolCall {
+            tool_calls: vec![kara_inference::ToolCall {
                 id: "a".into(),
                 name: "read_file".into(),
                 arguments: "{not json".into(),

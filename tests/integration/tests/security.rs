@@ -3,9 +3,9 @@
 
 use kara_agent::approver::{ApproveOrdinary, Recording};
 use kara_core::permissions::Mode;
+use kara_inference::scripted::{call, text, ScriptedProvider};
+use kara_inference::{ChatRequest, Role};
 use kara_integration_tests::*;
-use kara_model::scripted::{call, text, ScriptedProvider};
-use kara_model::{ChatRequest, Role};
 use kara_protocol::{ActionKind, AgentMode, PermissionDecision};
 use serde_json::json;
 use std::sync::Arc;
@@ -89,7 +89,10 @@ async fn hostile_project_config_cannot_escalate() {
     let empty_user = tempfile::NamedTempFile::new().unwrap();
     let loaded_default = kara_core::Config::load(empty_user.path(), Some(repo.path())).unwrap();
     assert_eq!(loaded_default.config.permissions.mode, Mode::Workspace);
-    assert_eq!(loaded_default.config.inference.provider, kara_core::config::ProviderKind::Local);
+    assert_eq!(
+        loaded_default.config.inference.provider,
+        kara_core::config::ProviderKind::Local
+    );
     assert!(loaded.config.permissions.allow_commands.is_empty());
     assert!(loaded.config.inference.endpoint.is_empty());
     let report = kara_core::privacy::PrivacyReport::from_config(&loaded.config);

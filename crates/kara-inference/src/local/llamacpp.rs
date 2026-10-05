@@ -8,14 +8,14 @@
 //! Installs use the pinned release in `models/runtimes.toml`, chosen for the
 //! detected OS, CPU architecture and accelerator, verified by SHA-256.
 
-use crate::archive;
-use crate::download::{download_verified, Progress};
-use kara_model::hardware::HardwareInfo;
+use crate::local::archive;
+use crate::local::download::{download_verified, Progress};
+use crate::local::hardware::HardwareInfo;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio_util::sync::CancellationToken;
 
-pub const RUNTIME_MANIFEST: &str = include_str!("../../../models/runtimes.toml");
+pub const RUNTIME_MANIFEST: &str = include_str!("../../../../models/runtimes.toml");
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Asset {

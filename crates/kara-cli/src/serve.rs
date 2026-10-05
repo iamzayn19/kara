@@ -7,17 +7,15 @@
 //! Diagnostics go to stderr, which the extension shows in its output channel.
 
 use crate::app::{App, Options};
-use crate::models::{self, Consent, ModelRuntime};
+use crate::models;
 use crate::tui::{no_model_message, NoModel};
 use kara_agent::approver::Approver;
 use kara_agent::Agent;
 use kara_core::permissions::{Mode, PermissionPolicy};
-use kara_model::hardware::HardwareInfo;
-use kara_model::recommend::recommend;
-use kara_model::ModelProvider;
+use kara_inference::source::{Consent, InferenceSession, SetupUi};
+use kara_inference::InferenceProvider;
 use kara_protocol::jsonrpc::{codes, methods, Message, RpcError};
 use kara_protocol::{AgentMode, PermissionDecision, PermissionRequest, PROTOCOL_VERSION};
-use kara_runtime::store::ModelStore;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -87,7 +85,7 @@ impl Approver for RpcApprover {
 
 struct ServeSession {
     app: App,
-    runtime: ModelRuntime,
+    inference: InferenceSession,
     agent: Agent,
     session_id: String,
 }
@@ -107,13 +105,56 @@ fn internal(e: impl std::fmt::Display) -> RpcError {
     RpcError::new(codes::INTERNAL_ERROR, format!("{e:#}"))
 }
 
-fn runtime_json(r: &ModelRuntime) -> Value {
+fn runtime_json(r: &InferenceSession) -> Value {
     json!({
         "available": r.provider.is_some(),
         "label": r.label,
-        "id": r.spec.as_ref().map(|s| s.id.clone()),
+        "provider": r.kind.as_str(),
+        "id": r.local_model.as_ref().map(|s| s.id.clone()),
         "context": r.context,
+        "guidance": r.guidance,
     })
+}
+
+/// Reports setup progress to the editor as `log` notifications. Consent is
+/// decided by the editor before the request (never asked over stdio).
+struct RpcUi {
+    peer: Peer,
+}
+
+impl SetupUi for RpcUi {
+    fn confirm_model_download(&self, _: &kara_inference::source::DownloadOffer) -> bool {
+        false
+    }
+    fn confirm_runtime_install(&self, _: &kara_inference::source::RuntimeOffer) -> bool {
+        false
+    }
+    fn progress(&self, label: &str, done: u64, total: Option<u64>) {
+        let pct = total
+            .filter(|t| *t > 0)
+            .map(|t| format!(" ({:.0}%)", done as f64 * 100.0 / t as f64))
+            .unwrap_or_default();
+        self.peer.notify(
+            methods::LOG,
+            json!({"level": "progress", "message": format!("{label}: {done} bytes{pct}"), "label": label, "done": done, "total": total}),
+        );
+    }
+    fn progress_done(&self, label: &str, ok: bool) {
+        self.peer.log(
+            if ok { "info" } else { "error" },
+            format!(
+                "{label}: {}",
+                if ok {
+                    "done (sha256 verified)"
+                } else {
+                    "failed"
+                }
+            ),
+        );
+    }
+    fn notice(&self, message: &str) {
+        self.peer.log("info", message.to_string());
+    }
 }
 
 impl Server {
@@ -152,7 +193,7 @@ impl Server {
             }
             methods::SHUTDOWN => {
                 if let Some(s) = self.session.lock().await.as_mut() {
-                    s.runtime.shutdown().await;
+                    s.inference.shutdown().await;
                 }
                 self.peer.respond(id, Ok(json!(null)));
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -186,13 +227,19 @@ impl Server {
         }
         let _ = app.refresh_index_in_background();
         // Never download without explicit consent from the editor UI.
-        let runtime = match models::start_runtime(&app, Consent::Never, None).await {
+        let ui = RpcUi {
+            peer: self.peer.clone(),
+        };
+        let runtime = match models::start_inference(&app, Consent::Never, None, &ui).await {
             Ok(r) => r,
             Err(e) => {
                 self.peer.log("warning", format!("{e:#}"));
-                ModelRuntime::none(&format!("{e:#}"))
+                InferenceSession::none(format!("{e:#}"))
             }
         };
+        if let Some(g) = &runtime.guidance {
+            self.peer.log("info", g.clone());
+        }
         let session_id = app
             .sessions
             .create(&app.root, &runtime.label)
@@ -209,11 +256,11 @@ impl Server {
         });
         let mut guard = self.session.lock().await;
         if let Some(old) = guard.as_mut() {
-            old.runtime.shutdown().await;
+            old.inference.shutdown().await;
         }
         *guard = Some(ServeSession {
             app,
-            runtime,
+            inference: runtime,
             agent,
             session_id,
         });
@@ -223,11 +270,11 @@ impl Server {
     fn build_agent(
         &self,
         app: &App,
-        runtime: &ModelRuntime,
+        runtime: &InferenceSession,
         session_id: &str,
     ) -> Result<Agent, RpcError> {
         let ctx = app.tool_context(session_id).map_err(internal)?;
-        let provider: Arc<dyn ModelProvider> = match &runtime.provider {
+        let provider: Arc<dyn InferenceProvider> = match &runtime.provider {
             Some(p) => p.clone(),
             None => Arc::new(NoModel(no_model_message())),
         };
@@ -280,8 +327,14 @@ impl Server {
         let s = guard
             .as_mut()
             .ok_or_else(|| invalid("call initialize first"))?;
-        if s.runtime.provider.is_none() {
-            return Err(RpcError::new(codes::MODEL_UNAVAILABLE, no_model_message()));
+        if s.inference.provider.is_none() {
+            return Err(RpcError::new(
+                codes::MODEL_UNAVAILABLE,
+                s.inference
+                    .guidance
+                    .clone()
+                    .unwrap_or_else(no_model_message),
+            ));
         }
         let token = CancellationToken::new();
         s.agent.ctx.cancel = token.clone();
@@ -331,7 +384,7 @@ impl Server {
         Ok(json!({
             "workspace": s.app.root,
             "session": s.session_id,
-            "model": runtime_json(&s.runtime),
+            "model": runtime_json(&s.inference),
             "permissionsMode": s.agent.policy.mode.as_str(),
             "pendingPlan": s.agent.pending_plan().map(|(t, p)| json!({"task": t, "plan": p})),
             "task": s.agent.state.task,
@@ -409,9 +462,9 @@ impl Server {
         let id = s
             .app
             .sessions
-            .create(&s.app.root, &s.runtime.label)
+            .create(&s.app.root, &s.inference.label)
             .map_err(internal)?;
-        let agent = self.build_agent(&s.app, &s.runtime, &id)?;
+        let agent = self.build_agent(&s.app, &s.inference, &id)?;
         s.agent = agent;
         s.session_id = id.clone();
         Ok(json!({"session": id}))
@@ -477,7 +530,7 @@ impl Server {
                     "repository": stats,
                     "filesRead": s.agent.state.files_read,
                     "filesChanged": s.agent.state.files_changed,
-                    "model": runtime_json(&s.runtime),
+                    "model": runtime_json(&s.inference),
                     "context": {"historyTokens": s.agent.history_tokens(), "window": s.agent.settings.context_window},
                     "tools": tools,
                     "task": s.agent.state.task,
@@ -492,50 +545,61 @@ impl Server {
     }
 
     async fn doctor(&self) -> Result<Value, RpcError> {
-        let paths = kara_core::KaraPaths::discover().map_err(internal)?;
-        let models_dir = paths.models_dir();
-        let hw = tokio::task::spawn_blocking(move || HardwareInfo::detect(&models_dir))
-            .await
-            .map_err(internal)?;
-        let registry =
-            kara_model::registry::Registry::load(&paths.user_models_file()).map_err(internal)?;
-        let rec = recommend(&registry, &hw);
-        let mgr = kara_runtime::llamacpp::LlamaCppManager::new(&paths.runtimes_dir());
-        Ok(json!({
-            "hardware": hw,
-            "budget": hw.fast_memory_budget(),
-            "recommendation": rec,
-            "llamaCpp": mgr.locate("").map(|l| l.describe()),
-        }))
-    }
-
-    async fn models(&self) -> Result<Value, RpcError> {
-        let paths = kara_core::KaraPaths::discover().map_err(internal)?;
-        let models_dir = paths.models_dir();
-        let hw = tokio::task::spawn_blocking({
-            let d = models_dir.clone();
-            move || HardwareInfo::detect(&d)
+        let (config, paths, registry) = self.local_context().await?;
+        let status = tokio::task::spawn_blocking(move || {
+            kara_inference::local::status(&config, &paths, &registry)
         })
         .await
         .map_err(internal)?;
-        let registry =
-            kara_model::registry::Registry::load(&paths.user_models_file()).map_err(internal)?;
-        let rec = recommend(&registry, &hw);
-        let store = ModelStore::new(&models_dir);
-        let list: Vec<Value> = registry
-            .models
+        Ok(json!({
+            "hardware": status.hardware,
+            "budget": status.memory_budget,
+            "recommendation": status.recommendation,
+            "localRuntime": status.runtime,
+            "guidance": status.recommendation.model.is_none().then(kara_inference::source::remote_options),
+        }))
+    }
+
+    async fn local_context(
+        &self,
+    ) -> Result<
+        (
+            kara_core::Config,
+            kara_core::KaraPaths,
+            kara_inference::local::registry::Registry,
+        ),
+        RpcError,
+    > {
+        let guard = self.session.lock().await;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        Ok((
+            s.app.config.clone(),
+            s.app.paths.clone(),
+            s.app.models.clone(),
+        ))
+    }
+
+    async fn models(&self) -> Result<Value, RpcError> {
+        let (_, paths, registry) = self.local_context().await?;
+        let (entries, summary) =
+            tokio::task::spawn_blocking(move || kara_inference::local::catalog(&paths, &registry))
+                .await
+                .map_err(internal)?;
+        let list: Vec<Value> = entries
             .iter()
-            .map(|m| {
-                let c = rec.candidates.iter().find(|c| c.id == m.id);
+            .map(|e| {
+                let m = &e.spec;
                 json!({
                     "id": m.id, "name": m.name, "quantization": m.quantization, "sizeBytes": m.size_bytes,
                     "license": m.license, "source": m.source_url(), "revision": m.revision,
-                    "installed": store.is_installed(m), "fits": c.map(|c| c.fits), "reason": c.map(|c| c.reason.clone()),
-                    "memoryNeeded": c.map(|c| c.memory_needed), "recommended": rec.model.as_ref().map(|r| r.id == m.id).unwrap_or(false),
+                    "installed": e.installed, "fits": e.fits, "reason": e.reason,
+                    "memoryNeeded": e.memory_needed, "recommended": e.recommended,
                 })
             })
             .collect();
-        Ok(json!({"models": list, "summary": rec.summary}))
+        Ok(json!({"models": list, "summary": summary}))
     }
 
     async fn select_model(&self, params: Value) -> Result<Value, RpcError> {
@@ -552,7 +616,7 @@ impl Server {
         let s = guard
             .as_mut()
             .ok_or_else(|| invalid("call initialize first"))?;
-        s.runtime.shutdown().await;
+        s.inference.shutdown().await;
         self.peer.log(
             "info",
             format!(
@@ -569,16 +633,19 @@ impl Server {
         } else {
             Consent::Never
         };
-        let runtime = models::start_runtime(&s.app, consent, Some(&id))
+        let ui = RpcUi {
+            peer: self.peer.clone(),
+        };
+        let runtime = models::start_inference(&s.app, consent, Some(&id), &ui)
             .await
             .map_err(|e| RpcError::new(codes::MODEL_UNAVAILABLE, format!("{e:#}")))?;
-        let provider: Arc<dyn ModelProvider> = match &runtime.provider {
+        let provider: Arc<dyn InferenceProvider> = match &runtime.provider {
             Some(p) => p.clone(),
             None => Arc::new(NoModel(no_model_message())),
         };
         s.agent.set_provider(provider);
         let reply = runtime_json(&runtime);
-        s.runtime = runtime;
+        s.inference = runtime;
         Ok(reply)
     }
 }
@@ -672,7 +739,7 @@ pub fn serve_stdio(rt: &tokio::runtime::Runtime, opts: &Options) -> anyhow::Resu
         }
         // stdin closed: the editor went away. Stop the model runtime.
         if let Some(s) = server.session.lock().await.as_mut() {
-            s.runtime.shutdown().await;
+            s.inference.shutdown().await;
         }
         drop(peer);
         drop(server);

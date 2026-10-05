@@ -204,7 +204,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = SessionStore::open(&dir.path().join("kara.db")).unwrap();
         let ws = dir.path().join("repo");
-        let id = store.create(&ws, "qwen").unwrap();
+        let id = store.create(&ws, "test-model").unwrap();
         assert_eq!(store.latest_for(&ws).unwrap().as_deref(), Some(id.as_str()));
         store
             .record_turn(

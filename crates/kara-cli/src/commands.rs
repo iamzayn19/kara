@@ -1,11 +1,12 @@
 //! Slash commands. Natural language is the primary interface; these are
 //! shortcuts and controls.
 
-use crate::models::{self, Consent};
+use crate::models::{self, TerminalUi};
 use crate::render::colorize_diff;
 use crate::tui::Session;
 use console::style;
 use kara_core::permissions::{Mode, PolicyDecision};
+use kara_inference::source::{Consent, InferenceSession};
 use kara_protocol::AgentMode;
 use kara_tools::{Tool, UndoReport};
 use serde_json::json;
@@ -97,7 +98,7 @@ pub fn handle(
                     }
                     None => println!("Usage: {cmd} <task>. Kara investigates and proposes a plan; nothing changes until you /approve."),
                 }
-            } else if s.runtime.provider.is_none() {
+            } else if s.inference.provider.is_none() {
                 println!("{}", style(crate::tui::no_model_message()).yellow());
             } else {
                 println!(
@@ -115,7 +116,7 @@ pub fn handle(
             }
         }
         "/review" | "/oracle" => {
-            if s.runtime.provider.is_none() {
+            if s.inference.provider.is_none() {
                 println!("{}", style(crate::tui::no_model_message()).yellow());
             } else {
                 let task = if arg.is_empty() {
@@ -189,10 +190,10 @@ pub fn handle(
 
 fn model_cmd(s: &mut Session, rt: &tokio::runtime::Runtime, arg: &str) -> anyhow::Result<()> {
     if arg.is_empty() {
-        header("Model");
-        if s.runtime.provider.is_some() {
+        header("Inference");
+        if s.inference.provider.is_some() {
             println!("  {}", s.model_label());
-            if let Some(spec) = &s.runtime.spec {
+            if let Some(spec) = &s.inference.local_model {
                 println!(
                     "  {} {} ({}), license {}",
                     style("source:").dim(),
@@ -201,37 +202,51 @@ fn model_cmd(s: &mut Session, rt: &tokio::runtime::Runtime, arg: &str) -> anyhow
                     spec.license
                 );
             }
-            if let Some(server) = &s.runtime.server {
+            if let Some(log) = s.inference.runtime_log() {
                 println!(
                     "  {} pid {:?}, log {}",
-                    style("runtime:").dim(),
-                    server.pid(),
-                    crate::app::display_path(&server.log_file)
+                    style("local runtime:").dim(),
+                    s.inference.runtime_pid(),
+                    crate::app::display_path(log)
                 );
             }
         } else {
-            println!("  none. Use /model auto");
+            println!(
+                "  none\n{}",
+                s.inference
+                    .guidance
+                    .clone()
+                    .unwrap_or_else(kara_inference::source::remote_options)
+            );
         }
         return Ok(());
     }
     let requested = if arg == "auto" { "auto" } else { arg };
     println!("{}", style("Starting model…").dim());
     // Stop the current runtime first to free memory for the new one.
-    rt.block_on(s.runtime.shutdown());
-    match rt.block_on(models::start_runtime(&s.app, Consent::Ask, Some(requested))) {
+    rt.block_on(s.inference.shutdown());
+    match rt.block_on(models::start_inference(
+        &s.app,
+        Consent::Ask,
+        Some(requested),
+        &TerminalUi::default(),
+    )) {
         Ok(new) => {
             let label = new.label.clone();
             let has = new.provider.is_some();
-            s.set_runtime(rt, new);
+            s.set_inference(rt, new);
             if has {
                 println!("Now using {label}");
             } else {
-                println!("No model started.");
+                println!(
+                    "No inference started.\n{}",
+                    s.inference.guidance.clone().unwrap_or_default()
+                );
             }
         }
         Err(e) => {
             println!("{} {e:#}", style("could not start model:").red());
-            s.set_runtime(rt, models::ModelRuntime::none("no model"));
+            s.set_inference(rt, InferenceSession::none(format!("{e:#}")));
         }
     }
     Ok(())
@@ -242,7 +257,7 @@ fn status(s: &Session) {
     println!(
         "  {:<13}{}",
         "model",
-        if s.runtime.provider.is_some() {
+        if s.inference.provider.is_some() {
             s.model_label()
         } else {
             "none".into()
@@ -522,7 +537,7 @@ fn matrix(s: &Session) {
     println!(
         "{} {}",
         g("│ model       "),
-        if s.runtime.provider.is_some() {
+        if s.inference.provider.is_some() {
             s.model_label()
         } else {
             "none".into()

@@ -6,8 +6,7 @@ members = [
     "crates/kara-sandbox",
     "crates/kara-context",
     "crates/kara-tools",
-    "crates/kara-model",
-    "crates/kara-runtime",
+    "crates/kara-inference",
     "crates/kara-agent",
     "crates/kara-cli",
     "tests/integration",
@@ -29,12 +28,12 @@ kara-core = { path = "crates/kara-core", version = "0.1.0" }
 kara-sandbox = { path = "crates/kara-sandbox", version = "0.1.0" }
 kara-context = { path = "crates/kara-context", version = "0.1.0" }
 kara-tools = { path = "crates/kara-tools", version = "0.1.0" }
-kara-model = { path = "crates/kara-model", version = "0.1.0" }
-kara-runtime = { path = "crates/kara-runtime", version = "0.1.0" }
+kara-inference = { path = "crates/kara-inference", version = "0.1.0" }
 kara-agent = { path = "crates/kara-agent", version = "0.1.0" }
 
 anyhow = "1"
 async-trait = "0.1"
+axum = { version = "0.7", default-features = false, features = ["http1", "tokio", "json"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 clap = { version = "4", features = ["derive"] }
 console = "0.15"
@@ -45,6 +44,7 @@ globset = "0.4"
 hex = "0.4"
 ignore = "0.4"
 indicatif = "0.17"
+rand = "0.8"
 rayon = "1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream", "http2"] }

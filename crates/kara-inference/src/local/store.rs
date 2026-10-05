@@ -8,8 +8,8 @@
 //! The JSON record keeps provenance: source repository, pinned revision,
 //! license, SHA-256 and download time.
 
-use crate::download::{download_verified, sha256_file, Progress};
-use kara_model::registry::ModelSpec;
+use crate::local::download::{download_verified, sha256_file, Progress};
+use crate::local::registry::ModelSpec;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio_util::sync::CancellationToken;
@@ -65,7 +65,7 @@ impl ModelStore {
 
     /// Bytes already downloaded for an interrupted download.
     pub fn partial_bytes(&self, spec: &ModelSpec) -> u64 {
-        std::fs::metadata(crate::download::part_path(&self.path_for(spec)))
+        std::fs::metadata(crate::local::download::part_path(&self.path_for(spec)))
             .map(|m| m.len())
             .unwrap_or(0)
     }
@@ -140,7 +140,7 @@ impl ModelStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kara_model::registry::Registry;
+    use crate::local::registry::Registry;
 
     #[test]
     fn layout_is_pinned_to_revision() {
