@@ -1,7 +1,7 @@
 //! Model registry: data describing downloadable models.
 //!
 //! The built-in registry is `models/registry.toml`, compiled into the binary.
-//! Users may add or override entries in `~/.kara/models.toml`.
+//! Users may add or override entries in `models.toml` in Kara's config directory.
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;

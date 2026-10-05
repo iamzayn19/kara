@@ -1,6 +1,6 @@
 """Turn opt-in Kara traces into training examples.
 
-Reads ~/.kara/traces/*.jsonl (written only when the user set
+Reads traces/*.jsonl from Kara's data directory (written only when the user set
 privacy.training_data = true), keeps completed turns whose last test passed,
 redacts credentials, drops absolute paths, and writes dataset_schema.json
 records. Standard library only.
@@ -25,6 +25,18 @@ SECRET_PATTERNS = [
     re.compile(r"(\b[a-z][a-z0-9+.-]*://[^/\s:@]+:)[^/\s:@]{4,}(@)"),
 ]
 ABS_PATH = re.compile(r"(?:/Users|/home|C:\\Users)[/\\][^/\\\s\"']+")
+
+
+def kara_data_dir() -> str:
+    """Kara's data directory, matching Kara Core."""
+    if os.environ.get("KARA_HOME"):
+        return os.environ["KARA_HOME"]
+    home = os.path.expanduser("~")
+    if sys.platform == "darwin":
+        return os.path.join(home, "Library", "Application Support", "Kara")
+    if os.name == "nt":
+        return os.path.join(os.environ.get("LOCALAPPDATA", os.path.join(home, "AppData", "Local")), "Kara")
+    return os.path.join(os.environ.get("XDG_DATA_HOME", os.path.join(home, ".local", "share")), "kara")
 
 
 def redact(text: str) -> str:
@@ -71,7 +83,7 @@ def convert(record: dict) -> dict | None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--traces", default=os.path.expanduser("~/.kara/traces"))
+    ap.add_argument("--traces", default=os.path.join(kara_data_dir(), "traces"))
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
     files = sorted(glob.glob(os.path.join(args.traces, "*.jsonl")))

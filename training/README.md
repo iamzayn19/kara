@@ -13,17 +13,17 @@ Training data may only come from:
 - synthetic data whose use for training is permitted,
 - data created by the project owner,
 - Kara traces that a user explicitly opted into (`privacy.training_data = true`
-  in their own `~/.kara/config.toml`).
+  in their own user config, `kara config set privacy.training_data true`).
 
 Never use private code without the owner's explicit permission. Never use
 outputs of proprietary models unless their terms explicitly allow training on
-them. Kara never uploads traces: they stay in `~/.kara/traces/` until you
+them. Kara never uploads traces: they stay in `traces/` in Kara's data directory until you
 move them yourself.
 
 ## Pipeline
 
 ```
-~/.kara/traces/*.jsonl  (opt-in, local)
+<data>/traces/*.jsonl  (opt-in, local)
         │  sanitize_traces.py      redact secrets, drop failures and private paths
         ▼
 dataset/*.jsonl          (schema: dataset_schema.json)

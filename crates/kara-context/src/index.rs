@@ -1,6 +1,6 @@
 //! Incremental repository index stored in SQLite.
 //!
-//! The index lives in `~/.kara/cache/index-<hash of root>.db`, never inside
+//! The index lives in `cache/index-<hash of root>.db` in Kara's data directory, never inside
 //! the repository. On refresh, files whose size and mtime are unchanged are
 //! not re-read; only new or modified files are parsed (in parallel).
 

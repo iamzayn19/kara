@@ -3,7 +3,7 @@
 //! Search order:
 //! 1. `runtime.llama_server_path` from config
 //! 2. `llama-server` on PATH
-//! 3. the Kara-managed install under `~/.kara/runtimes/llama.cpp/<tag>/`
+//! 3. the Kara-managed install under `runtimes/llama.cpp/<tag>/` in Kara's data directory
 //!
 //! Installs use the pinned release in `models/runtimes.toml`, chosen for the
 //! detected OS, CPU architecture and accelerator, verified by SHA-256.

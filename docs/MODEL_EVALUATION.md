@@ -10,7 +10,7 @@ results. **A model is not called "best" here without results to back it.**
 
 1. Copy the fixture into a fresh temporary git repository (applying any
    prerequisite reference solutions listed in `requires`).
-2. Run one agent turn with the task prompt. Profile: autonomous; hard
+2. Run one agent turn with the task prompt. Permission mode: full; hard
    boundaries (secrets, push, destructive, outside workspace) are always
    denied.
 3. Run the task's check command independently of anything the agent

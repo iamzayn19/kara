@@ -31,6 +31,12 @@ needs a green run on GitHub.
 | /morpheus works | ✅ local (scripted) | `plan_mode_is_read_only_and_waits_for_approval`; real-model plan session still to record |
 | /oracle works | ✅ local | scripted test plus real-model review in the dogfood session |
 | Permission boundaries tested | ✅ local | `tests/integration/tests/security.rs`, sandbox unit tests |
+| Kara runs without local inference | ✅ local | fresh `KARA_HOME`: guidance instead of failure, nothing downloaded; `weak_machine_*` tests |
+| Remote Kara inference | ✅ local | `kara serve --inference` + `kara connect` between two Kara homes; wrong token rejected; owner-only token files; real task completed |
+| Core independent of runtimes/accelerators | ✅ | `tests/integration/tests/architecture.rs` |
+| Permission modes ask/workspace/full; full never from repository or workspace config | ✅ local · ⏳ CI (VS Code host test) | `kara-core` tests, `security.rs`, protocol test, extension host test |
+| Installers verify checksums | ✅ local (install.sh, file:// mirror) · ⏳ CI · ❌ install.ps1 untested | `scripts/install.sh` with `KARA_RELEASE_BASE` |
+| Homebrew formula / winget manifests | ✅ generated and syntax-checked · ❌ not published | `packaging/render.py` |
 | Privacy command accurate | ✅ local | derived from effective config; remote endpoints reported |
 | No telemetry exists by default | ✅ | no telemetry code; network uses listed in PRIVACY.md |
 | No proprietary API required | ✅ | local llama.cpp; OpenAI-compatible protocol only |
@@ -39,6 +45,7 @@ needs a green run on GitHub.
 | README commands actually executed | ✅ local | see "README command log" below |
 | No assistant/model attribution appears as author | ✅ | metadata: iamzayn19 only |
 | Full clean-machine installation tested | ❌ | needs a fresh machine or VM, after the first GitHub Release exists |
+| GitHub CI green on Linux, macOS and Windows | ❌ | first push of the public repository |
 
 ## README command log
 

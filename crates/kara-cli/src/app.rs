@@ -144,7 +144,7 @@ impl App {
             max_recovery_attempts: self.config.agent.max_recovery_attempts,
             verify_after_edit: self.config.agent.verify_after_edit,
             repeat_guard: self.config.agent.repeat_guard,
-            temperature: self.config.inference.temperature,
+            temperature: self.config.inference.temperature as f32,
             max_orientation_files: self.config.context.max_orientation_files,
             context_window: context_window.unwrap_or(32768),
             trace_dir: self

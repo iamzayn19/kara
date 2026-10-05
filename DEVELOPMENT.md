@@ -44,7 +44,7 @@ in every CI job. Results go to `tests/evals/results/`. Record summaries in
 
 ## Isolated state
 
-Set `KARA_HOME` to keep experiments away from `~/.kara`:
+Set `KARA_HOME` to keep experiments away from your real Kara config and data:
 
 ```sh
 KARA_HOME=/tmp/kara-dev target/debug/kara doctor

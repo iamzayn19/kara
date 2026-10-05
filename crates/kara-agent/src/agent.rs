@@ -815,7 +815,7 @@ impl Agent {
             PolicyDecision::Deny => {
                 stats.denied += 1;
                 let out = ToolOutput::err(format!(
-                    "denied by the `{}` permission profile ({}). {}",
+                    "denied by the `{}` permission mode ({}). {}",
                     self.policy.mode.as_str(),
                     assessment
                         .kinds

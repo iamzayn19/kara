@@ -1,8 +1,8 @@
 //! Local model store.
 //!
 //! ```text
-//! ~/.kara/models/<owner>__<repo>/<revision[:12]>/<file>.gguf
-//! ~/.kara/models/<owner>__<repo>/<revision[:12]>/kara-model.json
+//! <data>/models/<owner>__<repo>/<revision[:12]>/<file>.gguf
+//! <data>/models/<owner>__<repo>/<revision[:12]>/kara-model.json
 //! ```
 //!
 //! The JSON record keeps provenance: source repository, pinned revision,

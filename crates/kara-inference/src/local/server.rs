@@ -1,7 +1,7 @@
 //! `llama-server` child-process lifecycle.
 //!
 //! The server binds to a loopback address on a free port, its output goes to
-//! `~/.kara/logs/llama-server.log`, Kara waits for `/health`, and the
+//! `logs/local-runtime.log` in Kara's data directory, Kara waits for `/health`, and the
 //! process is terminated when the handle is dropped or `stop` is called.
 
 use std::net::TcpListener;

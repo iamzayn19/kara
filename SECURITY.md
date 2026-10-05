@@ -9,7 +9,7 @@ acknowledgement within a week.
 
 ## Threat model
 
-Kara runs an AI model that can read files and run commands in your
+Kara drives a language model that can read files and run commands in your
 repository. It assumes:
 
 * **The model can be wrong or manipulated.** Repository content (source
@@ -23,20 +23,20 @@ Permissions are therefore enforced in Rust code that the model cannot
 influence. Prompt-injection detection exists, but only as an advisory label on
 tool output; no security property depends on it.
 
-## Permission profiles
+## Permission modes
 
-Each tool call is assessed into categories before it runs. Profiles map
+Each tool call is assessed into categories before it runs. The mode maps
 categories to allow, ask or deny:
 
-| Category | safe | balanced (default) | autonomous |
+| Category | ask | workspace (default) | full |
 |---|---|---|---|
 | read, search, git-read, tests | allow | allow | allow |
 | lint, build | ask | allow | allow |
-| write (inside the project) | ask | allow | allow |
+| write (inside the workspace) | ask | allow | allow |
 | delete | ask | ask | allow |
 | other shell commands | ask | ask | allow |
-| network | ask | ask | ask |
-| git commit | ask | ask | ask |
+| network | ask | ask | allow |
+| git commit | ask | ask | allow |
 | git push | **deny** | ask | ask |
 | destructive commands | ask | ask | ask |
 | outside the workspace | ask | ask | ask |
@@ -44,8 +44,15 @@ categories to allow, ask or deny:
 | privilege escalation (sudo) | ask | ask | ask |
 
 *Hard boundaries* (destructive, outside workspace, secrets, privilege
-escalation, git push) are never allowed silently by any profile and can never
-be approved "for the session": every occurrence needs a fresh yes.
+escalation, git push) are never allowed silently by any mode and can never be
+approved "for the session": every occurrence needs a fresh yes.
+
+`full` is an explicit opt-in. It can come only from the user: user
+configuration (`kara config set permissions.mode full`), the `--permissions`
+flag, the `/permissions` command, or the user-scoped VS Code setting
+`kara.permissions.mode`. A repository's `.kara/config.toml` can only make the
+mode stricter, and VS Code workspace settings cannot set `kara.permissions.mode`
+(the setting is application-scoped and the extension reads user values only).
 
 Some commands are refused outright, even with approval: recursive deletion of
 `/` or the home directory, `mkfs`, `dd` to a device, writes to raw disk devices,
@@ -71,10 +78,15 @@ fork bombs, and anything matching `permissions.deny_commands`.
   is redacted for common credential formats (private keys, cloud keys,
   tokens, passwords in URLs and assignments) before it reaches the model.
 * **Repository config cannot escalate.** `.kara/config.toml` in a project may
-  only make settings stricter. It cannot loosen the profile, add allowed
+  only make settings stricter. It cannot loosen the mode, add allowed
   commands or readable paths, change the model provider or endpoint (which
   could send your code elsewhere), or enable trace collection.
-* **Localhost only.** The model runtime binds to `127.0.0.1` on a random
+* **Remote inference is opt-in and authenticated.** `kara serve --inference`
+  binds to `127.0.0.1` unless `--listen` names another address, requires a
+  256-bit bearer token (compared in constant time), and stores it in an
+  owner-only file. `kara connect` stores the client's copy the same way.
+  The traffic is plain HTTP; use a trusted network or an SSH tunnel.
+* **Local runtime on loopback.** The local runtime binds to `127.0.0.1` on a random
   port; a non-loopback bind address is rejected unless
   `runtime.allow_non_loopback = true`. The editor protocol uses stdio and opens
   no port.
@@ -87,13 +99,13 @@ fork bombs, and anything matching `permissions.deny_commands`.
 
 * Shell commands run with your user's privileges once allowed. Kara
   classifies commands; it does not sandbox processes at the OS level.
-  Autonomous mode allows ordinary shell commands without asking. Use `safe` or
-  `balanced` on repositories you do not trust.
+  `full` mode allows ordinary shell commands without asking. Use `ask` or
+  `workspace` on repositories you do not trust.
 * Static command classification can be evaded by sufficiently obfuscated
   programs, for example a script file the model writes and then runs.
   Writing that file needs write permission, and running it is a shell command.
 * Redaction recognizes common credential formats, not every secret.
-* The llama.cpp server has no API key; any local process on the machine can
+* The local runtime server has no API key; any local process on the machine can
   call it while it runs. It is not reachable from the network.
 
 ## Tests

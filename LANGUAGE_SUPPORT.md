@@ -68,7 +68,7 @@ Placeholders in `targeted`: `{files}` (quoted paths), `{names}`/`{classes}`
 (file stems), `{packages}` (`./dir`), `{modules}` (dotted Python modules).
 
 Add or override packs without rebuilding by placing TOML files in
-`~/.kara/languages/`. A user pack with the same `id` replaces the built-in
+`languages/` in Kara's config directory (`kara config path` shows it). A user pack with the same `id` replaces the built-in
 one.
 
 ## Current limits (v0.1)

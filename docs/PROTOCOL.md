@@ -12,10 +12,10 @@ client for permission decisions.
 
 | Method | Params | Result |
 |---|---|---|
-| `initialize` | `{workspace?, profile?, clientName?}` | `{protocolVersion, karaVersion, workspace, session, profile, model: {available, label, id, context}, commands: [{name, description}]}` |
+| `initialize` | `{workspace?, clientName?, permissionsMode?, inferenceProvider?, model?}` (the last three are the user's session overrides) | `{protocolVersion, karaVersion, workspace, session, permissionsMode, model: {available, label, provider, id, context, guidance}, commands: [{name, description}]}` |
 | `session/prompt` | `{text, mode?: "execute"\|"plan"\|"review", context?, approvePlan?: bool}` | `TurnResult` when the turn ends. Events stream meanwhile. |
 | `session/cancel` | `{}` (also accepted as a notification) | `{cancelled: true}` |
-| `session/status` | `{}` | model, profile, pending plan, task state, context usage, index stats |
+| `session/status` | `{}` | model, permissionsMode, pending plan, task state, context usage, index stats |
 | `session/changes` | `{}` | `{kara: [{path, before, after, diff}], user: [paths]}`, meaning Kara's changes and the user's other uncommitted files |
 | `session/undo` | `{}` | `{batch_id, restored, conflicts, errors}` |
 | `session/new` | `{}` | `{session}` |

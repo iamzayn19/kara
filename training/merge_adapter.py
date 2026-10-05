@@ -1,7 +1,7 @@
 """Merge a LoRA adapter into its base model for GGUF conversion.
 
 After merging, convert with llama.cpp's convert_hf_to_gguf.py and quantize,
-then add a registry entry in ~/.kara/models.toml and evaluate it with
+then add a registry entry in models.toml (Kara's config directory) and evaluate it with
 `kara eval` before relying on it.
 """
 

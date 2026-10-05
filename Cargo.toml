@@ -18,7 +18,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.80"
 license = "Apache-2.0"
-authors = ["iamzayn19"]
+authors = ["Muhammad Zain Ul Abidin (iamzayn19)"]
 repository = "https://github.com/iamzayn19/kara"
 homepage = "https://github.com/iamzayn19/kara"
 

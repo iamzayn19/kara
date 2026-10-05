@@ -1,8 +1,8 @@
-//! Session persistence in `~/.kara/kara.db` (SQLite).
+//! Session persistence in `kara.db` in Kara's data directory (SQLite).
 //!
 //! Stores session metadata, per-turn outcomes, and the agent's resumable
 //! state (task state and compact conversation history). Undo snapshots live
-//! in `~/.kara/sessions/<id>/`.
+//! in `sessions/<id>/` in Kara's data directory.
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};

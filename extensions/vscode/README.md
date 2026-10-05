@@ -1,50 +1,61 @@
 # Kara for VS Code
 
-Your code. Your machine. Your AI.
+Kara runs on your machine. Intelligence runs wherever your compute is.
 
-Kara is a free, open-source AI engineering agent that runs locally. This
-extension is its VS Code interface: a chat sidebar that streams what the agent
-does, shows diffs you can review and reject, and asks before anything risky.
+This extension is the VS Code interface to Kara, a local-first coding agent.
+It is a thin client: all agent, context, git, file-editing, permission and
+inference logic lives in the `kara` binary, which the extension starts and
+talks to over JSON-RPC on stdio.
 
-No account. No subscription. No code uploads. Inference runs on your machine.
+No account. No subscription. No usage quotas. No telemetry.
 
 ## Features
 
-* **Chat** in the Kara activity bar: describe a task in plain language.
-  Watch tool activity, test results and file changes as they happen.
-* **Diff preview and reject** for every file Kara changes. Your own edits are
-  never overwritten.
-* **Permission dialogs** for writes, shell commands, network access and other
-  risky actions, depending on the permission profile.
-* **Plan and review modes**: `/morpheus <task>` proposes a plan and waits for
-  approval; `/oracle` reviews your current diff by severity.
+* **Chat** in the Kara activity bar, with streamed responses and live tool
+  activity, test results and file changes.
+* **Diff preview, accept and reject** for every file Kara changes. Your own
+  edits are never overwritten.
+* **Permission prompts** for edits, shell commands, network access and other
+  risky actions, depending on the permission mode.
 * **Editor context**: *Kara: Ask About Selection* and *Kara: Fix Selection*
   send the selected code and the file's diagnostics.
-* **Model management**: *Kara: Choose Model* shows what fits your hardware,
-  the download size and license, and downloads only after you confirm.
+* **Commands in chat**: `/matrix`, `/morpheus <task>` (plan, then approve),
+  `/oracle` (risk review of your diff), `/model`, `/models`, `/status`,
+  `/undo`, `/diff`, `/connect` and more.
+* **Inference wherever you have it**: a local model if this machine can run
+  one, another machine you own (*Kara: Connect to Inference Machine*), or an
+  OpenAI-compatible endpoint. The extension never downloads a model without
+  your confirmation.
+
+## The Kara binary
+
+On start the extension uses, in order: `kara.binary.path`, `kara` on your
+PATH, or the copy in Kara's data directory. If none exists, it offers to
+download the release for your platform from GitHub and verifies it against
+the release's `SHA256SUMS`. The CLI and the extension share the same binary
+location and the same downloaded models.
+
+## Settings
+
+| Setting | |
+|---|---|
+| `kara.permissions.mode` | `ask`, `workspace` or `full` for editor sessions; empty uses your Kara configuration. User setting only. |
+| `kara.inference.provider` | `local`, `kara`, `openai_compat`, `ollama`, `lmstudio` or `vllm`; empty uses your Kara configuration. User setting only. |
+| `kara.model` | Model for editor sessions; empty uses your Kara configuration. User setting only. |
+| `kara.binary.path` | Path to `kara`. Machine setting. |
+| `kara.autoStart` | Start Kara when a folder opens. |
+| `kara.includeDiagnostics` | Send diagnostics with selection commands. |
+
+Security-sensitive settings cannot be set from a workspace's
+`.vscode/settings.json`, so a repository cannot enable `full` mode, redirect
+inference or swap the binary.
 
 ## Commands
 
 Kara: Open · New Session · Ask About Selection · Fix Selection · Review
-Current Diff · Run Tests · Choose Model · Doctor · Show Changes · Undo Last
-Change Batch · Stop Current Task · Restart Agent
-
-## How it works
-
-The extension contains no agent logic. It starts the local `kara` binary
-(`kara serve --stdio`) and talks JSON-RPC over stdin and stdout. No network
-port is opened. If `kara` is not on your PATH, the extension offers to
-download the official release from GitHub and verifies it against the
-release's SHA256SUMS.
-
-## Settings
-
-* `kara.binaryPath`: path to the kara binary (default: PATH, then the
-  managed copy)
-* `kara.permissionProfile`: `safe`, `balanced` or `autonomous` (default: your
-  `~/.kara/config.toml`)
-* `kara.includeDiagnostics`: send the current file's diagnostics with
-  selection commands
+Current Diff · Run Tests · Choose Model · Connect to Inference Machine ·
+Doctor · Show Changes · Undo Last Change Batch · Stop Current Task · Restart
+Agent
 
 ## Links
 

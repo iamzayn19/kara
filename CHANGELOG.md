@@ -30,27 +30,40 @@ remaining release blockers.
 - Undo journal: `/undo` and `kara undo` restore Kara's last change batch and
   never overwrite pre-existing or later user changes. Covers file tools and
   files changed by shell commands where the prior content is recoverable.
-- Permission profiles (safe, balanced, autonomous) with hard boundaries for
-  secrets, privilege escalation, git push, destructive commands and paths
-  outside the workspace. Repository configuration can only make Kara stricter.
+- Permission modes `ask`, `workspace` (default) and `full`, with hard
+  boundaries for secrets, privilege escalation, git push, destructive
+  commands and paths outside the workspace in every mode. `full` is only ever
+  enabled by the user; repository configuration can only make Kara stricter.
+- Configuration in platform directories with `kara config get/set`, and
+  per-session `--permissions`, `--provider` and `--model`.
 - Command risk classification, path confinement with symlink checks, secret
   redaction in tool output, and prompt-injection labelling.
 - Repository index (SQLite, incremental) and task-to-file ranking. 16 language
   packs as data: Ruby, Python, JavaScript, TypeScript, Rust, Go, Java, C, C++,
   C#, PHP, Swift, Kotlin, Shell, HTML/CSS, SQL.
-- Managed llama.cpp runtime: pinned, SHA-256-verified prebuilt builds per
-  platform, loopback-only server lifecycle. OpenAI-compatible providers for
-  Ollama, LM Studio, vLLM and others.
-- Model registry as data with pinned revisions and checksums; hardware
-  detection; `kara doctor`; `/model auto` selection by measured or
-  provisional quality, tool calling, memory, context, license and download
-  size; consent before every download.
+- One inference interface with three kinds of provider: an optional local
+  runtime, another Kara machine you own (`kara serve --inference` /
+  `kara connect`, bearer-token protected), and OpenAI-compatible endpoints
+  (Ollama, LM Studio, vLLM, others). Kara Core does not depend on any
+  specific runtime, model or accelerator.
+- Hardware-adaptive local inference: detection of RAM, CPU architecture,
+  accelerators and disk; models chosen by measured or provisional quality,
+  tool calling, memory, context, license and download size; when nothing
+  fits, Kara keeps working and recommends compute you own elsewhere. Nothing
+  is downloaded without consent.
+- Local runtime: pinned, SHA-256-verified llama.cpp builds per platform,
+  loopback-only lifecycle, cleanup of runtimes orphaned by a killed Kara.
 - `kara privacy`, computed from the effective configuration.
 - `kara eval`: offline evaluation over fixture repositories (Python, Ruby,
   TypeScript, Rust, Go, Java) with an oracle mode for CI.
 - `kara serve --stdio`: JSON-RPC 2.0 protocol for editors.
-- VS Code extension: chat sidebar, streamed events, tool activity, diff
-  previews with per-file reject, permission dialogs, model selection, doctor,
-  selection and diagnostics context, and commands for the common actions.
+- VS Code extension: a thin client of the Kara binary with chat, streamed
+  events, tool activity, diff preview with accept/reject, permission prompts,
+  inference selection and connection, doctor, selection and diagnostics
+  context. Security-sensitive settings are user-only. The managed binary and
+  models are shared with the CLI.
+- Release archives for macOS (arm64, x86_64), Linux (x86_64, arm64) and
+  Windows (x86_64) with `SHA256SUMS`; install scripts; generated Homebrew
+  formula and winget manifests.
 - Optional, offline training tooling under `training/` (not required to run
   Kara).

@@ -111,7 +111,7 @@ pub struct InferenceConfig {
     pub api_key_file: String,
     /// Context length to request; 0 = provider/registry default.
     pub context_length: u32,
-    pub temperature: f32,
+    pub temperature: f64,
     /// Thinking mode for reasoning models: "auto", "on" or "off".
     pub reasoning: String,
     /// Thinking-token budget per response; 0 = registry default, -1 = unlimited.

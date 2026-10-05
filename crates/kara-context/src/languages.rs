@@ -3,7 +3,7 @@
 //! A language pack is data (TOML under `languages/`): file extensions,
 //! package manifests, test/lint/format/typecheck/build command discovery,
 //! symbol and import patterns, and LSP/Tree-sitter hints. Users can add or
-//! override packs by dropping TOML files into `~/.kara/languages/`.
+//! override packs by dropping TOML files into `languages/` in Kara's config directory.
 //!
 //! Unknown languages are fine: they still get generic file, search, git and
 //! shell capabilities.

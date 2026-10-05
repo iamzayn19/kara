@@ -18,5 +18,5 @@ Output of `kara doctor` (it contains hardware and model details; no code or prom
 ```
 
 **Logs**
-Relevant lines from `~/.kara/logs/llama-server.log`, if the model runtime failed.
+Relevant lines from `local-runtime.log` in Kara's data directory (`kara doctor` shows where), if the local runtime failed.
 Please remove anything private before posting.

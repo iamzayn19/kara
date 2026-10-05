@@ -4,12 +4,12 @@ Kara is licensed under Apache-2.0. Every dependency must be distributable
 under compatible terms. CI enforces the policy in `deny.toml` with
 `cargo deny check`; run `scripts/license-audit.sh` locally.
 
-## Rust dependencies (audited 2026-10-05, Kara 0.1.0)
+## Rust dependencies (audited 2026-10-05, Kara 0.1.0: 292 third-party crates)
 
 | License | Crates |
 |---|---|
-| MIT OR Apache-2.0 (and equivalent spellings) | 191 |
-| MIT | 40 |
+| MIT OR Apache-2.0 (and equivalent spellings) | 197 |
+| MIT | 42 (includes axum, the HTTP server for `kara serve --inference`) |
 | Unicode-3.0 | 18 (ICU data used by URL handling) |
 | Unlicense OR MIT | 7 (ripgrep components: ignore, globset, memchr, ...) |
 | Apache-2.0 | 3 |
@@ -37,4 +37,4 @@ are not shipped in the VSIX.
 | Model weights | per model (all registry models: Apache-2.0) | when you approve a model download |
 
 The license of each model is shown before download and recorded in
-`~/.kara/models/.../kara-model.json`.
+`models/.../kara-model.json` in Kara's data directory.
