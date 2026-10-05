@@ -13,7 +13,7 @@ remaining release blockers.
 
 ### Added
 
-- `veyra` interactive terminal agent: natural-language tasks, streamed output,
+- `kara` interactive terminal agent: natural-language tasks, streamed output,
   tool activity, inline diff previews, test summaries, permission prompts,
   slash-command completion, history and multi-line input.
 - Engineering loop with structured task state (plan, hypothesis,
@@ -27,12 +27,12 @@ remaining release blockers.
   references, edits (search/replace and tolerant unified-diff patches),
   insertion by line, create, move and delete, shell, targeted test/lint/build runs, diagnostics
   and read-only git.
-- Undo journal: `/undo` and `veyra undo` restore Veyra's last change batch and
+- Undo journal: `/undo` and `kara undo` restore Kara's last change batch and
   never overwrite pre-existing or later user changes. Covers file tools and
   files changed by shell commands where the prior content is recoverable.
 - Permission profiles (safe, balanced, autonomous) with hard boundaries for
   secrets, privilege escalation, git push, destructive commands and paths
-  outside the workspace. Repository configuration can only make Veyra stricter.
+  outside the workspace. Repository configuration can only make Kara stricter.
 - Command risk classification, path confinement with symlink checks, secret
   redaction in tool output, and prompt-injection labelling.
 - Repository index (SQLite, incremental) and task-to-file ranking. 16 language
@@ -42,15 +42,15 @@ remaining release blockers.
   platform, loopback-only server lifecycle. OpenAI-compatible providers for
   Ollama, LM Studio, vLLM and others.
 - Model registry as data with pinned revisions and checksums; hardware
-  detection; `veyra doctor`; `/model auto` selection by measured or
+  detection; `kara doctor`; `/model auto` selection by measured or
   provisional quality, tool calling, memory, context, license and download
   size; consent before every download.
-- `veyra privacy`, computed from the effective configuration.
-- `veyra eval`: offline evaluation over fixture repositories (Python, Ruby,
+- `kara privacy`, computed from the effective configuration.
+- `kara eval`: offline evaluation over fixture repositories (Python, Ruby,
   TypeScript, Rust, Go, Java) with an oracle mode for CI.
-- `veyra serve --stdio`: JSON-RPC 2.0 protocol for editors.
+- `kara serve --stdio`: JSON-RPC 2.0 protocol for editors.
 - VS Code extension: chat sidebar, streamed events, tool activity, diff
   previews with per-file reject, permission dialogs, model selection, doctor,
   selection and diagnostics context, and commands for the common actions.
 - Optional, offline training tooling under `training/` (not required to run
-  Veyra).
+  Kara).

@@ -1,6 +1,6 @@
-"""Turn opt-in Veyra traces into training examples.
+"""Turn opt-in Kara traces into training examples.
 
-Reads ~/.veyra/traces/*.jsonl (written only when the user set
+Reads ~/.kara/traces/*.jsonl (written only when the user set
 privacy.training_data = true), keeps completed turns whose last test passed,
 redacts credentials, drops absolute paths, and writes dataset_schema.json
 records. Standard library only.
@@ -37,7 +37,7 @@ def redact(text: str) -> str:
 
 
 def convert(record: dict) -> dict | None:
-    if record.get("schema") != "veyra-trace/1" or record.get("outcome") != "completed":
+    if record.get("schema") != "kara-trace/1" or record.get("outcome") != "completed":
         return None
     tests = record.get("tests") or []
     if not tests or tests[-1].get("exit_code") != 0:
@@ -71,7 +71,7 @@ def convert(record: dict) -> dict | None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--traces", default=os.path.expanduser("~/.veyra/traces"))
+    ap.add_argument("--traces", default=os.path.expanduser("~/.kara/traces"))
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
     files = sorted(glob.glob(os.path.join(args.traces, "*.jsonl")))

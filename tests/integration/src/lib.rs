@@ -6,14 +6,14 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use veyra_agent::approver::Approver;
-use veyra_agent::{Agent, AgentSettings};
-use veyra_context::{LanguageRegistry, ProjectProfile, RepoIndex};
-use veyra_core::permissions::{PermissionPolicy, Profile};
-use veyra_model::ModelProvider;
-use veyra_protocol::AgentEvent;
-use veyra_sandbox::Workspace;
-use veyra_tools::{Journal, ToolContext};
+use kara_agent::approver::Approver;
+use kara_agent::{Agent, AgentSettings};
+use kara_context::{LanguageRegistry, ProjectProfile, RepoIndex};
+use kara_core::permissions::{PermissionPolicy, Profile};
+use kara_model::ModelProvider;
+use kara_protocol::AgentEvent;
+use kara_sandbox::Workspace;
+use kara_tools::{Journal, ToolContext};
 
 pub fn fixtures_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../fixtures/repos")
@@ -49,7 +49,7 @@ struct TaskFile {
 }
 
 pub fn fixture_tasks(name: &str) -> Vec<FixtureTask> {
-    let text = std::fs::read_to_string(fixtures_dir().join(name).join("veyra-tasks.toml")).unwrap();
+    let text = std::fs::read_to_string(fixtures_dir().join(name).join("kara-tasks.toml")).unwrap();
     toml::from_str::<TaskFile>(&text).unwrap().task
 }
 
@@ -60,7 +60,7 @@ fn copy_dir(src: &Path, dst: &Path) {
         let name = e.file_name();
         if name == "solutions"
             || name == "target"
-            || name == "veyra-tasks.toml"
+            || name == "kara-tasks.toml"
             || name == "__pycache__"
         {
             continue;
@@ -181,7 +181,7 @@ impl Harness {
         index.refresh().unwrap();
         let profile_detected = ProjectProfile::detect(ws.root(), &registry);
         let mut journal = Journal::open(ws.root(), &state.path().join("session")).unwrap();
-        journal.set_baseline_dirty(veyra_context::git::dirty_paths(ws.root()));
+        journal.set_baseline_dirty(kara_context::git::dirty_paths(ws.root()));
         let ctx = ToolContext {
             workspace: ws,
             profile: profile_detected,

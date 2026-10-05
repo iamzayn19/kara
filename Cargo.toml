@@ -1,18 +1,18 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/veyra-protocol",
-    "crates/veyra-core",
-    "crates/veyra-sandbox",
-    "crates/veyra-context",
-    "crates/veyra-tools",
-    "crates/veyra-model",
-    "crates/veyra-runtime",
-    "crates/veyra-agent",
-    "crates/veyra-cli",
+    "crates/kara-protocol",
+    "crates/kara-core",
+    "crates/kara-sandbox",
+    "crates/kara-context",
+    "crates/kara-tools",
+    "crates/kara-model",
+    "crates/kara-runtime",
+    "crates/kara-agent",
+    "crates/kara-cli",
     "tests/integration",
 ]
-default-members = ["crates/veyra-cli"]
+default-members = ["crates/kara-cli"]
 
 [workspace.package]
 version = "0.1.0"
@@ -20,18 +20,18 @@ edition = "2021"
 rust-version = "1.80"
 license = "Apache-2.0"
 authors = ["iamzayn19"]
-repository = "https://github.com/iamzayn19/veyra"
-homepage = "https://github.com/iamzayn19/veyra"
+repository = "https://github.com/iamzayn19/kara"
+homepage = "https://github.com/iamzayn19/kara"
 
 [workspace.dependencies]
-veyra-protocol = { path = "crates/veyra-protocol", version = "0.1.0" }
-veyra-core = { path = "crates/veyra-core", version = "0.1.0" }
-veyra-sandbox = { path = "crates/veyra-sandbox", version = "0.1.0" }
-veyra-context = { path = "crates/veyra-context", version = "0.1.0" }
-veyra-tools = { path = "crates/veyra-tools", version = "0.1.0" }
-veyra-model = { path = "crates/veyra-model", version = "0.1.0" }
-veyra-runtime = { path = "crates/veyra-runtime", version = "0.1.0" }
-veyra-agent = { path = "crates/veyra-agent", version = "0.1.0" }
+kara-protocol = { path = "crates/kara-protocol", version = "0.1.0" }
+kara-core = { path = "crates/kara-core", version = "0.1.0" }
+kara-sandbox = { path = "crates/kara-sandbox", version = "0.1.0" }
+kara-context = { path = "crates/kara-context", version = "0.1.0" }
+kara-tools = { path = "crates/kara-tools", version = "0.1.0" }
+kara-model = { path = "crates/kara-model", version = "0.1.0" }
+kara-runtime = { path = "crates/kara-runtime", version = "0.1.0" }
+kara-agent = { path = "crates/kara-agent", version = "0.1.0" }
 
 anyhow = "1"
 async-trait = "0.1"

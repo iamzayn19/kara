@@ -12,12 +12,12 @@ needs a green run on GitHub.
 | Windows build passes | ⏳ CI | `test (windows-latest)` job |
 | Unit tests pass | ✅ local · ⏳ CI | `cargo test --workspace` |
 | Integration tests pass | ✅ local · ⏳ CI | `tests/integration` (agent loop, undo, security, fixtures, scale) |
-| Agent fixture tests pass | ✅ local | fixture validation + `veyra eval --oracle` (Go only in CI) |
+| Agent fixture tests pass | ✅ local | fixture validation + `kara eval --oracle` (Go only in CI) |
 | VS Code extension builds | ✅ local · ⏳ CI | `npm test`, `npm run package` |
-| VSIX installs successfully | ✅ local · ⏳ CI | `code --install-extension veyra-0.1.0.vsix` into an isolated extensions dir |
-| Veyra CLI works outside repository checkout | ✅ local | release binary copied elsewhere with a fresh `VEYRA_HOME`; links only system libraries |
-| Hardware detection works | ✅ local | `veyra doctor` (Metal, unified memory, RAM, disk) |
-| Model download works | ✅ local | `veyra models pull qwen3-4b-q4_k_m` (2.5 GB, Hugging Face, pinned revision) |
+| VSIX installs successfully | ✅ local · ⏳ CI | `code --install-extension kara-0.1.0.vsix` into an isolated extensions dir |
+| Kara CLI works outside repository checkout | ✅ local | release binary copied elsewhere with a fresh `KARA_HOME`; links only system libraries |
+| Hardware detection works | ✅ local | `kara doctor` (Metal, unified memory, RAM, disk) |
+| Model download works | ✅ local | `kara models pull qwen3-4b-q4_k_m` (2.5 GB, Hugging Face, pinned revision) |
 | Checksum verification works | ✅ local | download verified against pinned SHA-256; mismatch/resume covered by tests |
 | llama.cpp lifecycle works | ✅ local | pinned b11396 installed, started on 127.0.0.1, health-checked, stopped |
 | Model inference works | ✅ local | Qwen3-4B via llama.cpp (terminal and JSON-RPC) |
@@ -25,7 +25,7 @@ needs a green run on GitHub.
 | Repository edits work | ✅ local | real fix in the python-shop fixture |
 | Tests can be executed | ✅ local | targeted `run_test` with parsed results |
 | Failure recovery works | ✅ local | scripted tests; real model recovered in eval reruns (docs/MODEL_EVALUATION.md) |
-| Dogfood session on Veyra itself | ✅ local | docs/DOGFOOD.md (explain, add a test, run tests, /diff, /oracle, /undo, clean state) |
+| Dogfood session on Kara itself | ✅ local | docs/DOGFOOD.md (explain, add a test, run tests, /diff, /oracle, /undo, clean state) |
 | /undo preserves user changes | ✅ local | `tests/integration/tests/undo.rs` |
 | /matrix works | ✅ local | interactive sessions with and without a model (docs/DOGFOOD.md) |
 | /morpheus works | ✅ local (scripted) | `plan_mode_is_read_only_and_waits_for_approval`; real-model plan session still to record |
@@ -43,10 +43,10 @@ needs a green run on GitHub.
 ## README command log
 
 Run with the release binary on 2026-10-05:
-`veyra --version`, `veyra doctor`, `veyra models`, `veyra privacy`,
-`veyra config path`, `veyra models pull qwen3-4b-q4_k_m`, `veyra run ...`,
-interactive `veyra` with `/help`, `/matrix`, `/permissions`, `/git`, `/test`,
-`/diff`, `/oracle`, `/undo`, `/exit`, and `veyra eval --oracle`. The install
+`kara --version`, `kara doctor`, `kara models`, `kara privacy`,
+`kara config path`, `kara models pull qwen3-4b-q4_k_m`, `kara run ...`,
+interactive `kara` with `/help`, `/matrix`, `/permissions`, `/git`, `/test`,
+`/diff`, `/oracle`, `/undo`, `/exit`, and `kara eval --oracle`. The install
 scripts and `cargo install --git` need the public repository and a release;
 test them during the clean-machine check.
 
@@ -57,10 +57,10 @@ test them during the clean-machine check.
    binaries for all targets, `SHA256SUMS` and the VSIX, and creates a **draft**
    GitHub Release.
 3. Download the draft's assets on a clean machine; run the install script,
-   `veyra doctor` and one real task; install the VSIX.
+   `kara doctor` and one real task; install the VSIX.
 4. Publish the draft release.
 5. Extension marketplaces: add the `VSCE_PAT` and/or `OVSX_PAT` repository
    secrets (created by the publisher account, never committed), then re-run
    the `publish-extension` job, or publish by hand:
-   `npx @vscode/vsce publish --packagePath veyra-0.1.0.vsix` and
-   `npx ovsx publish veyra-0.1.0.vsix -p <token>`.
+   `npx @vscode/vsce publish --packagePath kara-0.1.0.vsix` and
+   `npx ovsx publish kara-0.1.0.vsix -p <token>`.

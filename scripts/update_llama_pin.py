@@ -5,7 +5,7 @@ import urllib.request
 
 tag = sys.argv[1]
 url = f"https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/{tag}"
-with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "veyra-scripts"})) as r:
+with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "kara-scripts"})) as r:
     rel = json.load(r)
 assets = {a["name"]: a for a in rel["assets"]}
 wanted = [

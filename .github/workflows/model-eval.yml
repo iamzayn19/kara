@@ -2,7 +2,7 @@ name: Model evaluation
 
 # Real local-model evaluation is slow and needs a large download, so it runs
 # only on demand. Standard runners are CPU-only; results there measure CPU
-# performance. Prefer running `veyra eval` on representative hardware.
+# performance. Prefer running `kara eval` on representative hardware.
 
 on:
   workflow_dispatch:
@@ -27,11 +27,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: cargo build --release --locked -p veyra-cli
+      - run: cargo build --release --locked -p kara-cli
       - run: |
           git config --global user.name ci
           git config --global user.email ci@example.invalid
-      - run: ./target/release/veyra eval --model "${{ inputs.model }}" --tasks "${{ inputs.tasks }}" --yes --out eval.json
+      - run: ./target/release/kara eval --model "${{ inputs.model }}" --tasks "${{ inputs.tasks }}" --yes --out eval.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

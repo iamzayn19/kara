@@ -73,16 +73,16 @@ test("platform mapping and asset names", () => {
   assert.equal(releaseTarget("darwin", "arm64"), "aarch64-apple-darwin");
   assert.equal(releaseTarget("win32", "x64"), "x86_64-pc-windows-msvc");
   assert.equal(releaseTarget("freebsd", "x64"), undefined);
-  assert.equal(archiveName("0.1.0", "x86_64-pc-windows-msvc"), "veyra-v0.1.0-x86_64-pc-windows-msvc.zip");
-  assert.equal(archiveName("0.1.0", "aarch64-apple-darwin"), "veyra-v0.1.0-aarch64-apple-darwin.tar.gz");
+  assert.equal(archiveName("0.1.0", "x86_64-pc-windows-msvc"), "kara-v0.1.0-x86_64-pc-windows-msvc.zip");
+  assert.equal(archiveName("0.1.0", "aarch64-apple-darwin"), "kara-v0.1.0-aarch64-apple-darwin.tar.gz");
 });
 
 test("SHA256SUMS parsing and hashing", async () => {
   const sums = parseSha256Sums(
-    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  veyra-v0.1.0-x.tar.gz\nbogus line\n",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  kara-v0.1.0-x.tar.gz\nbogus line\n",
   );
-  assert.equal(sums.get("veyra-v0.1.0-x.tar.gz"), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "veyra-")), "empty");
+  assert.equal(sums.get("kara-v0.1.0-x.tar.gz"), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "kara-")), "empty");
   fs.writeFileSync(f, "");
   assert.equal(await sha256File(f), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
   assert.equal(which(path.basename(f), path.dirname(f)), f);

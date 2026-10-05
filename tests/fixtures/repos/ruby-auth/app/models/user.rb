@@ -24,6 +24,6 @@ class User
   end
 
   def digest(password)
-    Digest::SHA256.hexdigest("veyra-fixture-salt:#{password}")
+    Digest::SHA256.hexdigest("kara-fixture-salt:#{password}")
   end
 end

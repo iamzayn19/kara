@@ -1,4 +1,4 @@
-// JSON-RPC 2.0 over newline-delimited JSON, matching `veyra serve --stdio`.
+// JSON-RPC 2.0 over newline-delimited JSON, matching `kara serve --stdio`.
 // No VS Code imports: this module is unit-tested with node:test.
 
 import { EventEmitter } from "events";
@@ -40,7 +40,7 @@ export class RpcClient extends EventEmitter {
 
   request<T = unknown>(method: string, params: unknown = {}): Promise<T> {
     if (this.closed) {
-      return Promise.reject(new Error("Veyra is not running"));
+      return Promise.reject(new Error("Kara is not running"));
     }
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
@@ -69,7 +69,7 @@ export class RpcClient extends EventEmitter {
   }
 
   /** Reject everything outstanding (process exited). */
-  close(reason = "Veyra exited"): void {
+  close(reason = "Kara exited"): void {
     this.closed = true;
     for (const p of this.pending.values()) {
       p.reject(new Error(reason));
@@ -82,7 +82,7 @@ export class RpcClient extends EventEmitter {
     try {
       msg = JSON.parse(line);
     } catch {
-      this.emit("protocolError", `unparseable line from veyra: ${line.slice(0, 200)}`);
+      this.emit("protocolError", `unparseable line from kara: ${line.slice(0, 200)}`);
       return;
     }
     if (msg === null || typeof msg !== "object" || msg.jsonrpc !== "2.0") {

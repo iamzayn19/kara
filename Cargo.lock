@@ -2061,7 +2061,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
-name = "veyra-agent"
+name = "kara-agent"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2075,16 +2075,16 @@ dependencies = [
  "tokio-util",
  "toml",
  "uuid",
- "veyra-context",
- "veyra-core",
- "veyra-model",
- "veyra-protocol",
- "veyra-sandbox",
- "veyra-tools",
+ "kara-context",
+ "kara-core",
+ "kara-model",
+ "kara-protocol",
+ "kara-sandbox",
+ "kara-tools",
 ]
 
 [[package]]
-name = "veyra-cli"
+name = "kara-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2102,18 +2102,18 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
- "veyra-agent",
- "veyra-context",
- "veyra-core",
- "veyra-model",
- "veyra-protocol",
- "veyra-runtime",
- "veyra-sandbox",
- "veyra-tools",
+ "kara-agent",
+ "kara-context",
+ "kara-core",
+ "kara-model",
+ "kara-protocol",
+ "kara-runtime",
+ "kara-sandbox",
+ "kara-tools",
 ]
 
 [[package]]
-name = "veyra-context"
+name = "kara-context"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2132,7 +2132,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "veyra-core"
+name = "kara-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2142,11 +2142,11 @@ dependencies = [
  "serde_json",
  "tempfile",
  "toml",
- "veyra-protocol",
+ "kara-protocol",
 ]
 
 [[package]]
-name = "veyra-integration-tests"
+name = "kara-integration-tests"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -2155,17 +2155,17 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
- "veyra-agent",
- "veyra-context",
- "veyra-core",
- "veyra-model",
- "veyra-protocol",
- "veyra-sandbox",
- "veyra-tools",
+ "kara-agent",
+ "kara-context",
+ "kara-core",
+ "kara-model",
+ "kara-protocol",
+ "kara-sandbox",
+ "kara-tools",
 ]
 
 [[package]]
-name = "veyra-model"
+name = "kara-model"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2179,11 +2179,11 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
- "veyra-protocol",
+ "kara-protocol",
 ]
 
 [[package]]
-name = "veyra-protocol"
+name = "kara-protocol"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -2191,7 +2191,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "veyra-runtime"
+name = "kara-runtime"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2209,12 +2209,12 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
- "veyra-model",
+ "kara-model",
  "zip",
 ]
 
 [[package]]
-name = "veyra-sandbox"
+name = "kara-sandbox"
 version = "0.1.0"
 dependencies = [
  "dirs",
@@ -2222,11 +2222,11 @@ dependencies = [
  "shell-words",
  "tempfile",
  "thiserror 1.0.69",
- "veyra-protocol",
+ "kara-protocol",
 ]
 
 [[package]]
-name = "veyra-tools"
+name = "kara-tools"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2244,9 +2244,9 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
- "veyra-context",
- "veyra-protocol",
- "veyra-sandbox",
+ "kara-context",
+ "kara-protocol",
+ "kara-sandbox",
 ]
 
 [[package]]

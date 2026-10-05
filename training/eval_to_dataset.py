@@ -1,4 +1,4 @@
-"""Convert solved `veyra eval` tasks into training examples.
+"""Convert solved `kara eval` tasks into training examples.
 
 Fixture repositories are written for this project (owner-created data), so
 solved tasks can be used as examples. Each example pairs the task prompt with
@@ -15,7 +15,7 @@ import tomllib
 def load_tasks(suite: str) -> dict:
     tasks = {}
     for name in sorted(os.listdir(suite)):
-        f = os.path.join(suite, name, "veyra-tasks.toml")
+        f = os.path.join(suite, name, "kara-tasks.toml")
         if not os.path.exists(f):
             continue
         with open(f, "rb") as fh:

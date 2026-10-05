@@ -2,9 +2,9 @@
 **/*.rs.bk
 .DS_Store
 
-# Project-local Veyra state is never committed automatically.
-.veyra/sessions/
-.veyra/cache/
+# Project-local Kara state is never committed automatically.
+.kara/sessions/
+.kara/cache/
 
 # VS Code extension build output
 extensions/vscode/node_modules/

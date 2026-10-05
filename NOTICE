@@ -1,10 +1,10 @@
-Veyra
+Kara
 Copyright 2026 iamzayn19
 
 Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-Veyra does not bundle model weights or the llama.cpp runtime. When you
-approve a download, Veyra fetches them from their upstream publishers:
+Kara does not bundle model weights or the llama.cpp runtime. When you
+approve a download, Kara fetches them from their upstream publishers:
 
 - llama.cpp (MIT License), https://github.com/ggml-org/llama.cpp
 - Model weights from Hugging Face under each model's own license, recorded

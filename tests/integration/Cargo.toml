@@ -1,6 +1,6 @@
 [package]
-name = "veyra-integration-tests"
-description = "End-to-end tests of the Veyra agent loop against fixture repositories"
+name = "kara-integration-tests"
+description = "End-to-end tests of the Kara agent loop against fixture repositories"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,13 +8,13 @@ authors.workspace = true
 publish = false
 
 [dependencies]
-veyra-protocol.workspace = true
-veyra-core.workspace = true
-veyra-sandbox.workspace = true
-veyra-context.workspace = true
-veyra-tools.workspace = true
-veyra-model.workspace = true
-veyra-agent.workspace = true
+kara-protocol.workspace = true
+kara-core.workspace = true
+kara-sandbox.workspace = true
+kara-context.workspace = true
+kara-tools.workspace = true
+kara-model.workspace = true
+kara-agent.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true

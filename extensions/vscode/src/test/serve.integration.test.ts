@@ -1,5 +1,5 @@
-// Drives the real `veyra serve --stdio` binary the same way the extension
-// does. Runs when VEYRA_BIN points at a built binary; set VEYRA_TEST_MODEL=1
+// Drives the real `kara serve --stdio` binary the same way the extension
+// does. Runs when KARA_BIN points at a built binary; set KARA_TEST_MODEL=1
 // to also run a prompt against the locally installed model.
 
 import { test } from "node:test";
@@ -10,10 +10,10 @@ import * as os from "os";
 import * as path from "path";
 import { RpcClient } from "../rpc";
 
-const bin = process.env.VEYRA_BIN;
+const bin = process.env.KARA_BIN;
 
 function startServer(cwd: string, home: string) {
-  const proc = cp.spawn(bin!, ["serve", "--stdio"], { cwd, env: { ...process.env, VEYRA_HOME: home, NO_COLOR: "1" } });
+  const proc = cp.spawn(bin!, ["serve", "--stdio"], { cwd, env: { ...process.env, KARA_HOME: home, NO_COLOR: "1" } });
   const client = new RpcClient((line) => proc.stdin.write(line));
   const notifications: any[] = [];
   proc.stdout.setEncoding("utf8");
@@ -27,7 +27,7 @@ function startServer(cwd: string, home: string) {
 }
 
 function fixtureRepo(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "veyra-ext-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kara-ext-"));
   fs.writeFileSync(path.join(dir, "app.py"), "def add(a, b):\n    return a - b\n");
   cp.execFileSync("git", ["init", "-q", "-b", "main"], { cwd: dir });
   return dir;
@@ -35,7 +35,7 @@ function fixtureRepo(): string {
 
 test("serve --stdio protocol round trip", { skip: !bin }, async () => {
   const repo = fixtureRepo();
-  const home = process.env.VEYRA_TEST_MODEL ? path.join(os.homedir(), ".veyra") : fs.mkdtempSync(path.join(os.tmpdir(), "veyra-home-"));
+  const home = process.env.KARA_TEST_MODEL ? path.join(os.homedir(), ".kara") : fs.mkdtempSync(path.join(os.tmpdir(), "kara-home-"));
   const { proc, client } = startServer(repo, home);
   try {
     const info: any = await client.request("initialize", { workspace: repo, clientName: "test" });
@@ -59,7 +59,7 @@ test("serve --stdio protocol round trip", { skip: !bin }, async () => {
     assert.equal(privacy.cloud_inference, false);
 
     const changes: any = await client.request("session/changes");
-    assert.deepEqual(changes.veyra, []);
+    assert.deepEqual(changes.kara, []);
 
     await assert.rejects(client.request("no/such/method"), /unknown method/);
 
@@ -71,9 +71,9 @@ test("serve --stdio protocol round trip", { skip: !bin }, async () => {
   }
 });
 
-test("prompt against the local model streams events", { skip: !bin || !process.env.VEYRA_TEST_MODEL, timeout: 600_000 }, async () => {
+test("prompt against the local model streams events", { skip: !bin || !process.env.KARA_TEST_MODEL, timeout: 600_000 }, async () => {
   const repo = fixtureRepo();
-  const { proc, client, notifications } = startServer(repo, path.join(os.homedir(), ".veyra"));
+  const { proc, client, notifications } = startServer(repo, path.join(os.homedir(), ".kara"));
   try {
     const info: any = await client.request("initialize", { workspace: repo, clientName: "test" });
     assert.ok(info.model.available, "a local model must be installed for this test");

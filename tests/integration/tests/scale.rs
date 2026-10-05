@@ -1,9 +1,9 @@
 //! Repository scale: indexing must be incremental and orientation must stay
 //! small regardless of repository size. The 100k-file case is ignored by
-//! default (`cargo test -p veyra-integration-tests --test scale -- --ignored`).
+//! default (`cargo test -p kara-integration-tests --test scale -- --ignored`).
 
 use std::time::Instant;
-use veyra_context::{orient, LanguageRegistry, RepoIndex};
+use kara_context::{orient, LanguageRegistry, RepoIndex};
 
 fn generate(root: &std::path::Path, files: usize) {
     for i in 0..files {

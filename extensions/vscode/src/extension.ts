@@ -1,4 +1,4 @@
-// Veyra for VS Code: a UI over the local `veyra` binary.
+// Kara for VS Code: a UI over the local `kara` binary.
 
 import * as path from "path";
 import * as vscode from "vscode";
@@ -37,7 +37,7 @@ function editorContext(includeSelection: boolean): unknown {
       endLine: sel.end.line + 1,
     };
   }
-  if (vscode.workspace.getConfiguration("veyra").get<boolean>("includeDiagnostics", true)) {
+  if (vscode.workspace.getConfiguration("kara").get<boolean>("includeDiagnostics", true)) {
     const diags = vscode.languages.getDiagnostics(editor.document.uri).filter((d) => {
       return sel.isEmpty || !includeSelection || d.range.intersection(sel) !== undefined;
     });
@@ -61,7 +61,7 @@ async function permission(params: any): Promise<{ decision: string }> {
     .filter(Boolean)
     .join("\n");
   const buttons = params.can_remember ? ["Allow once", "Allow for session"] : ["Allow once"];
-  const title = params.can_remember ? `Veyra wants to: ${params.title}` : `Veyra wants to (high risk): ${params.title}`;
+  const title = params.can_remember ? `Kara wants to: ${params.title}` : `Kara wants to (high risk): ${params.title}`;
   const choice = await vscode.window.showWarningMessage(title, { modal: true, detail }, ...buttons);
   if (choice === "Allow once") {
     return { decision: "allow_once" };
@@ -73,23 +73,23 @@ async function permission(params: any): Promise<{ decision: string }> {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  const output = vscode.window.createOutputChannel("Veyra");
+  const output = vscode.window.createOutputChannel("Kara");
   const originals = new OriginalContentProvider();
   context.subscriptions.push(output, vscode.workspace.registerTextDocumentContentProvider(ORIGINAL_SCHEME, originals));
 
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  status.command = "veyra.open";
+  status.command = "kara.open";
   context.subscriptions.push(status);
   const updateStatusBar = () => {
     if (!agent?.running) {
-      status.text = "$(circle-slash) Veyra";
-      status.tooltip = "Veyra agent is not running";
+      status.text = "$(circle-slash) Kara";
+      status.tooltip = "Kara agent is not running";
     } else if (!agent.info?.model?.available) {
-      status.text = "$(warning) Veyra: no model";
+      status.text = "$(warning) Kara: no model";
       status.tooltip = "Choose a local model";
     } else {
-      status.text = `$(hubot) Veyra`;
-      status.tooltip = `Veyra · ${agent.info.model.label} · permissions: ${agent.info.profile}`;
+      status.text = `$(hubot) Kara`;
+      status.tooltip = `Kara · ${agent.info.model.label} · permissions: ${agent.info.profile}`;
     }
     status.show();
   };
@@ -103,7 +103,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     newSession: () => newSession(),
     showChanges: async () => (agent ? pickAndShowChanges(agent, originals) : undefined),
   });
-  context.subscriptions.push(vscode.window.registerWebviewViewProvider("veyra.chat", chat, { webviewOptions: { retainContextWhenHidden: true } }));
+  context.subscriptions.push(vscode.window.registerWebviewViewProvider("kara.chat", chat, { webviewOptions: { retainContextWhenHidden: true } }));
 
   async function start(): Promise<void> {
     const ws = workspaceFolder();
@@ -116,11 +116,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       try {
         binary = await downloadBinary(context);
       } catch (e: any) {
-        void vscode.window.showErrorMessage(`Could not download Veyra: ${e?.message ?? e}`);
+        void vscode.window.showErrorMessage(`Could not download Kara: ${e?.message ?? e}`);
       }
     }
     if (!binary) {
-      chat.post({ type: "error", text: "The veyra binary is not installed. Install it (see README) or run \"Veyra: Restart Agent\" to download it." });
+      chat.post({ type: "error", text: "The kara binary is not installed. Install it (see README) or run \"Kara: Restart Agent\" to download it." });
       updateStatusBar();
       return;
     }
@@ -137,13 +137,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     });
     try {
       const info = await agent.start(ws);
-      output.appendLine(`Veyra ${info.veyraVersion} · ${info.workspace} · model: ${info.model.label}`);
+      output.appendLine(`Kara ${info.karaVersion} · ${info.workspace} · model: ${info.model.label}`);
       if (!info.model.available) {
         chat.post({ type: "error", text: "No local model is ready yet.", action: "chooseModel" });
       }
     } catch (e: any) {
       output.appendLine(`initialize failed: ${e?.message ?? e}`);
-      void vscode.window.showErrorMessage(`Veyra failed to start: ${e?.message ?? e}`);
+      void vscode.window.showErrorMessage(`Kara failed to start: ${e?.message ?? e}`);
     }
     updateStatusBar();
     chat.updateStatus();
@@ -170,7 +170,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         `Download ${m.name} ${m.quantization}?`,
         {
           modal: true,
-          detail: `Size: ${(m.sizeBytes / 1e9).toFixed(1)} GB\nMemory needed: about ${((m.memoryNeeded ?? m.sizeBytes) / 1e9).toFixed(1)} GB\nLicense: ${m.license}\nSource: ${m.source} (revision ${String(m.revision).slice(0, 12)})\n\nThe download is verified against a pinned SHA-256. Progress appears in the Veyra output channel.`,
+          detail: `Size: ${(m.sizeBytes / 1e9).toFixed(1)} GB\nMemory needed: about ${((m.memoryNeeded ?? m.sizeBytes) / 1e9).toFixed(1)} GB\nLicense: ${m.license}\nSource: ${m.source} (revision ${String(m.revision).slice(0, 12)})\n\nThe download is verified against a pinned SHA-256. Progress appears in the Kara output channel.`,
         },
         "Download and use",
       );
@@ -180,7 +180,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     output.show(true);
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: `Veyra: starting ${m.name}`, cancellable: false },
+      { location: vscode.ProgressLocation.Notification, title: `Kara: starting ${m.name}`, cancellable: false },
       async () => {
         const model: any = await agent!.request("models/select", { id: m.id, download: true });
         if (agent?.info) {
@@ -198,7 +198,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     const d: any = await agent.request("doctor");
     const hw = d.hardware;
-    output.appendLine("── Veyra doctor ──");
+    output.appendLine("── Kara doctor ──");
     output.appendLine(`OS: ${hw.os_version} (${hw.arch}) · CPU: ${hw.cpu} (${hw.cpu_cores} threads)`);
     output.appendLine(`RAM: ${(hw.total_ram / 2 ** 30).toFixed(1)} GB total, ${(hw.available_ram / 2 ** 30).toFixed(1)} GB available`);
     for (const g of hw.gpus) {
@@ -218,7 +218,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const r: any = await agent.request("session/undo");
       const parts = [];
       if (r.restored.length) parts.push(`restored ${r.restored.join(", ")}`);
-      if (r.conflicts.length) parts.push(`kept (edited after Veyra): ${r.conflicts.join(", ")}`);
+      if (r.conflicts.length) parts.push(`kept (edited after Kara): ${r.conflicts.join(", ")}`);
       chat.post({ type: "info", text: `Undo: ${parts.join("; ") || "nothing to restore"}` });
     } catch (e: any) {
       chat.post({ type: "info", text: String(e?.message ?? e) });
@@ -234,28 +234,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   const reg = (id: string, fn: (...a: any[]) => unknown) => context.subscriptions.push(vscode.commands.registerCommand(id, fn));
-  reg("veyra.open", () => chat.reveal());
-  reg("veyra.newSession", () => newSession());
-  reg("veyra.askAboutSelection", async () => {
-    const q = await vscode.window.showInputBox({ prompt: "Ask Veyra about the selected code", placeHolder: "What does this do? Why could it fail?" });
+  reg("kara.open", () => chat.reveal());
+  reg("kara.newSession", () => newSession());
+  reg("kara.askAboutSelection", async () => {
+    const q = await vscode.window.showInputBox({ prompt: "Ask Kara about the selected code", placeHolder: "What does this do? Why could it fail?" });
     if (q) {
       await chat.prompt(q, { context: editorContext(true), display: `${q} (about the selection)` });
     }
   });
-  reg("veyra.fixSelection", async () => {
+  reg("kara.fixSelection", async () => {
     await chat.prompt("Fix the problems in the selected code. Explain the cause, make the fix, and run the relevant tests.", {
       context: editorContext(true),
       display: "Fix the selected code",
     });
   });
-  reg("veyra.reviewDiff", () => chat.prompt("Review my current diff.", { mode: "review", display: "/oracle" }));
-  reg("veyra.runTests", () => chat.prompt("Run the project's tests and report the results.", { display: "/test" }));
-  reg("veyra.chooseModel", () => chooseModel());
-  reg("veyra.doctor", () => doctor());
-  reg("veyra.showChanges", () => (agent ? pickAndShowChanges(agent, originals) : undefined));
-  reg("veyra.undo", () => undo());
-  reg("veyra.stop", () => agent?.client?.notify("session/cancel"));
-  reg("veyra.restart", () => start());
+  reg("kara.reviewDiff", () => chat.prompt("Review my current diff.", { mode: "review", display: "/oracle" }));
+  reg("kara.runTests", () => chat.prompt("Run the project's tests and report the results.", { display: "/test" }));
+  reg("kara.chooseModel", () => chooseModel());
+  reg("kara.doctor", () => doctor());
+  reg("kara.showChanges", () => (agent ? pickAndShowChanges(agent, originals) : undefined));
+  reg("kara.undo", () => undo());
+  reg("kara.stop", () => agent?.client?.notify("session/cancel"));
+  reg("kara.restart", () => start());
 
   context.subscriptions.push({ dispose: () => agent?.dispose() });
   updateStatusBar();

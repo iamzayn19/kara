@@ -67,19 +67,19 @@ jobs:
           git config --global user.email ci@example.invalid
       - run: cargo test --workspace --locked
       - name: Build release binary
-        run: cargo build --release --locked -p veyra-cli
+        run: cargo build --release --locked -p kara-cli
       - name: Binary smoke test outside the repository
         shell: bash
         run: |
-          bin="$PWD/target/release/veyra"
+          bin="$PWD/target/release/kara"
           cd "$RUNNER_TEMP"
           "$bin" --version
-          VEYRA_HOME="$RUNNER_TEMP/veyra-home" "$bin" privacy
-          VEYRA_HOME="$RUNNER_TEMP/veyra-home" "$bin" doctor
-          VEYRA_HOME="$RUNNER_TEMP/veyra-home" "$bin" models list
+          KARA_HOME="$RUNNER_TEMP/kara-home" "$bin" privacy
+          KARA_HOME="$RUNNER_TEMP/kara-home" "$bin" doctor
+          KARA_HOME="$RUNNER_TEMP/kara-home" "$bin" models list
       - name: Evaluation harness (oracle, no model)
         shell: bash
-        run: VEYRA_HOME="$RUNNER_TEMP/veyra-home" ./target/release/veyra eval --oracle --out "$RUNNER_TEMP/oracle.json"
+        run: KARA_HOME="$RUNNER_TEMP/kara-home" ./target/release/kara eval --oracle --out "$RUNNER_TEMP/oracle.json"
 
   vscode:
     runs-on: ubuntu-latest
@@ -95,19 +95,19 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: extensions/vscode/package-lock.json
-      - run: cargo build -p veyra-cli --locked
+      - run: cargo build -p kara-cli --locked
         working-directory: .
       - run: npm ci
       - name: Unit and protocol tests
-        run: VEYRA_BIN="$GITHUB_WORKSPACE/target/debug/veyra" npm test
+        run: KARA_BIN="$GITHUB_WORKSPACE/target/debug/kara" npm test
       - name: Extension host smoke test (real VS Code, headless)
-        run: VEYRA_BIN="$GITHUB_WORKSPACE/target/debug/veyra" xvfb-run -a npm run test:host
+        run: KARA_BIN="$GITHUB_WORKSPACE/target/debug/kara" xvfb-run -a npm run test:host
       - run: npm run package
       - name: Install the VSIX with the VS Code CLI
         run: |
           code_bin=$(find .vscode-test -path '*/bin/code' -type f | head -n1)
-          "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --install-extension veyra-*.vsix
-          "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --list-extensions | grep -x iamzayn19.veyra
+          "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --install-extension kara-*.vsix
+          "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --list-extensions | grep -x iamzayn19.kara
       - uses: actions/upload-artifact@v4
         with:
           name: vsix

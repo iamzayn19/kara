@@ -1,12 +1,12 @@
 //! Every fixture task must fail before its fix and pass after applying the
-//! reference solution with Veyra's own patch tool. This keeps the evaluation
+//! reference solution with Kara's own patch tool. This keeps the evaluation
 //! suite honest: a task that already passes, or whose solution does not work,
 //! is a broken benchmark.
 
 use serde_json::json;
 use std::sync::{Arc, Mutex};
-use veyra_integration_tests::*;
-use veyra_tools::{Journal, Tool, ToolContext};
+use kara_integration_tests::*;
+use kara_tools::{Journal, Tool, ToolContext};
 
 fn toolchain_for(fixture: &str) -> Option<(&'static str, &'static str)> {
     match fixture {
@@ -43,9 +43,9 @@ async fn apply_solution(repo: &Repo, fixture: &str, task: &str) {
     )
     .unwrap();
     let state = tempfile::tempdir().unwrap();
-    let ws = veyra_sandbox::Workspace::new(repo.path()).unwrap();
+    let ws = kara_sandbox::Workspace::new(repo.path()).unwrap();
     let ctx = ToolContext {
-        profile: veyra_context::ProjectProfile::default(),
+        profile: kara_context::ProjectProfile::default(),
         journal: Arc::new(Mutex::new(Journal::open(ws.root(), state.path()).unwrap())),
         workspace: ws,
         index: None,
@@ -54,7 +54,7 @@ async fn apply_solution(repo: &Repo, fixture: &str, task: &str) {
         allow_commands: vec![],
         deny_commands: vec![],
     };
-    let out = veyra_tools::fs::ApplyPatch
+    let out = kara_tools::fs::ApplyPatch
         .run(&json!({"patch": patch}), &ctx)
         .await;
     assert!(
@@ -112,7 +112,7 @@ async fn every_fixture_task_fails_before_and_passes_after_its_solution() {
 
 #[test]
 fn project_commands_are_detected_for_fixtures() {
-    let reg = veyra_context::LanguageRegistry::builtin();
+    let reg = kara_context::LanguageRegistry::builtin();
     let expect = [
         ("python-shop", "unittest"),
         ("ruby-auth", "ruby -Itest -Ilib"),
@@ -122,9 +122,9 @@ fn project_commands_are_detected_for_fixtures() {
         ("java-orders", "make test"),
     ];
     for (name, needle) in expect {
-        let p = veyra_context::ProjectProfile::detect(&fixtures_dir().join(name), &reg);
+        let p = kara_context::ProjectProfile::detect(&fixtures_dir().join(name), &reg);
         let test = p
-            .first(veyra_context::CommandCategory::Test)
+            .first(kara_context::CommandCategory::Test)
             .unwrap_or_else(|| panic!("{name}: no test command"));
         assert!(test.run.contains(needle), "{name}: {}", test.run);
     }

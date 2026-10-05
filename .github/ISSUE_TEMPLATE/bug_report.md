@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Something Veyra did wrong
+about: Something Kara did wrong
 labels: bug
 ---
 
@@ -9,14 +9,14 @@ labels: bug
 **What you expected**
 
 **How to reproduce**
-Repository type/language, the request you gave Veyra, and the slash commands used.
+Repository type/language, the request you gave Kara, and the slash commands used.
 
 **Environment**
-Output of `veyra doctor` (it contains hardware and model details; no code or prompts):
+Output of `kara doctor` (it contains hardware and model details; no code or prompts):
 
 ```
 ```
 
 **Logs**
-Relevant lines from `~/.veyra/logs/llama-server.log`, if the model runtime failed.
+Relevant lines from `~/.kara/logs/llama-server.log`, if the model runtime failed.
 Please remove anything private before posting.

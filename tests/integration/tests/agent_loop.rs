@@ -4,13 +4,13 @@
 
 use serde_json::json;
 use std::sync::Arc;
-use veyra_agent::approver::{ApproveOrdinary, DenyAll};
-use veyra_agent::AgentSettings;
-use veyra_core::permissions::Profile;
-use veyra_integration_tests::*;
-use veyra_model::scripted::{call, text, ScriptedProvider};
-use veyra_model::{ChatRequest, ChatResponse, Role};
-use veyra_protocol::{AgentEvent, AgentMode, TurnOutcome};
+use kara_agent::approver::{ApproveOrdinary, DenyAll};
+use kara_agent::AgentSettings;
+use kara_core::permissions::Profile;
+use kara_integration_tests::*;
+use kara_model::scripted::{call, text, ScriptedProvider};
+use kara_model::{ChatRequest, ChatResponse, Role};
+use kara_protocol::{AgentEvent, AgentMode, TurnOutcome};
 
 fn last_tool_result(req: &ChatRequest) -> String {
     req.messages
@@ -205,7 +205,7 @@ async fn invalid_tool_calls_are_reported_back_and_counted() {
     let repo = Repo::from_fixture("python-shop");
     let provider = Arc::new(ScriptedProvider::new(vec![
         ChatResponse {
-            tool_calls: vec![veyra_model::ToolCall {
+            tool_calls: vec![kara_model::ToolCall {
                 id: "a".into(),
                 name: "read_file".into(),
                 arguments: "{not json".into(),
@@ -408,7 +408,7 @@ async fn finishing_with_failing_tests_is_reported_honestly() {
         .agent
         .run_turn("fix the discount", AgentMode::Execute)
         .await;
-    assert!(r.summary.contains("Note from Veyra"), "{}", r.summary);
+    assert!(r.summary.contains("Note from Kara"), "{}", r.summary);
     assert!(r.summary.contains("still failing"));
 }
 

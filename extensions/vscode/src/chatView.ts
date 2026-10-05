@@ -51,7 +51,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   reveal(): void {
-    void vscode.commands.executeCommand("veyra.chat.focus");
+    void vscode.commands.executeCommand("kara.chat.focus");
   }
 
   updateStatus(): void {
@@ -70,11 +70,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const agent = this.getAgent();
     this.reveal();
     if (!agent || !agent.running) {
-      this.post({ type: "error", text: "Veyra is not running. Open a folder and run \"Veyra: Restart Agent\"." });
+      this.post({ type: "error", text: "Kara is not running. Open a folder and run \"Kara: Restart Agent\"." });
       return;
     }
     if (this.busy) {
-      this.post({ type: "error", text: "Veyra is still working. Stop the current task first." });
+      this.post({ type: "error", text: "Kara is still working. Stop the current task first." });
       return;
     }
     this.post({ type: "user", text: options.display ?? text, mode: options.mode ?? "execute" });
@@ -157,7 +157,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "/plan":
       case "/morpheus":
         if (!arg) {
-          this.post({ type: "info", text: `Usage: ${cmd} <task>. Veyra investigates and proposes a plan; nothing changes until you approve.` });
+          this.post({ type: "info", text: `Usage: ${cmd} <task>. Kara investigates and proposes a plan; nothing changes until you approve.` });
           return;
         }
         await this.prompt(arg, { mode: "plan", display: `${cmd} ${arg}` });
@@ -232,14 +232,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="${style}" rel="stylesheet">
-<title>Veyra</title>
+<title>Kara</title>
 </head>
 <body>
 <header id="status"><span id="model">starting…</span><span id="profile"></span></header>
 <main id="log" aria-live="polite"></main>
 <footer>
   <div id="working" hidden><span class="spinner"></span><span id="phase">working</span><button id="stop" title="Stop the current task">Stop</button></div>
-  <textarea id="input" rows="3" placeholder="Ask Veyra to fix, explain, build or review. / for commands. Enter sends, Shift+Enter for a new line."></textarea>
+  <textarea id="input" rows="3" placeholder="Ask Kara to fix, explain, build or review. / for commands. Enter sends, Shift+Enter for a new line."></textarea>
 </footer>
 <script nonce="${nonce}" src="${script}"></script>
 </body>

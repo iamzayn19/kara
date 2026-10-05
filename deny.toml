@@ -5,7 +5,7 @@
 all-features = false
 
 [licenses]
-# Permissive licenses compatible with distributing Veyra under Apache-2.0.
+# Permissive licenses compatible with distributing Kara under Apache-2.0.
 # MPL-2.0 is file-level copyleft: allowed for unmodified dependencies.
 allow = [
     "Apache-2.0",

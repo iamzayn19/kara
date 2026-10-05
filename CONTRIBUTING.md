@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. Veyra aims to be dependable infrastructure: structured
+Thanks for helping. Kara aims to be dependable infrastructure: structured
 tools, real tests, honest behavior. Contributions that keep it that way are
 very welcome.
 
@@ -30,7 +30,7 @@ very welcome.
 * Language pack improvements (better symbol patterns, test commands for more
   setups) with a fixture.
 * New fixture tasks for the evaluation suite.
-* Test output parsers for more frameworks (`crates/veyra-tools/src/testparse.rs`).
+* Test output parsers for more frameworks (`crates/kara-tools/src/testparse.rs`).
 * Evaluation results for models on your hardware (see
   docs/MODEL_EVALUATION.md).
 

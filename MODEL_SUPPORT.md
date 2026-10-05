@@ -1,6 +1,6 @@
 # Model support
 
-Veyra works with any model served through an OpenAI-compatible chat
+Kara works with any model served through an OpenAI-compatible chat
 completions endpoint that supports tool calling. It manages llama.cpp itself;
 Ollama, LM Studio, vLLM and other local servers work through configuration.
 The agent does not depend on any model family.
@@ -10,7 +10,7 @@ The agent does not depend on any model family.
 Downloadable models are data in [`models/registry.toml`](models/registry.toml).
 Each entry pins a Hugging Face repository, a commit revision, a file, its size
 and SHA-256, the license, and the context and memory figures used for
-planning. Add or override entries in `~/.veyra/models.toml`.
+planning. Add or override entries in `~/.kara/models.toml`.
 
 | Tier | Model | Quantization | Download | Notes |
 |---|---|---|---|---|
@@ -21,12 +21,12 @@ planning. Add or override entries in `~/.veyra/models.toml`.
 | minimal | Qwen3-1.7B | Q4_K_M | 1.3 GB | Not auto-selected; for smoke tests. |
 | mid | Qwen3.8-27B | Q4_K_M | 19.0 GB | Newer release; manual selection only until evaluated. |
 
-All listed models are Apache-2.0. Veyra never bundles model weights. Before a
+All listed models are Apache-2.0. Kara never bundles model weights. Before a
 download it shows the name, download size, estimated memory, license, source
 and revision, and waits for your confirmation. Downloads resume after
 interruption and are verified against the pinned SHA-256.
 
-## Automatic selection (`/model auto`, `veyra doctor`)
+## Automatic selection (`/model auto`, `kara doctor`)
 
 1. Detect hardware: OS, CPU, RAM, GPU and VRAM, Apple unified memory, Metal,
    CUDA, Vulkan, ROCm, and free disk.
@@ -37,12 +37,12 @@ interruption and are verified against the pinned SHA-256.
    `auto_select = true`), estimate weights + KV cache + overhead at its
    default context, halving the context down to its minimum before giving up.
    MoE models may instead run with experts in system RAM on a discrete GPU.
-4. Pick the highest *measured* Veyra eval score when every fitting model has
+4. Pick the highest *measured* Kara eval score when every fitting model has
    one; otherwise rank all of them by the provisional `quality_rank`, so one
    measured model never outranks unmeasured ones. A model that fits only with
    offloading is ranked below one that fits fully.
 
-Larger is not assumed to be better. Once `veyra eval` results exist, record
+Larger is not assumed to be better. Once `kara eval` results exist, record
 `eval_score` in the registry so selection follows measured agent performance
 (see [docs/MODEL_EVALUATION.md](docs/MODEL_EVALUATION.md)).
 
@@ -52,7 +52,7 @@ lower `model.context_length` or pick a smaller model.
 ## Other runtimes
 
 ```toml
-# ~/.veyra/config.toml
+# ~/.kara/config.toml
 [model]
 mode = "manual"
 provider = "ollama"          # ollama | lmstudio | vllm | openai_compat
@@ -63,9 +63,9 @@ api_model = "qwen3:8b"       # name as the server knows it
 Default endpoints: Ollama `http://127.0.0.1:11434/v1`, LM Studio
 `http://127.0.0.1:1234/v1`, vLLM `http://127.0.0.1:8000/v1`. The model must
 support tool calls. For llama.cpp started by hand, use `openai_compat` with its
-`/v1` URL, or set `runtime.llama_server_path` and let Veyra manage it.
+`/v1` URL, or set `runtime.llama_server_path` and let Kara manage it.
 
-A non-local endpoint is allowed but reported plainly: `veyra privacy` shows
+A non-local endpoint is allowed but reported plainly: `kara privacy` shows
 `REMOTE` and prompts and code context are sent there. Only your user config
 can set an endpoint; a repository's config cannot.
 
@@ -84,7 +84,7 @@ reasoning_budget = 2048   # tokens; -1 = unlimited; 0 = registry default
 
 ## llama.cpp
 
-Veyra pins a llama.cpp release in [`models/runtimes.toml`](models/runtimes.toml)
+Kara pins a llama.cpp release in [`models/runtimes.toml`](models/runtimes.toml)
 with per-platform assets and SHA-256 digests: macOS (Metal), Linux (CPU,
 Vulkan, CUDA, ROCm), Windows (CPU, Vulkan, CUDA). It prefers an existing
 `llama-server` on PATH. To use a newer build, install it yourself or update

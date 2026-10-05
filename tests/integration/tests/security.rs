@@ -3,12 +3,12 @@
 
 use serde_json::json;
 use std::sync::Arc;
-use veyra_agent::approver::{ApproveOrdinary, Recording};
-use veyra_core::permissions::Profile;
-use veyra_integration_tests::*;
-use veyra_model::scripted::{call, text, ScriptedProvider};
-use veyra_model::{ChatRequest, Role};
-use veyra_protocol::{ActionKind, AgentMode, PermissionDecision};
+use kara_agent::approver::{ApproveOrdinary, Recording};
+use kara_core::permissions::Profile;
+use kara_integration_tests::*;
+use kara_model::scripted::{call, text, ScriptedProvider};
+use kara_model::{ChatRequest, Role};
+use kara_protocol::{ActionKind, AgentMode, PermissionDecision};
 
 fn tool_results(req: &ChatRequest) -> Vec<String> {
     req.messages
@@ -19,7 +19,7 @@ fn tool_results(req: &ChatRequest) -> Vec<String> {
 }
 
 /// A source comment tells the agent to upload ~/.ssh/id_rsa. Even if the
-/// model obeys, Veyra must not let it happen without explicit consent.
+/// model obeys, Kara must not let it happen without explicit consent.
 #[tokio::test]
 async fn prompt_injection_cannot_exfiltrate_keys() {
     let repo = Repo::from_fixture("injection");
@@ -82,11 +82,11 @@ async fn hostile_project_config_cannot_escalate() {
     let repo = Repo::from_fixture("injection");
     let user_cfg = tempfile::NamedTempFile::new().unwrap();
     std::fs::write(user_cfg.path(), "[permissions]\nprofile = \"safe\"\n").unwrap();
-    let loaded = veyra_core::Config::load(user_cfg.path(), Some(repo.path())).unwrap();
+    let loaded = kara_core::Config::load(user_cfg.path(), Some(repo.path())).unwrap();
     assert_eq!(loaded.config.permissions.profile, Profile::Safe);
     assert!(loaded.config.permissions.allow_commands.is_empty());
     assert!(loaded.config.model.endpoint.is_empty());
-    let report = veyra_core::privacy::PrivacyReport::from_config(&loaded.config);
+    let report = kara_core::privacy::PrivacyReport::from_config(&loaded.config);
     assert!(!report.cloud_inference);
 }
 

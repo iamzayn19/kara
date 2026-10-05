@@ -1,14 +1,14 @@
-# Veyra model registry.
+# Kara model registry.
 #
 # Models are data, not code: future releases replace entries here without
-# touching the agent. Users can add entries in ~/.veyra/models.toml using the
+# touching the agent. Users can add entries in ~/.kara/models.toml using the
 # same schema.
 #
 # Fields
-#   quality_rank      Provisional ordering used by `/model auto` until Veyra
+#   quality_rank      Provisional ordering used by `/model auto` until Kara
 #                     evaluation results exist. Higher is preferred. Replace
-#                     with measured scores from `veyra eval` (eval_score).
-#   eval_score        Fraction of the Veyra eval suite solved (0..1), or omitted
+#                     with measured scores from `kara eval` (eval_score).
+#   eval_score        Fraction of the Kara eval suite solved (0..1), or omitted
 #                     when the model has not been evaluated yet.
 #   kv_bytes_per_token  Estimated f16 KV-cache bytes per context token, used for
 #                     memory planning. Estimates; see docs/MODEL_SUPPORT.md.
@@ -169,4 +169,4 @@ tool_calling = "native"
 tier = "mid"
 quality_rank = 90
 auto_select = false
-notes = "Newer release; available for manual selection. Excluded from automatic selection until it has Veyra evaluation results."
+notes = "Newer release; available for manual selection. Excluded from automatic selection until it has Kara evaluation results."

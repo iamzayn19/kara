@@ -1,6 +1,6 @@
 {
-  "name": "veyra",
-  "displayName": "Veyra: Local AI Engineering Agent",
+  "name": "kara",
+  "displayName": "Kara: Local AI Engineering Agent",
   "description": "A free, open-source AI engineering agent that runs on your machine. No account, no subscription, no code uploads.",
   "version": "0.1.0",
   "publisher": "iamzayn19",
@@ -8,11 +8,11 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/iamzayn19/veyra"
+    "url": "https://github.com/iamzayn19/kara"
   },
-  "homepage": "https://github.com/iamzayn19/veyra",
+  "homepage": "https://github.com/iamzayn19/kara",
   "bugs": {
-    "url": "https://github.com/iamzayn19/veyra/issues"
+    "url": "https://github.com/iamzayn19/kara/issues"
   },
   "icon": "media/icon.png",
   "engines": {
@@ -40,106 +40,106 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "veyra",
-          "title": "Veyra",
-          "icon": "media/veyra.svg"
+          "id": "kara",
+          "title": "Kara",
+          "icon": "media/kara.svg"
         }
       ]
     },
     "views": {
-      "veyra": [
+      "kara": [
         {
           "type": "webview",
-          "id": "veyra.chat",
+          "id": "kara.chat",
           "name": "Chat"
         }
       ]
     },
     "commands": [
       {
-        "command": "veyra.open",
-        "title": "Veyra: Open",
-        "category": "Veyra"
+        "command": "kara.open",
+        "title": "Kara: Open",
+        "category": "Kara"
       },
       {
-        "command": "veyra.newSession",
-        "title": "Veyra: New Session",
-        "category": "Veyra"
+        "command": "kara.newSession",
+        "title": "Kara: New Session",
+        "category": "Kara"
       },
       {
-        "command": "veyra.askAboutSelection",
-        "title": "Veyra: Ask About Selection",
-        "category": "Veyra"
+        "command": "kara.askAboutSelection",
+        "title": "Kara: Ask About Selection",
+        "category": "Kara"
       },
       {
-        "command": "veyra.fixSelection",
-        "title": "Veyra: Fix Selection",
-        "category": "Veyra"
+        "command": "kara.fixSelection",
+        "title": "Kara: Fix Selection",
+        "category": "Kara"
       },
       {
-        "command": "veyra.reviewDiff",
-        "title": "Veyra: Review Current Diff",
-        "category": "Veyra"
+        "command": "kara.reviewDiff",
+        "title": "Kara: Review Current Diff",
+        "category": "Kara"
       },
       {
-        "command": "veyra.runTests",
-        "title": "Veyra: Run Tests",
-        "category": "Veyra"
+        "command": "kara.runTests",
+        "title": "Kara: Run Tests",
+        "category": "Kara"
       },
       {
-        "command": "veyra.chooseModel",
-        "title": "Veyra: Choose Model",
-        "category": "Veyra"
+        "command": "kara.chooseModel",
+        "title": "Kara: Choose Model",
+        "category": "Kara"
       },
       {
-        "command": "veyra.doctor",
-        "title": "Veyra: Doctor",
-        "category": "Veyra"
+        "command": "kara.doctor",
+        "title": "Kara: Doctor",
+        "category": "Kara"
       },
       {
-        "command": "veyra.showChanges",
-        "title": "Veyra: Show Changes",
-        "category": "Veyra"
+        "command": "kara.showChanges",
+        "title": "Kara: Show Changes",
+        "category": "Kara"
       },
       {
-        "command": "veyra.undo",
-        "title": "Veyra: Undo Last Change Batch",
-        "category": "Veyra"
+        "command": "kara.undo",
+        "title": "Kara: Undo Last Change Batch",
+        "category": "Kara"
       },
       {
-        "command": "veyra.stop",
-        "title": "Veyra: Stop Current Task",
-        "category": "Veyra"
+        "command": "kara.stop",
+        "title": "Kara: Stop Current Task",
+        "category": "Kara"
       },
       {
-        "command": "veyra.restart",
-        "title": "Veyra: Restart Agent",
-        "category": "Veyra"
+        "command": "kara.restart",
+        "title": "Kara: Restart Agent",
+        "category": "Kara"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "command": "veyra.askAboutSelection",
+          "command": "kara.askAboutSelection",
           "when": "editorHasSelection",
-          "group": "veyra@1"
+          "group": "kara@1"
         },
         {
-          "command": "veyra.fixSelection",
+          "command": "kara.fixSelection",
           "when": "editorHasSelection",
-          "group": "veyra@2"
+          "group": "kara@2"
         }
       ]
     },
     "configuration": {
-      "title": "Veyra",
+      "title": "Kara",
       "properties": {
-        "veyra.binaryPath": {
+        "kara.binaryPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the veyra binary. Empty: search PATH, then the copy managed by this extension."
+          "description": "Path to the kara binary. Empty: search PATH, then the copy managed by this extension."
         },
-        "veyra.permissionProfile": {
+        "kara.permissionProfile": {
           "type": "string",
           "enum": [
             "",
@@ -148,9 +148,9 @@
             "autonomous"
           ],
           "default": "",
-          "description": "Permission profile for editor sessions. Empty uses ~/.veyra/config.toml."
+          "description": "Permission profile for editor sessions. Empty uses ~/.kara/config.toml."
         },
-        "veyra.includeDiagnostics": {
+        "kara.includeDiagnostics": {
           "type": "boolean",
           "default": true,
           "description": "Send the current file's diagnostics with selection commands."

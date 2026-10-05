@@ -1,0 +1,30 @@
+[package]
+name = "kara-agent"
+description = "The Kara engineering agent loop: planning, tool use, verification, recovery and review"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+kara-protocol.workspace = true
+kara-core.workspace = true
+kara-sandbox.workspace = true
+kara-context.workspace = true
+kara-tools.workspace = true
+kara-model.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+toml.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

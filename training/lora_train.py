@@ -1,4 +1,4 @@
-"""(Q)LoRA fine-tuning of a small model on Veyra-format examples.
+"""(Q)LoRA fine-tuning of a small model on Kara-format examples.
 
 Experimental and optional. Requires `pip install -r requirements.txt` and a
 supported GPU (check_hardware.py). Converts each example into a chat
@@ -13,7 +13,7 @@ import sys
 
 from check_hardware import INSUFFICIENT, main as check_hardware
 
-SYSTEM = "You are Veyra, a local software engineering agent. Act through tools; verify changes with tests."
+SYSTEM = "You are Kara, a local software engineering agent. Act through tools; verify changes with tests."
 
 
 def to_messages(ex: dict) -> list[dict]:
@@ -93,7 +93,7 @@ def main(argv=None) -> int:
     trainer.train()
     model.save_pretrained(args.out)
     tok.save_pretrained(args.out)
-    print(f"Adapter saved to {args.out}. Merge with merge_adapter.py, convert to GGUF with llama.cpp, then evaluate with `veyra eval` before using it.")
+    print(f"Adapter saved to {args.out}. Merge with merge_adapter.py, convert to GGUF with llama.cpp, then evaluate with `kara eval` before using it.")
     return 0
 
 

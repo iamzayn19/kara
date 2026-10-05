@@ -1,13 +1,13 @@
-// Platform helpers for locating and verifying the veyra binary.
+// Platform helpers for locating and verifying the kara binary.
 // No VS Code imports: unit-tested with node:test.
 
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 
-export const REPO = "iamzayn19/veyra";
+export const REPO = "iamzayn19/kara";
 
-/** Rust target triple used in Veyra release asset names. */
+/** Rust target triple used in Kara release asset names. */
 export function releaseTarget(platform: NodeJS.Platform = process.platform, arch: string = process.arch): string | undefined {
   const key = `${platform}-${arch}`;
   const map: Record<string, string> = {
@@ -21,12 +21,12 @@ export function releaseTarget(platform: NodeJS.Platform = process.platform, arch
 }
 
 export function exeName(platform: NodeJS.Platform = process.platform): string {
-  return platform === "win32" ? "veyra.exe" : "veyra";
+  return platform === "win32" ? "kara.exe" : "kara";
 }
 
 export function archiveName(version: string, target: string): string {
   const ext = target.includes("windows") ? "zip" : "tar.gz";
-  return `veyra-v${version}-${target}.${ext}`;
+  return `kara-v${version}-${target}.${ext}`;
 }
 
 /** Find an executable on PATH. */

@@ -1,6 +1,6 @@
 # Language support
 
-Veyra is not tied to any language. Every repository gets the generic tools:
+Kara is not tied to any language. Every repository gets the generic tools:
 reading and searching files, editing, running commands, git and the model's
 own reasoning. Language packs add better context and project-command
 discovery on top.
@@ -68,7 +68,7 @@ Placeholders in `targeted`: `{files}` (quoted paths), `{names}`/`{classes}`
 (file stems), `{packages}` (`./dir`), `{modules}` (dotted Python modules).
 
 Add or override packs without rebuilding by placing TOML files in
-`~/.veyra/languages/`. A user pack with the same `id` replaces the built-in
+`~/.kara/languages/`. A user pack with the same `id` replaces the built-in
 one.
 
 ## Current limits (v0.1)
@@ -84,5 +84,5 @@ one.
 * **References are lexical.** `find_references` is a whole-word search that
   marks definitions found in the index. It does not resolve scopes or types.
 
-If no test command is detected, tell Veyra how to run tests ("tests run with
+If no test command is detected, tell Kara how to run tests ("tests run with
 `make check`") or add a pack rule.

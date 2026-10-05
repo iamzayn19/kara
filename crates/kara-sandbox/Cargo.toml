@@ -1,0 +1,18 @@
+[package]
+name = "kara-sandbox"
+description = "Workspace path confinement, command risk classification and secret redaction for Kara"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+kara-protocol.workspace = true
+dirs.workspace = true
+regex.workspace = true
+shell-words.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

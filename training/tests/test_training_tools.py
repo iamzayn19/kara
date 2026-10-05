@@ -13,7 +13,7 @@ import sanitize_traces  # noqa: E402
 class SanitizeTest(unittest.TestCase):
     def record(self, **kw):
         r = {
-            "schema": "veyra-trace/1",
+            "schema": "kara-trace/1",
             "started": "2026-01-01T00:00:00Z",
             "task": "fix login for /Users/alice/app",
             "outcome": "completed",

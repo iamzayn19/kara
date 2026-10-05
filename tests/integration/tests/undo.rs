@@ -1,19 +1,19 @@
-//! `/undo` restores exactly what existed before Veyra's last turn, keeps the
+//! `/undo` restores exactly what existed before Kara's last turn, keeps the
 //! user's own uncommitted work, and never overwrites later user edits.
 
 use serde_json::json;
 use std::sync::Arc;
-use veyra_agent::approver::DenyAll;
-use veyra_core::permissions::Profile;
-use veyra_integration_tests::*;
-use veyra_model::scripted::{call, text, ScriptedProvider};
-use veyra_protocol::AgentMode;
+use kara_agent::approver::DenyAll;
+use kara_core::permissions::Profile;
+use kara_integration_tests::*;
+use kara_model::scripted::{call, text, ScriptedProvider};
+use kara_protocol::AgentMode;
 
 #[tokio::test]
 async fn undo_preserves_uncommitted_user_changes() {
     let repo = Repo::from_fixture("python-shop");
-    // The user has work in progress in the same file Veyra will edit, and in
-    // another file Veyra will not touch.
+    // The user has work in progress in the same file Kara will edit, and in
+    // another file Kara will not touch.
     let user_cart = repo.read("shop/cart.py").replace(
         "\"\"\"Shopping cart.\"\"\"",
         "\"\"\"Shopping cart (user WIP).\"\"\"",
@@ -78,7 +78,7 @@ async fn undo_skips_files_the_user_edited_afterwards() {
     h.agent.settings.verify_after_edit = false;
     h.agent.run_turn("edit two files", AgentMode::Execute).await;
 
-    // User edits one of them after Veyra.
+    // User edits one of them after Kara.
     let mine = repo.read("shop/format.py") + "# my follow-up edit\n";
     repo.write("shop/format.py", &mine);
 

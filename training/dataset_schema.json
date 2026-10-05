@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/iamzayn19/veyra/training/dataset_schema.json",
-  "title": "Veyra agent training example",
+  "$id": "https://github.com/iamzayn19/kara/training/dataset_schema.json",
+  "title": "Kara agent training example",
   "description": "One successful agent trajectory: the task, the tool calls that solved it, and provenance proving it may be used for training.",
   "type": "object",
   "required": ["id", "source", "license", "consent", "task", "steps", "outcome"],

@@ -1,10 +1,10 @@
-// Diff previews for Veyra's changes, and accept/reject per file.
+// Diff previews for Kara's changes, and accept/reject per file.
 
 import * as path from "path";
 import * as vscode from "vscode";
 import { AgentProcess } from "./agent";
 
-export const ORIGINAL_SCHEME = "veyra-original";
+export const ORIGINAL_SCHEME = "kara-original";
 
 interface Change {
   path: string;
@@ -13,7 +13,7 @@ interface Change {
   diff: string;
 }
 
-/** Serves the pre-Veyra content of files for the diff editor. */
+/** Serves the pre-Kara content of files for the diff editor. */
 export class OriginalContentProvider implements vscode.TextDocumentContentProvider {
   private originals = new Map<string, string>();
   private readonly emitter = new vscode.EventEmitter<vscode.Uri>();
@@ -31,26 +31,26 @@ export class OriginalContentProvider implements vscode.TextDocumentContentProvid
   }
 }
 
-export async function fetchChanges(agent: AgentProcess): Promise<{ veyra: Change[]; user: string[] }> {
+export async function fetchChanges(agent: AgentProcess): Promise<{ kara: Change[]; user: string[] }> {
   return agent.request("session/changes");
 }
 
 export async function showDiff(agent: AgentProcess, provider: OriginalContentProvider, rel: string): Promise<void> {
   const changes = await fetchChanges(agent);
-  const change = changes.veyra.find((c) => c.path === rel);
+  const change = changes.kara.find((c) => c.path === rel);
   if (!change) {
-    void vscode.window.showInformationMessage(`${rel} has no pending Veyra changes.`);
+    void vscode.window.showInformationMessage(`${rel} has no pending Kara changes.`);
     return;
   }
   const root = agent.info?.workspace ?? "";
   const left = provider.set(rel, change.before ?? "");
   const right = vscode.Uri.file(path.join(root, rel));
-  await vscode.commands.executeCommand("vscode.diff", left, right, `${rel} (before Veyra ↔ now)`);
+  await vscode.commands.executeCommand("vscode.diff", left, right, `${rel} (before Kara ↔ now)`);
 }
 
 export async function rejectChange(agent: AgentProcess, rel: string): Promise<void> {
   const ok = await vscode.window.showWarningMessage(
-    `Revert Veyra's changes to ${rel}? Your own edits are never overwritten: if you changed the file after Veyra, the revert is refused.`,
+    `Revert Kara's changes to ${rel}? Your own edits are never overwritten: if you changed the file after Kara, the revert is refused.`,
     { modal: true },
     "Revert",
   );
@@ -63,13 +63,13 @@ export async function rejectChange(agent: AgentProcess, rel: string): Promise<vo
 
 export async function pickAndShowChanges(agent: AgentProcess, provider: OriginalContentProvider): Promise<void> {
   const changes = await fetchChanges(agent);
-  if (changes.veyra.length === 0) {
-    void vscode.window.showInformationMessage("Veyra has not changed any files in this session.");
+  if (changes.kara.length === 0) {
+    void vscode.window.showInformationMessage("Kara has not changed any files in this session.");
     return;
   }
   const pick = await vscode.window.showQuickPick(
-    changes.veyra.map((c) => ({ label: c.path, description: diffStat(c.diff) })),
-    { placeHolder: "Veyra's changes (your own uncommitted changes are not listed)" },
+    changes.kara.map((c) => ({ label: c.path, description: diffStat(c.diff) })),
+    { placeHolder: "Kara's changes (your own uncommitted changes are not listed)" },
   );
   if (pick) {
     await showDiff(agent, provider, pick.label);

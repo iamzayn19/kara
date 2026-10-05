@@ -11,7 +11,7 @@
 ## Build and test
 
 ```sh
-cargo build                      # debug build of `veyra` (target/debug/veyra)
+cargo build                      # debug build of `kara` (target/debug/kara)
 cargo test --workspace           # unit + integration tests (mocked models)
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
@@ -25,17 +25,17 @@ Fixture tasks whose toolchain is missing are skipped, not failed.
 cd extensions/vscode
 npm ci
 npm test                                  # compile + unit tests
-VEYRA_BIN=../../target/debug/veyra npm test   # + protocol test against the binary
-VEYRA_TEST_MODEL=1 VEYRA_BIN=... npm test     # + a prompt against your local model
-npm run package                           # produces veyra-<version>.vsix
+KARA_BIN=../../target/debug/kara npm test   # + protocol test against the binary
+KARA_TEST_MODEL=1 KARA_BIN=... npm test     # + a prompt against your local model
+npm run package                           # produces kara-<version>.vsix
 ```
 
 ## Evaluation
 
 ```sh
-target/debug/veyra eval --oracle             # validates fixtures and harness, no model
-target/debug/veyra eval --model qwen3-4b-q4_k_m --yes
-target/debug/veyra eval --tasks 'python-*'
+target/debug/kara eval --oracle             # validates fixtures and harness, no model
+target/debug/kara eval --model qwen3-4b-q4_k_m --yes
+target/debug/kara eval --tasks 'python-*'
 ```
 
 Real-model evaluations are slow and run manually or before a release, never
@@ -44,10 +44,10 @@ in every CI job. Results go to `tests/evals/results/`. Record summaries in
 
 ## Isolated state
 
-Set `VEYRA_HOME` to keep experiments away from `~/.veyra`:
+Set `KARA_HOME` to keep experiments away from `~/.kara`:
 
 ```sh
-VEYRA_HOME=/tmp/veyra-dev target/debug/veyra doctor
+KARA_HOME=/tmp/kara-dev target/debug/kara doctor
 ```
 
 ## Layout
@@ -60,7 +60,7 @@ models/          model registry and pinned llama.cpp runtime (TOML, compiled in)
 tests/fixtures/repos  fixture repositories with intentional bugs and reference solutions
 tests/integration     end-to-end tests
 tests/evals           evaluation results
-training/        optional, offline fine-tuning tooling (not needed to run Veyra)
+training/        optional, offline fine-tuning tooling (not needed to run Kara)
 scripts/         install, release and maintenance scripts
 docs/            protocol, configuration, evaluation, release checklist
 ```
@@ -68,10 +68,10 @@ docs/            protocol, configuration, evaluation, release checklist
 ## Adding a fixture task
 
 1. Add or extend a repo in `tests/fixtures/repos/<name>/` with a failing test.
-2. Describe the task in `veyra-tasks.toml` (prompt, check command,
+2. Describe the task in `kara-tasks.toml` (prompt, check command,
    expected changed files).
 3. Add the reference fix as `solutions/<task-id>.patch` (unified diff).
-4. `cargo test -p veyra-integration-tests --test fixtures` verifies that the
+4. `cargo test -p kara-integration-tests --test fixtures` verifies that the
    check fails before and passes after the patch.
 
 ## Updating pinned downloads

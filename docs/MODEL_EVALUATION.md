@@ -1,12 +1,12 @@
 # Model evaluation
 
-Veyra picks default models by measured agent performance, not marketing
+Kara picks default models by measured agent performance, not marketing
 claims or parameter counts. This document describes the harness and records
 results. **A model is not called "best" here without results to back it.**
 
 ## Harness
 
-`veyra eval` runs every task in `tests/fixtures/repos/*/veyra-tasks.toml`:
+`kara eval` runs every task in `tests/fixtures/repos/*/kara-tasks.toml`:
 
 1. Copy the fixture into a fresh temporary git repository (applying any
    prerequisite reference solutions listed in `requires`).
@@ -46,21 +46,21 @@ automatically.
 | go-inventory | Go | reservation side effects and validation, env var config bug |
 | java-orders | Java | order total and shipping threshold (two files) |
 
-`veyra eval --oracle` replays the reference solutions through the real tools.
+`kara eval --oracle` replays the reference solutions through the real tools.
 It must solve every task; CI runs it to keep fixtures and the harness honest.
 It says nothing about any model.
 
 ## Running
 
 ```sh
-veyra eval --model qwen3-4b-q4_k_m --yes          # downloads the model if needed (asks without --yes)
-veyra eval --model qwen3.6-35b-a3b-q4_k_m --tasks 'rust-*,python-*'
-veyra eval --oracle
+kara eval --model qwen3-4b-q4_k_m --yes          # downloads the model if needed (asks without --yes)
+kara eval --model qwen3.6-35b-a3b-q4_k_m --tasks 'rust-*,python-*'
+kara eval --oracle
 ```
 
 Each task has a wall-clock budget (`--task-timeout`, default 1800 s) so a
 benchmark run always ends. This bounds the evaluation, not the agent:
-interactive Veyra has no step or time limit.
+interactive Kara has no step or time limit.
 
 Reports are written to `tests/evals/results/<date>-<model>.json`. Real-model
 evaluations are slow and run manually, never in every CI job.
@@ -68,10 +68,10 @@ evaluations are slow and run manually, never in every CI job.
 ## Results
 
 Results are machine-specific. Speed depends on hardware; solve rate depends
-on the model, quantization and Veyra version.
+on the model, quantization and Kara version.
 
 <!-- RESULTS:BEGIN -->
-### Qwen3-4B Q4_K_M · Apple M5, 16 GB (Metal) · 2026-10-05 · Veyra 0.1.0
+### Qwen3-4B Q4_K_M · Apple M5, 16 GB (Metal) · 2026-10-05 · Kara 0.1.0
 
 Full run with the first build: solved **5 / 10** runnable tasks (Go tasks skipped: Go not installed on this
 machine). Generation speed about 12-15 tokens/s; every task took 3-10 minutes.
@@ -95,7 +95,7 @@ No invalid tool calls and no unneeded edits in any task.
 What the failures taught us:
 
 * In four failures the model declared success while its own last test run
-  was still failing. Veyra now pushes back when that happens (up to twice),
+  was still failing. Kara now pushes back when that happens (up to twice),
   and if the model still stops, appends a factual "tests are still failing"
   note to the answer instead of letting a false success stand.
 * In `python-import` the model edited the test file instead of the code.
@@ -123,10 +123,10 @@ subset, not a fresh full run. Local models are not deterministic, so the full
 suite should be rerun before quoting an overall rate for this build. Raw
 report: `tests/evals/results/2026-10-05-qwen3-4b-q4-k-m-rerun.json`.
 
-This is one small model on one modest machine. It shows Veyra's loop works
+This is one small model on one modest machine. It shows Kara's loop works
 end to end with a real local model, not how capable the high-tier default is.
 No `eval_score` has been recorded in the registry from this run: scores
-are only comparable when the same suite was run on the same Veyra version,
+are only comparable when the same suite was run on the same Kara version,
 and the larger models have not been measured yet.
 <!-- RESULTS:END -->
 

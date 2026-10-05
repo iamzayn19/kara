@@ -5,7 +5,7 @@ import urllib.request
 
 repo, file = sys.argv[1], sys.argv[2]
 url = f"https://huggingface.co/api/models/{repo}?blobs=true"
-with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "veyra-scripts"})) as r:
+with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "kara-scripts"})) as r:
     d = json.load(r)
 s = next((s for s in d["siblings"] if s["rfilename"] == file), None)
 if s is None:

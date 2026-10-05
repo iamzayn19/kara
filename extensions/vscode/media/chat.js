@@ -1,4 +1,4 @@
-// Veyra chat webview. Renders protocol events; never runs agent logic.
+// Kara chat webview. Renders protocol events; never runs agent logic.
 (function () {
   const vscode = acquireVsCodeApi();
   const log = document.getElementById("log");
@@ -221,7 +221,7 @@
         break;
       case "help": {
         const box = add(el("div", "help"));
-        box.appendChild(el("div", "", "Talk to Veyra in plain language. Commands:"));
+        box.appendChild(el("div", "", "Talk to Kara in plain language. Commands:"));
         for (const c of m.commands) box.appendChild(el("div", "help-row", `${c.name}  ${c.description}`));
         break;
       }

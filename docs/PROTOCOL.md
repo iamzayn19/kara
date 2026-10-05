@@ -1,22 +1,22 @@
 # Editor protocol
 
-`veyra serve --stdio` speaks JSON-RPC 2.0. Each message is one JSON object on
-one line (UTF-8, `\n`-terminated). Veyra opens no network port for editors.
+`kara serve --stdio` speaks JSON-RPC 2.0. Each message is one JSON object on
+one line (UTF-8, `\n`-terminated). Kara opens no network port for editors.
 Diagnostics go to stderr. Protocol version: `1.0` (additive changes bump the
 minor version).
 
-Both sides send requests: the client drives the session, and Veyra asks the
+Both sides send requests: the client drives the session, and Kara asks the
 client for permission decisions.
 
-## Client → Veyra
+## Client → Kara
 
 | Method | Params | Result |
 |---|---|---|
-| `initialize` | `{workspace?, profile?, clientName?}` | `{protocolVersion, veyraVersion, workspace, session, profile, model: {available, label, id, context}, commands: [{name, description}]}` |
+| `initialize` | `{workspace?, profile?, clientName?}` | `{protocolVersion, karaVersion, workspace, session, profile, model: {available, label, id, context}, commands: [{name, description}]}` |
 | `session/prompt` | `{text, mode?: "execute"\|"plan"\|"review", context?, approvePlan?: bool}` | `TurnResult` when the turn ends. Events stream meanwhile. |
 | `session/cancel` | `{}` (also accepted as a notification) | `{cancelled: true}` |
 | `session/status` | `{}` | model, profile, pending plan, task state, context usage, index stats |
-| `session/changes` | `{}` | `{veyra: [{path, before, after, diff}], user: [paths]}`, meaning Veyra's changes and the user's other uncommitted files |
+| `session/changes` | `{}` | `{kara: [{path, before, after, diff}], user: [paths]}`, meaning Kara's changes and the user's other uncommitted files |
 | `session/undo` | `{}` | `{batch_id, restored, conflicts, errors}` |
 | `session/new` | `{}` | `{session}` |
 | `session/command` | `{name, args?}` with name `clear`, `compact`, `permissions`, `revert`, `privacy` or `matrix` | command-specific JSON |
@@ -38,7 +38,7 @@ client for permission decisions.
 Only one prompt runs at a time. A second one gets error `-32001` (busy).
 Prompts without a model get `-32002` (model unavailable).
 
-## Veyra → client
+## Kara → client
 
 **Notifications**
 
@@ -46,7 +46,7 @@ Prompts without a model get `-32002` (model unavailable).
   `turn_started`, `phase`, `assistant_delta`, `reasoning_delta`,
   `assistant_message`, `tool_started`, `tool_finished`, `file_changed`,
   `test_finished`, `plan_updated`, `notice`, `turn_finished`.
-  The schema is defined in `crates/veyra-protocol/src/lib.rs`.
+  The schema is defined in `crates/kara-protocol/src/lib.rs`.
 * `log`: `{level, message}`, for diagnostics such as download progress.
 
 **Requests**

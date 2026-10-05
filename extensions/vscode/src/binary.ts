@@ -1,4 +1,4 @@
-// Locate the veyra binary, or download an official release from GitHub
+// Locate the kara binary, or download an official release from GitHub
 // (after asking) and verify it against the release's SHA256SUMS.
 
 import * as fs from "fs";
@@ -9,12 +9,12 @@ import * as vscode from "vscode";
 import { REPO, archiveName, exeName, parseSha256Sums, releaseTarget, sha256File, which } from "./platform";
 
 export async function locateBinary(context: vscode.ExtensionContext): Promise<string | undefined> {
-  const configured = vscode.workspace.getConfiguration("veyra").get<string>("binaryPath", "").trim();
+  const configured = vscode.workspace.getConfiguration("kara").get<string>("binaryPath", "").trim();
   if (configured) {
     if (fs.existsSync(configured)) {
       return configured;
     }
-    void vscode.window.showWarningMessage(`veyra.binaryPath points to a missing file: ${configured}`);
+    void vscode.window.showWarningMessage(`kara.binaryPath points to a missing file: ${configured}`);
   }
   const onPath = which(exeName());
   if (onPath) {
@@ -29,7 +29,7 @@ export async function locateBinary(context: vscode.ExtensionContext): Promise<st
 
 function get(url: string, redirects = 5): Promise<{ status: number; body: Buffer }> {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { "User-Agent": "veyra-vscode", Accept: "*/*" } }, (res) => {
+    const req = https.get(url, { headers: { "User-Agent": "kara-vscode", Accept: "*/*" } }, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && redirects > 0) {
         res.resume();
         resolve(get(new URL(res.headers.location, url).toString(), redirects - 1));
@@ -48,14 +48,14 @@ function get(url: string, redirects = 5): Promise<{ status: number; body: Buffer
 export async function downloadBinary(context: vscode.ExtensionContext): Promise<string | undefined> {
   const target = releaseTarget();
   if (!target) {
-    void vscode.window.showErrorMessage(`No prebuilt Veyra for ${process.platform}/${process.arch}. Build it from source: https://github.com/${REPO}`);
+    void vscode.window.showErrorMessage(`No prebuilt Kara for ${process.platform}/${process.arch}. Build it from source: https://github.com/${REPO}`);
     return undefined;
   }
   const version = String(context.extension.packageJSON.version);
   const asset = archiveName(version, target);
   const base = `https://github.com/${REPO}/releases/download/v${version}`;
   const choice = await vscode.window.showInformationMessage(
-    `Veyra's local agent binary was not found. Download the official release ${asset} from github.com/${REPO}? It is verified against the release's SHA256SUMS.`,
+    `Kara's local agent binary was not found. Download the official release ${asset} from github.com/${REPO}? It is verified against the release's SHA256SUMS.`,
     { modal: true },
     "Download",
   );
@@ -63,7 +63,7 @@ export async function downloadBinary(context: vscode.ExtensionContext): Promise<
     return undefined;
   }
   return vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: "Downloading Veyra", cancellable: false },
+    { location: vscode.ProgressLocation.Notification, title: "Downloading Kara", cancellable: false },
     async (progress) => {
       progress.report({ message: "checksums" });
       const sums = await get(`${base}/SHA256SUMS`);
