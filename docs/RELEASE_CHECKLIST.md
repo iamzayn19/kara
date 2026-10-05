@@ -1,0 +1,65 @@
+# Release checklist: v0.1.0
+
+`v0.1.0` is not tagged until every blocker below is checked. Status as of
+2026-10-05. "Local" means verified on the maintainer's machine (macOS 26,
+Apple M5, 16 GB); "CI" means it is enforced by `.github/workflows/ci.yml` and
+needs a green run on GitHub.
+
+| Blocker | Status | Evidence |
+|---|---|---|
+| Linux build passes | ⏳ CI | `test (ubuntu-latest)` job; release workflow builds x86_64 and arm64 |
+| macOS build passes | ✅ local · ⏳ CI | `cargo build --release` (arm64) |
+| Windows build passes | ⏳ CI | `test (windows-latest)` job |
+| Unit tests pass | ✅ local · ⏳ CI | `cargo test --workspace` |
+| Integration tests pass | ✅ local · ⏳ CI | `tests/integration` (agent loop, undo, security, fixtures, scale) |
+| Agent fixture tests pass | ✅ local | fixture validation + `veyra eval --oracle` (Go only in CI) |
+| VS Code extension builds | ✅ local · ⏳ CI | `npm test`, `npm run package` |
+| VSIX installs successfully | ✅ local · ⏳ CI | `code --install-extension veyra-0.1.0.vsix` into an isolated extensions dir |
+| Veyra CLI works outside repository checkout | ✅ local | release binary copied elsewhere with a fresh `VEYRA_HOME`; links only system libraries |
+| Hardware detection works | ✅ local | `veyra doctor` (Metal, unified memory, RAM, disk) |
+| Model download works | ✅ local | `veyra models pull qwen3-4b-q4_k_m` (2.5 GB, Hugging Face, pinned revision) |
+| Checksum verification works | ✅ local | download verified against pinned SHA-256; mismatch/resume covered by tests |
+| llama.cpp lifecycle works | ✅ local | pinned b11396 installed, started on 127.0.0.1, health-checked, stopped |
+| Model inference works | ✅ local | Qwen3-4B via llama.cpp (terminal and JSON-RPC) |
+| Tool calling works | ✅ local | native tool calls (read, edit, run_test) from Qwen3-4B |
+| Repository edits work | ✅ local | real fix in the python-shop fixture |
+| Tests can be executed | ✅ local | targeted `run_test` with parsed results |
+| Failure recovery works | ✅ local (scripted) · see eval | `fixes_bug_with_failure_recovery`, `recovery_is_bounded_and_reported` |
+| /undo preserves user changes | ✅ local | `tests/integration/tests/undo.rs` |
+| /matrix works | ✅ local | interactive pty session |
+| /morpheus works | ✅ local (scripted) | `plan_mode_is_read_only_and_waits_for_approval` |
+| /oracle works | ✅ local (scripted) | `review_mode_receives_the_diff` |
+| Permission boundaries tested | ✅ local | `tests/integration/tests/security.rs`, sandbox unit tests |
+| Privacy command accurate | ✅ local | derived from effective config; remote endpoints reported |
+| No telemetry exists by default | ✅ | no telemetry code; network uses listed in PRIVACY.md |
+| No proprietary API required | ✅ | local llama.cpp; OpenAI-compatible protocol only |
+| No secret committed | ⏳ CI | gitleaks job; manual review |
+| Dependency licenses audited | ✅ local · ⏳ CI | docs/LICENSES.md, cargo-deny job |
+| README commands actually executed | ✅ local | see "README command log" below |
+| No assistant/model attribution appears as author | ✅ | metadata: iamzayn19 only |
+| Full clean-machine installation tested | ❌ | needs a fresh machine or VM, after the first GitHub Release exists |
+
+## README command log
+
+Run with the release binary on 2026-10-05:
+`veyra --version`, `veyra doctor`, `veyra models`, `veyra privacy`,
+`veyra config path`, `veyra models pull qwen3-4b-q4_k_m`, `veyra run ...`,
+interactive `veyra` with `/help`, `/matrix`, `/permissions`, `/git`, `/test`,
+`/diff`, `/oracle`, `/undo`, `/exit`, and `veyra eval --oracle`. The install
+scripts and `cargo install --git` need the public repository and a release;
+test them during the clean-machine check.
+
+## Publishing steps (after all blockers pass)
+
+1. Update CHANGELOG.md (release date) and docs/MODEL_EVALUATION.md.
+2. `git tag v0.1.0 && git push origin v0.1.0`. The release workflow builds the
+   binaries for all targets, `SHA256SUMS` and the VSIX, and creates a **draft**
+   GitHub Release.
+3. Download the draft's assets on a clean machine; run the install script,
+   `veyra doctor` and one real task; install the VSIX.
+4. Publish the draft release.
+5. Extension marketplaces: add the `VSCE_PAT` and/or `OVSX_PAT` repository
+   secrets (created by the publisher account, never committed), then re-run
+   the `publish-extension` job, or publish by hand:
+   `npx @vscode/vsce publish --packagePath veyra-0.1.0.vsix` and
+   `npx ovsx publish veyra-0.1.0.vsix -p <token>`.

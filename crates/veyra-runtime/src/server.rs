@@ -35,6 +35,87 @@ pub struct LlamaServer {
     pub base_url: String,
     pub log_file: PathBuf,
     pub args: Vec<String>,
+    pid_file: Option<PathBuf>,
+}
+
+/// Servers started by this process, so signal handlers can stop them.
+static RUNNING: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
+
+fn register(pid: u32) {
+    RUNNING.lock().unwrap_or_else(|p| p.into_inner()).push(pid);
+}
+
+fn unregister(pid: u32) {
+    RUNNING
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .retain(|p| *p != pid);
+}
+
+/// Kill every server this process started (called from signal handlers).
+pub fn kill_all_started() {
+    let pids: Vec<u32> = RUNNING
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .drain(..)
+        .collect();
+    for pid in pids {
+        kill_pid(pid);
+    }
+}
+
+fn kill_pid(pid: u32) {
+    let mut sys = sysinfo::System::new();
+    let p = sysinfo::Pid::from_u32(pid);
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[p]), true);
+    if let Some(proc_) = sys.process(p) {
+        proc_.kill();
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PidRecord {
+    server_pid: u32,
+    owner_pid: u32,
+    binary: PathBuf,
+}
+
+/// Stop servers left behind by Veyra processes that died without cleaning
+/// up (e.g. `kill -9`). Servers whose owner is still running are untouched.
+/// Returns the number of servers stopped.
+pub fn reap_stale(dir: &Path) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    let mut reaped = 0;
+    for e in entries.flatten() {
+        let path = e.path();
+        if path.extension().and_then(|x| x.to_str()) != Some("pid") {
+            continue;
+        }
+        let Ok(rec) = std::fs::read(&path)
+            .map_err(anyhow::Error::from)
+            .and_then(|b| Ok(serde_json::from_slice::<PidRecord>(&b)?))
+        else {
+            let _ = std::fs::remove_file(&path);
+            continue;
+        };
+        if sys.process(sysinfo::Pid::from_u32(rec.owner_pid)).is_some() {
+            continue;
+        }
+        if let Some(p) = sys.process(sysinfo::Pid::from_u32(rec.server_pid)) {
+            let same_binary = p.exe().map(|e| e == rec.binary).unwrap_or(false)
+                || p.name().to_string_lossy().contains("llama-server");
+            if same_binary {
+                p.kill();
+                reaped += 1;
+            }
+        }
+        let _ = std::fs::remove_file(&path);
+    }
+    reaped
 }
 
 pub fn free_port(host: &str) -> std::io::Result<u16> {
@@ -107,6 +188,18 @@ impl LlamaServer {
         let child = cmd
             .spawn()
             .map_err(|e| anyhow::anyhow!("failed to start {}: {e}", opts.binary.display()))?;
+        let pid_file = child.id().and_then(|pid| {
+            register(pid);
+            let dir = opts.log_file.parent()?;
+            let rec = PidRecord {
+                server_pid: pid,
+                owner_pid: std::process::id(),
+                binary: opts.binary.clone(),
+            };
+            let f = dir.join(format!("llama-server-{pid}.pid"));
+            std::fs::write(&f, serde_json::to_vec(&rec).ok()?).ok()?;
+            Some(f)
+        });
         let host = if opts.host.contains(':') {
             format!("[{}]", opts.host)
         } else {
@@ -118,6 +211,7 @@ impl LlamaServer {
             base_url: format!("http://{host}:{port}/v1"),
             log_file: opts.log_file.clone(),
             args,
+            pid_file,
         };
         server.wait_healthy(&host, opts.startup_timeout).await?;
         Ok(server)
@@ -164,10 +258,21 @@ impl LlamaServer {
     }
 
     /// Graceful stop: SIGTERM, then kill after a grace period.
+    fn forget(&mut self, pid: Option<u32>) {
+        if let Some(pid) = pid {
+            unregister(pid);
+        }
+        if let Some(f) = self.pid_file.take() {
+            let _ = std::fs::remove_file(f);
+        }
+    }
+
     pub async fn stop(&mut self) {
         let Some(mut child) = self.child.take() else {
             return;
         };
+        let pid = child.id();
+        self.forget(pid);
         #[cfg(unix)]
         if let Some(pid) = child.id() {
             unsafe_term(pid);
@@ -186,7 +291,9 @@ impl LlamaServer {
 impl Drop for LlamaServer {
     fn drop(&mut self) {
         if let Some(mut child) = self.child.take() {
+            let pid = child.id();
             let _ = child.start_kill();
+            self.forget(pid);
         }
     }
 }
@@ -268,6 +375,52 @@ mod tests {
     fn free_port_is_loopback() {
         let p = free_port("127.0.0.1").unwrap();
         assert!(p > 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stale_servers_with_dead_owners_are_reaped() {
+        let dir = tempfile::tempdir().unwrap();
+        // A long-running stand-in for an orphaned llama-server.
+        let mut orphan = std::process::Command::new("sleep")
+            .arg("60")
+            .spawn()
+            .unwrap();
+        // Owner pid that cannot exist.
+        let rec = PidRecord {
+            server_pid: orphan.id(),
+            owner_pid: 999_999_999,
+            binary: "/bin/sleep".into(),
+        };
+        std::fs::write(
+            dir.path().join("llama-server-1.pid"),
+            serde_json::to_vec(&rec).unwrap(),
+        )
+        .unwrap();
+        // A live owner (this test process) must be left alone.
+        let mut kept = std::process::Command::new("sleep")
+            .arg("60")
+            .spawn()
+            .unwrap();
+        let rec2 = PidRecord {
+            server_pid: kept.id(),
+            owner_pid: std::process::id(),
+            binary: "/bin/sleep".into(),
+        };
+        std::fs::write(
+            dir.path().join("llama-server-2.pid"),
+            serde_json::to_vec(&rec2).unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(reap_stale(dir.path()), 1);
+        assert!(orphan.wait().is_ok());
+        assert!(
+            kept.try_wait().unwrap().is_none(),
+            "server of a live owner keeps running"
+        );
+        assert!(dir.path().join("llama-server-2.pid").exists());
+        let _ = kept.kill();
     }
 
     #[tokio::test]

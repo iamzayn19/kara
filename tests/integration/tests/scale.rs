@@ -25,7 +25,13 @@ fn run(files: usize, first_budget_s: f64) {
     let repo = tempfile::tempdir().unwrap();
     let cache = tempfile::tempdir().unwrap();
     generate(repo.path(), files);
-    let idx = RepoIndex::open(repo.path(), cache.path(), LanguageRegistry::builtin(), 1_000_000).unwrap();
+    let idx = RepoIndex::open(
+        repo.path(),
+        cache.path(),
+        LanguageRegistry::builtin(),
+        1_000_000,
+    )
+    .unwrap();
 
     let t = Instant::now();
     let s1 = idx.refresh().unwrap();
@@ -45,7 +51,10 @@ fn run(files: usize, first_budget_s: f64) {
 
     eprintln!("{files} files: first index {first:.2}s, incremental {second:.2}s, rank {rank:.3}s");
     assert!(first < first_budget_s, "first index took {first:.1}s");
-    assert!(second < first, "incremental refresh is faster than a full index");
+    assert!(
+        second < first,
+        "incremental refresh is faster than a full index"
+    );
 }
 
 #[test]

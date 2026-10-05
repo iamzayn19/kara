@@ -310,11 +310,18 @@ fn diff(s: &Session) {
         for path in &veyra {
             let before_bytes = j.original_content(path).flatten().unwrap_or_default();
             let after_bytes = std::fs::read(root.join(path)).unwrap_or_default();
-            if veyra_context::looks_binary(&before_bytes) || veyra_context::looks_binary(&after_bytes) {
+            if veyra_context::looks_binary(&before_bytes)
+                || veyra_context::looks_binary(&after_bytes)
+            {
                 println!(
                     "{} {path} {}",
                     style("binary").yellow(),
-                    style(format!("({} → {} bytes)", before_bytes.len(), after_bytes.len())).dim()
+                    style(format!(
+                        "({} → {} bytes)",
+                        before_bytes.len(),
+                        after_bytes.len()
+                    ))
+                    .dim()
                 );
                 continue;
             }

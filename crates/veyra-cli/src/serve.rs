@@ -352,8 +352,14 @@ impl Server {
         for path in j.veyra_changed_paths() {
             let before_bytes = j.original_content(&path).flatten();
             let after_bytes = std::fs::read(root.join(&path)).ok();
-            let binary = before_bytes.as_deref().map(veyra_context::looks_binary).unwrap_or(false)
-                || after_bytes.as_deref().map(veyra_context::looks_binary).unwrap_or(false);
+            let binary = before_bytes
+                .as_deref()
+                .map(veyra_context::looks_binary)
+                .unwrap_or(false)
+                || after_bytes
+                    .as_deref()
+                    .map(veyra_context::looks_binary)
+                    .unwrap_or(false);
             if binary {
                 files.push(json!({"path": path, "binary": true, "before": null, "after": null, "diff": ""}));
                 continue;

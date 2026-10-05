@@ -249,6 +249,7 @@ pub async fn run_task(
     provider: Arc<dyn ModelProvider>,
     settings: AgentSettings,
     sample_memory: Option<Arc<dyn Fn() -> Option<u64> + Send + Sync>>,
+    time_limit: Option<std::time::Duration>,
 ) -> EvalResult {
     let started = Instant::now();
     let mut result = EvalResult {
@@ -312,7 +313,22 @@ pub async fn run_task(
         Arc::new(|_| {}),
         settings,
     );
+    // A wall-clock budget per benchmark task (the agent itself has no step
+    // limit; this only bounds how long one evaluation may take).
+    let timed_out = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let timer = time_limit.map(|limit| {
+        let cancel = agent.ctx.cancel.clone();
+        let flag = timed_out.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(limit).await;
+            flag.store(true, std::sync::atomic::Ordering::SeqCst);
+            cancel.cancel();
+        })
+    });
     let turn: TurnResult = agent.run_turn(&task.prompt, AgentMode::Execute).await;
+    if let Some(t) = timer {
+        t.abort();
+    }
     if let Some(s) = sampler {
         s.abort();
     }
@@ -338,7 +354,12 @@ pub async fn run_task(
     result.completion_tokens = turn.stats.usage.completion_tokens;
     result.peak_memory_bytes = *peak.lock().unwrap();
     result.duration_ms = started.elapsed().as_millis() as u64;
-    if turn.outcome == TurnOutcome::Error {
+    if timed_out.load(std::sync::atomic::Ordering::SeqCst) {
+        result.error = Some(format!(
+            "time limit of {}s reached",
+            time_limit.map(|d| d.as_secs()).unwrap_or(0)
+        ));
+    } else if turn.outcome == TurnOutcome::Error {
         result.error = Some(turn.summary);
     }
     result
@@ -474,7 +495,7 @@ mod tests {
         let tasks = load_suite(&suite()).unwrap();
         for t in tasks.iter().filter(|t| t.id.starts_with("python-")) {
             let provider = Arc::new(oracle_provider(t).unwrap());
-            let r = run_task(t, provider, AgentSettings::default(), None).await;
+            let r = run_task(t, provider, AgentSettings::default(), None, None).await;
             assert!(r.success, "{}: {:?} {}", t.id, r.error, r.check_output_tail);
             assert_eq!(r.tests_passing, Some(true));
             assert!(r.unnecessary_edits.is_empty(), "{:?}", r.unnecessary_edits);

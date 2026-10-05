@@ -26,6 +26,10 @@ pub struct EvalArgs {
     /// Allow downloading the model if needed.
     #[arg(long)]
     yes: bool,
+    /// Wall-clock limit per task in seconds (0 = none). Bounds the benchmark,
+    /// not the agent.
+    #[arg(long, default_value_t = 1800)]
+    task_timeout: u64,
     /// Write the JSON report here (default: tests/evals/results/<date>-<model>.json when the directory exists).
     #[arg(long)]
     out: Option<PathBuf>,
@@ -116,6 +120,23 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
         host: format!("{} {}", std::env::consts::OS, std::env::consts::ARCH),
         results: Vec::new(),
     };
+    let out = args.out.clone().or_else(|| {
+        let dir = app.root.join("tests/evals/results");
+        dir.exists().then(|| {
+            let slug: String = model_name
+                .to_ascii_lowercase()
+                .chars()
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || c == '.' {
+                        c
+                    } else {
+                        '-'
+                    }
+                })
+                .collect();
+            dir.join(format!("{}-{slug}.json", &report.started[..10]))
+        })
+    });
     for t in &tasks {
         print!("  {:<28} ", t.id);
         use std::io::Write;
@@ -129,7 +150,13 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
                 .expect("provider")
         };
         let settings = app.agent_settings(runtime.as_ref().and_then(|r| r.context));
-        let r = rt.block_on(eval::run_task(t, provider, settings, sampler.clone()));
+        let r = rt.block_on(eval::run_task(
+            t,
+            provider,
+            settings,
+            sampler.clone(),
+            (args.task_timeout > 0).then(|| std::time::Duration::from_secs(args.task_timeout)),
+        ));
         if let Some(why) = &r.skipped {
             println!(
                 "{} {}",
@@ -159,29 +186,16 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
             .dim()
         );
         report.results.push(r);
+        // Write after every task so long runs keep partial results.
+        if let Some(p) = &out {
+            let _ = std::fs::write(p, serde_json::to_vec_pretty(&report).unwrap_or_default());
+        }
     }
     if let Some(mut r) = runtime {
         rt.block_on(r.shutdown());
     }
 
     println!("\n{}", report.markdown());
-    let out = args.out.clone().or_else(|| {
-        let dir = app.root.join("tests/evals/results");
-        dir.exists().then(|| {
-            let slug: String = model_name
-                .to_ascii_lowercase()
-                .chars()
-                .map(|c| {
-                    if c.is_ascii_alphanumeric() || c == '.' {
-                        c
-                    } else {
-                        '-'
-                    }
-                })
-                .collect();
-            dir.join(format!("{}-{slug}.json", &report.started[..10]))
-        })
-    });
     if let Some(p) = out {
         std::fs::write(&p, serde_json::to_vec_pretty(&report)?)?;
         println!("Report written to {}", p.display());

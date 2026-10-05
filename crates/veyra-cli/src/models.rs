@@ -375,6 +375,10 @@ pub async fn start_runtime(
         log_file: app.paths.logs_dir().join("llama-server.log"),
         startup_timeout: Duration::from_secs(app.config.runtime.startup_timeout_secs),
     };
+    let reaped = veyra_runtime::server::reap_stale(&app.paths.logs_dir());
+    if reaped > 0 {
+        eprintln!("stopped {reaped} llama-server process(es) left behind by an earlier Veyra run");
+    }
     let server = LlamaServer::start(opts).await?;
     let provider = OpenAiCompatProvider::new(&server.base_url, &spec.id)
         .with_label("llama.cpp")

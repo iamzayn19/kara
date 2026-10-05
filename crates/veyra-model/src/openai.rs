@@ -447,7 +447,10 @@ mod tests {
         assert_eq!(r.reasoning, "thinking...");
         assert_eq!(r.usage.unwrap().prompt_tokens, 12);
         assert_eq!(r.finish_reason.as_deref(), Some("stop"));
-        assert!(events.lock().unwrap().contains(&StreamEvent::Text("Hel".into())));
+        assert!(events
+            .lock()
+            .unwrap()
+            .contains(&StreamEvent::Text("Hel".into())));
         let sent = server.await.unwrap();
         assert!(sent.contains("\"stream\":true"));
         assert!(sent.starts_with("POST /v1/chat/completions"));

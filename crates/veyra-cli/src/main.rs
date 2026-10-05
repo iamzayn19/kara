@@ -99,6 +99,7 @@ fn main() {
         .enable_all()
         .build()
         .expect("tokio runtime");
+    install_signal_handlers(&rt);
     let code = match run(cli, &rt) {
         Ok(code) => code,
         Err(e) => {
@@ -108,6 +109,35 @@ fn main() {
     };
     rt.shutdown_timeout(std::time::Duration::from_secs(2));
     std::process::exit(code);
+}
+
+/// Stop any llama-server this process started when Veyra is terminated, so
+/// the model runtime never outlives it.
+fn install_signal_handlers(rt: &tokio::runtime::Runtime) {
+    #[cfg(unix)]
+    rt.spawn(async {
+        use tokio::signal::unix::{signal, SignalKind};
+        let (Ok(mut term), Ok(mut hup)) = (
+            signal(SignalKind::terminate()),
+            signal(SignalKind::hangup()),
+        ) else {
+            return;
+        };
+        tokio::select! {
+            _ = term.recv() => {}
+            _ = hup.recv() => {}
+        }
+        veyra_runtime::server::kill_all_started();
+        std::process::exit(143);
+    });
+    #[cfg(windows)]
+    rt.spawn(async {
+        if let Ok(mut close) = tokio::signal::windows::ctrl_close() {
+            close.recv().await;
+            veyra_runtime::server::kill_all_started();
+            std::process::exit(1);
+        }
+    });
 }
 
 fn run(cli: Cli, rt: &tokio::runtime::Runtime) -> anyhow::Result<i32> {

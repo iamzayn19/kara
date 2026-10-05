@@ -58,7 +58,11 @@ fn copy_dir(src: &Path, dst: &Path) {
     for e in std::fs::read_dir(src).unwrap() {
         let e = e.unwrap();
         let name = e.file_name();
-        if name == "solutions" || name == "target" || name == "veyra-tasks.toml" || name == "__pycache__" {
+        if name == "solutions"
+            || name == "target"
+            || name == "veyra-tasks.toml"
+            || name == "__pycache__"
+        {
             continue;
         }
         let to = dst.join(&name);

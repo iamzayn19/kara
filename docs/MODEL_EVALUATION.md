@@ -58,6 +58,10 @@ veyra eval --model qwen3.6-35b-a3b-q4_k_m --tasks 'rust-*,python-*'
 veyra eval --oracle
 ```
 
+Each task has a wall-clock budget (`--task-timeout`, default 1800 s) so a
+benchmark run always ends. This bounds the evaluation, not the agent:
+interactive Veyra has no step or time limit.
+
 Reports are written to `tests/evals/results/<date>-<model>.json`. Real-model
 evaluations are slow and run manually, never in every CI job.
 

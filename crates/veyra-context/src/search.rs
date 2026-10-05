@@ -152,7 +152,9 @@ pub fn grep(root: &Path, pattern: &str, opts: &GrepOptions) -> Result<GrepResult
     let mut per_file: Vec<(String, Vec<GrepMatch>, bool)> = files
         .par_iter()
         .filter_map(|p| {
-            if opts.stop_early && found.load(std::sync::atomic::Ordering::Relaxed) >= opts.max_matches {
+            if opts.stop_early
+                && found.load(std::sync::atomic::Ordering::Relaxed) >= opts.max_matches
+            {
                 return None;
             }
             let md = std::fs::metadata(p).ok()?;

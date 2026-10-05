@@ -253,7 +253,10 @@ pub fn orient(
             if chars.len() < 4 {
                 vec![chars.iter().collect::<String>()]
             } else {
-                chars.windows(4).map(|w| w.iter().collect::<String>()).collect()
+                chars
+                    .windows(4)
+                    .map(|w| w.iter().collect::<String>())
+                    .collect()
             }
         })
         .collect();
