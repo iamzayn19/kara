@@ -138,14 +138,24 @@ pub fn recommend(registry: &Registry, hw: &HardwareInfo) -> Recommendation {
     }
 
     // Best score first; full placement beats partial offload at equal score.
+    // Measured scores are only comparable with each other: use them when every
+    // candidate has one, otherwise fall back to the provisional rank for all.
+    let all_measured = eligible.iter().all(|e| e.0.eval_score.is_some());
+    let score = |m: &ModelSpec| {
+        if all_measured {
+            m.eval_score.unwrap_or(0.0) * 100.0
+        } else {
+            m.quality_rank as f64
+        }
+    };
     eligible.sort_by(|a, b| {
-        let sa = a.0.selection_score()
+        let sa = score(a.0)
             - if a.2 == Placement::PartialOffload {
                 15.0
             } else {
                 0.0
             };
-        let sb = b.0.selection_score()
+        let sb = score(b.0)
             - if b.2 == Placement::PartialOffload {
                 15.0
             } else {
@@ -269,15 +279,25 @@ mod tests {
     fn measured_eval_scores_override_rank() {
         let mut reg = Registry::builtin();
         for m in reg.models.iter_mut() {
-            if m.id == "qwen3.6-27b-q4_k_m" {
-                m.eval_score = Some(0.7);
-            }
-            if m.id == "qwen3.6-35b-a3b-q4_k_m" {
-                m.eval_score = Some(0.6);
-            }
+            m.eval_score = Some(match m.id.as_str() {
+                "qwen3.6-27b-q4_k_m" => 0.7,
+                "qwen3.6-35b-a3b-q4_k_m" => 0.6,
+                _ => 0.3,
+            });
         }
         let r = recommend(&reg, &mac(64));
         assert_eq!(r.model.unwrap().id, "qwen3.6-27b-q4_k_m");
+    }
+
+    #[test]
+    fn a_single_measured_model_does_not_outrank_unmeasured_ones() {
+        let mut reg = Registry::builtin();
+        for m in reg.models.iter_mut() {
+            if m.id == "qwen3-4b-q4_k_m" {
+                m.eval_score = Some(0.5);
+            }
+        }
+        assert_eq!(recommend(&reg, &mac(64)).model.unwrap().id, "qwen3.6-35b-a3b-q4_k_m");
     }
 
     #[test]

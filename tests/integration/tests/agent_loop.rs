@@ -338,3 +338,61 @@ async fn context_is_compacted_on_long_tasks() {
         "older tool output was elided"
     );
 }
+
+#[tokio::test]
+async fn claiming_done_while_tests_fail_is_pushed_back() {
+    if !have(python(), "--version") {
+        return;
+    }
+    let repo = Repo::from_fixture("python-shop");
+    let provider = Arc::new(ScriptedProvider::from_fn(|req: &ChatRequest, n| {
+        let last = req.messages.last().unwrap();
+        if last.role == Role::User && last.content.contains("still fails") {
+            return call(
+                "edit_file",
+                json!({"path": "shop/cart.py", "old_string": "round(self.total() - percent)", "new_string": "round(self.total() * (100 - percent) / 100)"}),
+            );
+        }
+        match n {
+            0 => call(
+                "edit_file",
+                json!({"path": "shop/cart.py", "old_string": "round(self.total() * percent / 100)", "new_string": "round(self.total() - percent)"}),
+            ),
+            1 => call("run_test", json!({"files": ["test/test_cart.py"]})),
+            // Claims success although the tests failed.
+            2 => text("Fixed it, all good."),
+            _ => {
+                if req.messages.iter().rev().take(3).any(|m| m.role == Role::Tool && m.content.contains("PASSED")) {
+                    text("Now the tests pass.")
+                } else {
+                    call("run_test", json!({"files": ["test/test_cart.py"], "timeout_secs": 100 + n}))
+                }
+            }
+        }
+    }));
+    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let r = h.agent.run_turn("fix the discount", AgentMode::Execute).await;
+    assert_eq!(r.outcome, TurnOutcome::Completed);
+    assert!(r.last_test.unwrap().succeeded(), "{}", r.summary);
+    assert!(!r.summary.contains("still failing"));
+}
+
+#[tokio::test]
+async fn finishing_with_failing_tests_is_reported_honestly() {
+    if !have(python(), "--version") {
+        return;
+    }
+    let repo = Repo::from_fixture("python-shop");
+    let provider = Arc::new(ScriptedProvider::from_fn(|_: &ChatRequest, n| match n {
+        0 => call(
+            "edit_file",
+            json!({"path": "shop/cart.py", "old_string": "round(self.total() * percent / 100)", "new_string": "round(self.total() - percent)"}),
+        ),
+        1 => call("run_test", json!({"files": ["test/test_cart.py"]})),
+        _ => text("Done, everything works."),
+    }));
+    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let r = h.agent.run_turn("fix the discount", AgentMode::Execute).await;
+    assert!(r.summary.contains("Note from Veyra"), "{}", r.summary);
+    assert!(r.summary.contains("still failing"));
+}

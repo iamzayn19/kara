@@ -37,9 +37,10 @@ interruption and are verified against the pinned SHA-256.
    `auto_select = true`), estimate weights + KV cache + overhead at its
    default context, halving the context down to its minimum before giving up.
    MoE models may instead run with experts in system RAM on a discrete GPU.
-4. Pick the highest *measured* Veyra eval score, falling back to the
-   provisional `quality_rank` while no measurement exists. A model that fits
-   only with offloading is ranked below one that fits fully.
+4. Pick the highest *measured* Veyra eval score when every fitting model has
+   one; otherwise rank all of them by the provisional `quality_rank`, so one
+   measured model never outranks unmeasured ones. A model that fits only with
+   offloading is ranked below one that fits fully.
 
 Larger is not assumed to be better. Once `veyra eval` results exist, record
 `eval_score` in the registry so selection follows measured agent performance

@@ -417,6 +417,7 @@ impl Agent {
         let final_text: String;
         let mut edits_since_test = false;
         let mut verify_nudged = false;
+        let mut failing_nudges = 0u32;
         let mut empty_nudges = 0;
         let mut recent_calls: Vec<String> = Vec::new();
         let mut repeat_warnings = 0u32;
@@ -500,9 +501,47 @@ impl Agent {
                     messages.push(Message::user(prompts::VERIFY_NUDGE));
                     continue;
                 }
+                // Do not accept "done" while the agent's own latest test run
+                // fails. Push back (bounded) before letting the turn end.
+                let still_failing = mode == AgentMode::Execute
+                    && !changed.is_empty()
+                    && !edits_since_test
+                    && last_test.as_ref().map(|t| !t.succeeded()).unwrap_or(false);
+                if still_failing
+                    && failing_nudges < 2
+                    && self.state.retries <= self.settings.max_recovery_attempts
+                {
+                    failing_nudges += 1;
+                    let t = last_test.as_ref().expect("checked above");
+                    self.notice(
+                        NoticeLevel::Info,
+                        "the last test run still fails; asking the model to keep working",
+                    );
+                    messages.push(Message::assistant(text, vec![]));
+                    messages.push(Message::user(prompts::failing_nudge(
+                        &t.command,
+                        &t.failed_tests,
+                    )));
+                    continue;
+                }
                 self.emit(AgentEvent::Phase {
                     phase: Phase::Summarize,
                 });
+                let mut text = text;
+                if still_failing {
+                    let t = last_test.as_ref().expect("checked above");
+                    let note = format!(
+                        "Note from Veyra: the last test run (`{}`) is still failing{}.",
+                        t.command,
+                        if t.failed_tests.is_empty() {
+                            String::new()
+                        } else {
+                            format!(": {}", t.failed_tests.join(", "))
+                        }
+                    );
+                    self.notice(NoticeLevel::Warning, note.clone());
+                    text = format!("{text}\n\n{note}");
+                }
                 self.emit(AgentEvent::AssistantMessage { text: text.clone() });
                 final_text = text;
                 if mode == AgentMode::Plan {
@@ -556,9 +595,10 @@ impl Agent {
                         self.emit(AgentEvent::TestFinished {
                             report: rep.clone(),
                         });
-                        if rep.succeeded() {
-                            edits_since_test = false;
-                        } else if !changed.is_empty() {
+                        // Any test run after the edits verifies them; whether
+                        // it passed is tracked in `last_test`.
+                        edits_since_test = false;
+                        if !rep.succeeded() && !changed.is_empty() {
                             self.state.retries += 1;
                             self.state.failures.push(format!(
                                 "`{}` failed{}",
@@ -583,8 +623,6 @@ impl Agent {
                                     phase: Phase::Recover,
                                 });
                             }
-                        } else {
-                            edits_since_test = false;
                         }
                     }
                 }

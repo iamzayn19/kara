@@ -85,15 +85,6 @@ impl ModelSpec {
     pub fn is_moe(&self) -> bool {
         self.architecture == "moe"
     }
-
-    /// Score used for automatic selection: measured evaluation results win
-    /// over the provisional rank once they exist.
-    pub fn selection_score(&self) -> f64 {
-        match self.eval_score {
-            Some(s) => 1000.0 + s * 1000.0,
-            None => self.quality_rank as f64,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

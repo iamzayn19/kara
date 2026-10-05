@@ -71,7 +71,45 @@ Results are machine-specific. Speed depends on hardware; solve rate depends
 on the model, quantization and Veyra version.
 
 <!-- RESULTS:BEGIN -->
-_No results recorded yet._
+### Qwen3-4B Q4_K_M · Apple M5, 16 GB (Metal) · 2026-10-05 · Veyra 0.1.0 (pre-gate build)
+
+Solved **5 / 10** runnable tasks (Go tasks skipped: Go not installed on this
+machine). Generation speed about 12-15 tokens/s; every task took 3-10 minutes.
+Per-task limit: 600 s.
+
+| Task | Category | Solved | Outcome | Model calls | Tool calls | Time (s) | Tokens in/out | Peak mem |
+|---|---|---|---|---|---|---|---|---|
+| java-order-total | multi-file-bug | yes | completed | 7 | 6 | 311 | 27918/4177 | 6.9 GB |
+| python-discount | one-line-fix | yes | completed | 5 | 4 | 267 | 19716/3814 | 7.6 GB |
+| python-validation | missing-validation | no | completed | 6 | 4 | 304 | 23387/4571 | 7.6 GB |
+| python-import | broken-import | no | time limit | 11 | 10 | 601 | 40464/7946 | 7.7 GB |
+| ruby-session-expiry | one-line-fix | no | completed | 7 | 5 | 411 | 27196/5848 | 7.7 GB |
+| ruby-email-case | multi-file-bug | yes | completed | 5 | 4 | 183 | 18922/2430 | 7.7 GB |
+| rust-ledger-debit | one-line-fix | yes | completed | 5 | 3 | 198 | 19752/2670 | 7.5 GB |
+| rust-counter-race | concurrency | yes | completed | 5 | 3 | 222 | 19589/3035 | 7.6 GB |
+| ts-pagination-offset | one-line-fix | no | completed | 7 | 5 | 424 | 30514/5745 | 7.6 GB |
+| ts-query-validation | missing-validation | no | time limit | 7 | 6 | 603 | 24771/6217 | 7.9 GB |
+
+No invalid tool calls and no unneeded edits in any task.
+
+What the failures taught us:
+
+* In four failures the model declared success while its own last test run
+  was still failing. Veyra now pushes back when that happens (up to twice),
+  and if the model still stops, appends a factual "tests are still failing"
+  note to the answer instead of letting a false success stand.
+* In `python-import` the model edited the test file instead of the code.
+  The system prompt now forbids weakening tests unless asked.
+* In `python-validation` the fix dropped `add_item`'s return value. This is
+  a plain capability limit of a 4B model.
+
+Raw report: `tests/evals/results/2026-10-05-qwen3-4b-q4-k-m.json`.
+
+This is one small model on one modest machine. It shows Veyra's loop works
+end to end with a real local model, not how capable the high-tier default is.
+No `eval_score` has been recorded in the registry from this run: scores
+are only comparable when the same suite was run on the same Veyra version,
+and the larger models have not been measured yet.
 <!-- RESULTS:END -->
 
 ## Selection policy
@@ -80,8 +118,9 @@ Until measured results exist for a model, `/model auto` uses the provisional
 `quality_rank` in `models/registry.toml`, which follows the project's initial
 tiering (Qwen3.6-35B-A3B high, Qwen3.6-27B mid, smaller models below). Once a
 model has results on representative hardware, set `eval_score` (fraction
-solved) in the registry. Automatic selection then prefers measured scores
-over provisional ranks.
+solved) in the registry. Measured scores are used only when every model that
+fits a machine has one; otherwise all candidates are ranked by
+`quality_rank`, so one measured model can never outrank unmeasured ones.
 
 Results still missing before the high-tier default can be called validated:
 Qwen3.6-35B-A3B and Qwen3.6-27B need a machine with at least 24-32 GB of fast
