@@ -24,11 +24,12 @@ needs a green run on GitHub.
 | Tool calling works | ✅ local | native tool calls (read, edit, run_test) from Qwen3-4B |
 | Repository edits work | ✅ local | real fix in the python-shop fixture |
 | Tests can be executed | ✅ local | targeted `run_test` with parsed results |
-| Failure recovery works | ✅ local (scripted) · see eval | `fixes_bug_with_failure_recovery`, `recovery_is_bounded_and_reported` |
+| Failure recovery works | ✅ local | scripted tests; real model recovered in eval reruns (docs/MODEL_EVALUATION.md) |
+| Dogfood session on Veyra itself | ✅ local | docs/DOGFOOD.md (explain, add a test, run tests, /diff, /oracle, /undo, clean state) |
 | /undo preserves user changes | ✅ local | `tests/integration/tests/undo.rs` |
-| /matrix works | ✅ local | interactive pty session |
-| /morpheus works | ✅ local (scripted) | `plan_mode_is_read_only_and_waits_for_approval` |
-| /oracle works | ✅ local (scripted) | `review_mode_receives_the_diff` |
+| /matrix works | ✅ local | interactive sessions with and without a model (docs/DOGFOOD.md) |
+| /morpheus works | ✅ local (scripted) | `plan_mode_is_read_only_and_waits_for_approval`; real-model plan session still to record |
+| /oracle works | ✅ local | scripted test plus real-model review in the dogfood session |
 | Permission boundaries tested | ✅ local | `tests/integration/tests/security.rs`, sandbox unit tests |
 | Privacy command accurate | ✅ local | derived from effective config; remote endpoints reported |
 | No telemetry exists by default | ✅ | no telemetry code; network uses listed in PRIVACY.md |

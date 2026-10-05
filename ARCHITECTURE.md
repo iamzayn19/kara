@@ -32,7 +32,7 @@ Terminal                                  VS Code
 | `veyra-core` | TOML configuration with a "repository may only tighten" rule, permission profiles, the privacy report, structured `TaskState`. |
 | `veyra-sandbox` | Resolves every path against the workspace (including symlinks and `..`), classifies shell commands into permission categories, recognizes secret paths, redacts credentials, flags prompt-injection text. |
 | `veyra-context` | Language packs (data in `languages/*.toml`), project command discovery, the SQLite repository index, ripgrep-style search, git helpers, task-to-file ranking. |
-| `veyra-tools` | 23 structured tools, each with a JSON schema, an *assessment* step (which permissions it needs, with a preview) and an execution step. Owns the undo journal. |
+| `veyra-tools` | 24 structured tools, each with a JSON schema, an *assessment* step (which permissions it needs, with a preview) and an execution step. Owns the undo journal. |
 | `veyra-model` | `ModelProvider` trait; OpenAI-compatible streaming client; scripted provider for tests; model registry; hardware detection; model recommendation. |
 | `veyra-runtime` | Locates or installs a pinned llama.cpp build, downloads models with resume and SHA-256 verification, launches `llama-server` bound to loopback and stops it. |
 | `veyra-agent` | The loop, prompts, approvers, session persistence, evaluation harness. |

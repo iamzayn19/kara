@@ -23,9 +23,9 @@ remaining release blockers.
   (`/oracle`, `/review`) of the current diff.
 - `/matrix`: repository statistics, active files and symbols, change
   ownership, model, context usage, tools, task and agent state.
-- 23 structured tools: file reading, listing and search, symbol definitions and
+- 24 structured tools: file reading, listing and search, symbol definitions and
   references, edits (search/replace and tolerant unified-diff patches),
-  create, move and delete, shell, targeted test/lint/build runs, diagnostics
+  insertion by line, create, move and delete, shell, targeted test/lint/build runs, diagnostics
   and read-only git.
 - Undo journal: `/undo` and `veyra undo` restore Veyra's last change batch and
   never overwrite pre-existing or later user changes. Covers file tools and
