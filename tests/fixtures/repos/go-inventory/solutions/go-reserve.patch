@@ -1,0 +1,17 @@
+--- a/inventory/stock.go
++++ b/inventory/stock.go
+@@ -20,9 +20,12 @@
+ // Reserve removes qty units of sku. It fails without changing anything when
+ // there is not enough stock.
+ func (s *Store) Reserve(sku string, qty int) error {
+-	s.levels[sku] -= qty
+-	if s.levels[sku] < 0 {
++	if qty <= 0 {
++		return errors.New("quantity must be positive")
++	}
++	if s.levels[sku] < qty {
+ 		return ErrInsufficient
+ 	}
++	s.levels[sku] -= qty
+ 	return nil
+ }

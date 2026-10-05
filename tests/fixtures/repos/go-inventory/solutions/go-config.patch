@@ -1,0 +1,7 @@
+--- a/inventory/config.go
++++ b/inventory/config.go
+@@ -9,3 +9,3 @@
+ func LowStockThreshold() int {
+-	v, err := strconv.Atoi(os.Getenv("INVENTORY_LOW_STOCK_THRESHOLD"))
++	v, err := strconv.Atoi(os.Getenv("INVENTORY_LOW_STOCK"))
+ 	if err != nil {

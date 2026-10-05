@@ -1,0 +1,7 @@
+--- a/app/models/session.rb
++++ b/app/models/session.rb
+@@ -13,3 +13,3 @@
+   def expired?(now)
+-    now - created_at >= Settings::SESSION_TTL_SECONDS * 60
++    now - created_at >= Settings::SESSION_TTL_SECONDS
+   end

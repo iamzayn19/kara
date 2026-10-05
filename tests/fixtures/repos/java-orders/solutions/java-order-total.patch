@@ -1,0 +1,14 @@
+--- a/src/orders/Order.java
++++ b/src/orders/Order.java
+@@ -16,3 +16,3 @@
+         for (Line l : lines) {
+-            total += l.unitCents();
++            total += l.unitCents() * l.quantity();
+         }
+--- a/src/orders/Shipping.java
++++ b/src/orders/Shipping.java
+@@ -10,3 +10,3 @@
+     public static int costCents(Order order) {
+-        return order.totalCents() > FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_RATE_CENTS;
++        return order.totalCents() >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : FLAT_RATE_CENTS;
+     }

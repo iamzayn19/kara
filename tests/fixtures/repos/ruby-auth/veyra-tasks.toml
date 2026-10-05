@@ -1,0 +1,13 @@
+[[task]]
+id = "ruby-session-expiry"
+category = "one-line-fix"
+prompt = "Fix the failing authentication specs: sessions should expire after 30 minutes."
+check = "ruby -Itest -Ilib test/authenticator_test.rb"
+expect_changed = ["app/models/session.rb"]
+
+[[task]]
+id = "ruby-email-case"
+category = "multi-file-bug"
+prompt = "Users cannot log in when the email differs only in letter case or surrounding spaces. Fix it so the email normalization test passes."
+check = "ruby -Itest -Ilib test/email_normalization_test.rb"
+expect_changed = ["app/models/user.rb"]

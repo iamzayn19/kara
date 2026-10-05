@@ -1,0 +1,13 @@
+[[task]]
+id = "go-reserve"
+category = "missing-validation"
+prompt = "Store.Reserve corrupts stock levels on failure and accepts negative quantities. Fix it."
+check = "go test ./inventory -run 'TestReserve'"
+expect_changed = ["inventory/stock.go"]
+
+[[task]]
+id = "go-config"
+category = "configuration"
+prompt = "The low-stock threshold ignores the INVENTORY_LOW_STOCK environment variable. Fix the configuration bug."
+check = "go test ./inventory -run TestLowStockThresholdFromEnv"
+expect_changed = ["inventory/config.go"]

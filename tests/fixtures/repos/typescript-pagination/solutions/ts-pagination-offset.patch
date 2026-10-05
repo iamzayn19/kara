@@ -1,0 +1,7 @@
+--- a/src/paginate.ts
++++ b/src/paginate.ts
+@@ -10,3 +10,3 @@
+   const totalPages = Math.max(1, Math.ceil(items.length / perPage));
+-  const start = page * perPage;
++  const start = (page - 1) * perPage;
+   return {

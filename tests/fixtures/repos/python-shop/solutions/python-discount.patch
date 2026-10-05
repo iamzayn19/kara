@@ -1,0 +1,7 @@
+--- a/shop/cart.py
++++ b/shop/cart.py
+@@ -27,3 +27,3 @@
+         if percent < 0 or percent > 100:
+             raise ValueError("percent must be between 0 and 100")
+-        return round(self.total() * percent / 100)
++        return round(self.total() * (100 - percent) / 100)

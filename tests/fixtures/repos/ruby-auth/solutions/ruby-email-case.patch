@@ -1,0 +1,7 @@
+--- a/app/models/user.rb
++++ b/app/models/user.rb
+@@ -16,3 +16,3 @@
+   def self.normalize_email(email)
+-    email.to_s.strip
++    email.to_s.strip.downcase
+   end

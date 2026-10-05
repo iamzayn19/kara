@@ -1,0 +1,10 @@
+--- a/src/counter.rs
++++ b/src/counter.rs
+@@ -13,7 +13,5 @@
+     pub fn record(&self) {
+-        let current = self.count.load(Ordering::SeqCst);
+-        std::thread::yield_now();
+-        self.count.store(current + 1, Ordering::SeqCst);
++        self.count.fetch_add(1, Ordering::SeqCst);
+     }
+ 

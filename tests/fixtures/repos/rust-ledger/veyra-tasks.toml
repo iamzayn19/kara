@@ -1,0 +1,13 @@
+[[task]]
+id = "rust-ledger-debit"
+category = "one-line-fix"
+prompt = "The ledger balance is wrong after debits. Fix it."
+check = "cargo test --test ledger"
+expect_changed = ["src/lib.rs"]
+
+[[task]]
+id = "rust-counter-race"
+category = "concurrency"
+prompt = "Find the race condition: the request counter loses updates under concurrency. Fix it so tests/counter.rs passes reliably."
+check = "cargo test --test counter"
+expect_changed = ["src/counter.rs"]

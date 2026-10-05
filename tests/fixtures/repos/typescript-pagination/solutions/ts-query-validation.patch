@@ -1,0 +1,12 @@
+--- a/src/query.ts
++++ b/src/query.ts
+@@ -8,5 +8,7 @@
+ export function listUsers(users: User[], params: { page?: string; perPage?: string }): Page<User> {
+-  const page = Number(params.page ?? "1");
+-  const perPage = Number(params.perPage ?? "10");
++  const rawPage = Math.floor(Number(params.page ?? "1"));
++  const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
++  const rawPer = Math.floor(Number(params.perPage ?? "10"));
++  const perPage = Number.isFinite(rawPer) ? Math.min(100, Math.max(1, rawPer)) : 10;
+   return paginate(users, page, perPage);
+ }

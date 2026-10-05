@@ -1,0 +1,11 @@
+--- a/shop/cart.py
++++ b/shop/cart.py
+@@ -18,4 +18,8 @@
+     def add_item(self, sku, price_cents, quantity=1):
++        if quantity <= 0:
++            raise ValueError("quantity must be positive")
++        if price_cents < 0:
++            raise ValueError("price must not be negative")
+         item = LineItem(sku, price_cents, quantity)
+         self.items.append(item)
+         return item

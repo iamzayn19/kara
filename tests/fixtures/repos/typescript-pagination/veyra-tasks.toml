@@ -1,0 +1,14 @@
+[[task]]
+id = "ts-pagination-offset"
+category = "one-line-fix"
+prompt = "Pagination returns the wrong items. Fix it so the paginate tests pass."
+check = "node --test test/paginate.test.ts"
+expect_changed = ["src/paginate.ts"]
+
+[[task]]
+id = "ts-query-validation"
+category = "missing-validation"
+prompt = "Add validation to listUsers: invalid or missing page values fall back to page 1, and perPage is clamped to 1..100. Make test/query.test.ts pass."
+check = "node --test test/query.test.ts"
+expect_changed = ["src/query.ts"]
+requires = ["ts-pagination-offset"]

@@ -58,9 +58,9 @@ fn p() -> &'static Patterns {
             jest: r(r"(?m)^Tests:\s+(?:(\d+) failed, )?(?:\d+ skipped, )?(?:(\d+) passed, )?\d+ total"),
             vitest: r(r"(?m)^\s*Tests\s+(?:(\d+) failed)?\s*\|?\s*(?:(\d+) passed)?"),
             jest_fail: r(r"(?m)^\s*(?:✕|×|✗)\s+(.+?)(?:\s+\(\d+ ?ms\))?$"),
-            node_pass: r(r"(?m)^# pass (\d+)"),
-            node_fail: r(r"(?m)^# fail (\d+)"),
-            node_fail_name: r(r"(?m)^\s*not ok \d+ - (.+)$"),
+            node_pass: r(r"(?m)^(?:# |ℹ )pass (\d+)"),
+            node_fail: r(r"(?m)^(?:# |ℹ )fail (\d+)"),
+            node_fail_name: r(r"(?m)^\s*(?:not ok \d+ - (.+)|✖ (.+?) \([\d.]+ms\))$"),
             junit: r(r"Tests run: (\d+), Failures: (\d+), Errors: (\d+)"),
             junit_fail: r(r"(?m)^\[ERROR\]\s+(\S+)\s+(?:Time elapsed|<<<|.*FAILURE)"),
             dotnet: r(r"(?:Passed|Failed)!\s+-\s+Failed:\s+(\d+),\s+Passed:\s+(\d+)"),
@@ -135,7 +135,14 @@ pub fn parse(output: &str) -> ParsedTests {
     } else if p.node_pass.is_match(output) {
         t.passed = p.node_pass.captures(output).and_then(|c| c[1].parse().ok());
         t.failed = p.node_fail.captures(output).and_then(|c| c[1].parse().ok());
-        names.extend(p.node_fail_name.captures_iter(output).map(|c| c[1].trim().to_string()));
+        for c in p.node_fail_name.captures_iter(output) {
+            if let Some(m) = c.get(1).or_else(|| c.get(2)) {
+                let n = m.as_str().trim().to_string();
+                if !names.contains(&n) {
+                    names.push(n);
+                }
+            }
+        }
     } else if p.junit.is_match(output) {
         // Maven prints per-class lines and a final total; the last one is the total.
         if let Some(c) = p.junit.captures_iter(output).last() {
@@ -232,6 +239,14 @@ mod tests {
         let t = parse(out);
         assert_eq!((t.passed, t.failed), (Some(2), Some(1)));
         assert_eq!(t.failed_tests, vec!["paginate returns second page"]);
+    }
+
+    #[test]
+    fn node_spec_reporter() {
+        let out = "✖ first page starts at the first item (1.66ms)\n✔ total pages (0.12ms)\nℹ tests 2\nℹ pass 1\nℹ fail 1\n✖ failing tests:\n\n✖ first page starts at the first item (1.66ms)\n";
+        let t = parse(out);
+        assert_eq!((t.passed, t.failed), (Some(1), Some(1)));
+        assert_eq!(t.failed_tests, vec!["first page starts at the first item"]);
     }
 
     #[test]

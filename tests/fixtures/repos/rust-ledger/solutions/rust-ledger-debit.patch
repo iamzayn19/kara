@@ -1,0 +1,7 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -22,3 +22,3 @@
+     pub fn debit(&mut self, cents: i64) {
+-        self.entries.push(Entry { cents });
++        self.entries.push(Entry { cents: -cents });
+     }

@@ -1,0 +1,25 @@
+# Evaluation tasks for this fixture. Each task's bug is independent.
+
+[[task]]
+id = "python-discount"
+category = "one-line-fix"
+prompt = "The cart discount tests are failing. Find the bug and fix it."
+check = "python3 -m unittest test.test_cart"
+check_windows = "python -m unittest test.test_cart"
+expect_changed = ["shop/cart.py"]
+
+[[task]]
+id = "python-validation"
+category = "missing-validation"
+prompt = "Cart.add_item accepts invalid input. Make it reject non-positive quantities and negative prices with ValueError, as the validation tests expect."
+check = "python3 -m unittest test.test_validation"
+check_windows = "python -m unittest test.test_validation"
+expect_changed = ["shop/cart.py"]
+
+[[task]]
+id = "python-import"
+category = "broken-import"
+prompt = "test_report fails with an import error. Fix it."
+check = "python3 -m unittest test.test_report"
+check_windows = "python -m unittest test.test_report"
+expect_changed = ["shop/report.py"]

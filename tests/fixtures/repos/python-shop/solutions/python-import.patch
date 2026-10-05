@@ -1,0 +1,10 @@
+--- a/shop/report.py
++++ b/shop/report.py
+@@ -1,9 +1,9 @@
+ """Order summary report."""
+ 
+-from shop.format import money
++from shop.format import format_money as money
+ 
+ 
+ def summary(cart):

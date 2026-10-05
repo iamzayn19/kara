@@ -1,0 +1,6 @@
+[[task]]
+id = "java-order-total"
+category = "multi-file-bug"
+prompt = "Order totals and shipping costs are wrong. Run the tests and fix both bugs."
+check = "make test"
+expect_changed = ["src/orders/Order.java", "src/orders/Shipping.java"]

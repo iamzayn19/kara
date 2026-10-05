@@ -1,0 +1,169 @@
+# Veyra model registry.
+#
+# Models are data, not code: future releases replace entries here without
+# touching the agent. Users can add entries in ~/.veyra/models.toml using the
+# same schema.
+#
+# Fields
+#   quality_rank      Provisional ordering used by `/model auto` until Veyra
+#                     evaluation results exist. Higher is preferred. Replace
+#                     with measured scores from `veyra eval` (eval_score).
+#   eval_score        Fraction of the Veyra eval suite solved (0..1), or omitted
+#                     when the model has not been evaluated yet.
+#   kv_bytes_per_token  Estimated f16 KV-cache bytes per context token, used for
+#                     memory planning. Estimates; see docs/MODEL_SUPPORT.md.
+#   auto_select       false keeps a model out of automatic selection (e.g.
+#                     pending evaluation or too weak for agent work).
+#
+# Sizes, revisions and SHA-256 values were taken from the Hugging Face API at
+# registry creation time (2026-10-05). Downloads are pinned to `revision` and
+# verified against `sha256`.
+
+[[model]]
+id = "qwen3.6-35b-a3b-q4_k_m"
+name = "Qwen3.6-35B-A3B"
+family = "qwen3.6"
+quantization = "Q4_K_M"
+params_b = 35.0
+active_params_b = 3.0
+architecture = "moe"
+license = "Apache-2.0"
+source = "huggingface"
+repo = "ggml-org/Qwen3.6-35B-A3B-GGUF"
+file = "Qwen3.6-35B-A3B-Q4_K_M.gguf"
+revision = "baec3ebee244827cda0f4557eafa8b28f7545fa6"
+sha256 = "671e47e0ec53c665d048b98c3ecbfd5236b5ca9c3e02ed19fc8f81f7b85140c7"
+size_bytes = 20419565568
+native_context = 262144
+default_context = 65536
+min_context = 16384
+kv_bytes_per_token = 20480
+tool_calling = "native"
+tier = "high"
+quality_rank = 100
+auto_select = true
+notes = "Mixture-of-experts: about 3B active parameters per token, so it is fast for its size. Expert layers can be offloaded to CPU RAM on GPUs with less VRAM."
+
+[[model]]
+id = "qwen3.6-27b-q4_k_m"
+name = "Qwen3.6-27B"
+family = "qwen3.6"
+quantization = "Q4_K_M"
+params_b = 27.0
+active_params_b = 27.0
+architecture = "dense"
+license = "Apache-2.0"
+source = "huggingface"
+repo = "ggml-org/Qwen3.6-27B-GGUF"
+file = "Qwen3.6-27B-Q4_K_M.gguf"
+revision = "8a7ee08e8b9bfb857107ecc25a5599d2f38b76f8"
+sha256 = "65b753ea835627f7b511143c6ceb976525c7f21f5df8c664bc0a9c23d1c49921"
+size_bytes = 19095766304
+native_context = 262144
+default_context = 32768
+min_context = 16384
+kv_bytes_per_token = 65536
+tool_calling = "native"
+tier = "mid"
+quality_rank = 90
+auto_select = true
+notes = "Dense model: needs the whole model in fast memory for usable speed."
+
+[[model]]
+id = "qwen3-14b-q4_k_m"
+name = "Qwen3-14B"
+family = "qwen3"
+quantization = "Q4_K_M"
+params_b = 14.8
+active_params_b = 14.8
+architecture = "dense"
+license = "Apache-2.0"
+source = "huggingface"
+repo = "ggml-org/Qwen3-14B-GGUF"
+file = "Qwen3-14B-Q4_K_M.gguf"
+revision = "af3732ec4e23a1dfff21a0479cd3545ace763e38"
+sha256 = "5ff1fe7a07aebc8d090682d01b17cf268a1b4680c6477050ce75a600aecb9efb"
+size_bytes = 9001753376
+native_context = 40960
+default_context = 32768
+min_context = 16384
+kv_bytes_per_token = 163840
+tool_calling = "native"
+tier = "mid-low"
+quality_rank = 60
+auto_select = true
+
+[[model]]
+id = "qwen3-4b-q4_k_m"
+name = "Qwen3-4B"
+family = "qwen3"
+quantization = "Q4_K_M"
+params_b = 4.0
+active_params_b = 4.0
+architecture = "dense"
+license = "Apache-2.0"
+source = "huggingface"
+repo = "ggml-org/Qwen3-4B-GGUF"
+file = "Qwen3-4B-Q4_K_M.gguf"
+revision = "2f3b082b1356a6123f7ed71e65aea340da25d53c"
+sha256 = "ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328"
+size_bytes = 2497280640
+native_context = 40960
+default_context = 32768
+min_context = 16384
+kv_bytes_per_token = 147456
+tool_calling = "native"
+tier = "low"
+quality_rank = 30
+auto_select = true
+notes = "Runs on constrained hardware. Expect simpler tasks to work and multi-file changes to need more guidance."
+
+[[model]]
+id = "qwen3-1.7b-q4_k_m"
+name = "Qwen3-1.7B"
+family = "qwen3"
+quantization = "Q4_K_M"
+params_b = 1.7
+active_params_b = 1.7
+architecture = "dense"
+license = "Apache-2.0"
+source = "huggingface"
+repo = "ggml-org/Qwen3-1.7B-GGUF"
+file = "Qwen3-1.7B-Q4_K_M.gguf"
+revision = "daeb8e2d528a760970442092f6bf1e55c3b659eb"
+sha256 = "d2387ca2dbfee2ffabce7120d3770dadca0b293052bc2f0e138fdc940d9bc7b5"
+size_bytes = 1282439264
+native_context = 32768
+default_context = 16384
+min_context = 8192
+kv_bytes_per_token = 114688
+tool_calling = "native"
+tier = "minimal"
+quality_rank = 10
+auto_select = false
+notes = "For smoke tests and very small machines only; too weak for reliable agent work."
+
+[[model]]
+id = "qwen3.8-27b-q4_k_m"
+name = "Qwen3.8-27B"
+family = "qwen3.8"
+quantization = "Q4_K_M"
+params_b = 27.0
+active_params_b = 27.0
+architecture = "dense"
+license = "Apache-2.0"
+source = "huggingface"
+repo = "ggml-org/Qwen3.8-27B-GGUF"
+file = "Qwen3.8-27B-Q4_K_M.gguf"
+revision = "71bc7b627595dc8a91039addd9c791ae548d6747"
+sha256 = "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747"
+size_bytes = 18973870528
+native_context = 262144
+default_context = 32768
+min_context = 16384
+kv_bytes_per_token = 65536
+tool_calling = "native"
+tier = "mid"
+quality_rank = 90
+auto_select = false
+notes = "Newer release; available for manual selection. Excluded from automatic selection until it has Veyra evaluation results."
