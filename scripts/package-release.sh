@@ -14,7 +14,8 @@ cp "$bin" "$stage/"
 cp "$root/README.md" "$root/LICENSE" "$root/NOTICE" "$root/CHANGELOG.md" "$stage/"
 cd "$root/dist"
 case "$target" in
-  *windows*) (cd "$name" && 7z a -tzip "../$name.zip" . >/dev/null 2>&1 || powershell -NoProfile -Command "Compress-Archive -Path * -DestinationPath ../$name.zip") ;;
+  # Both formats contain a single top-level folder named like the archive.
+  *windows*) 7z a -tzip "$name.zip" "$name" >/dev/null 2>&1 || powershell -NoProfile -Command "Compress-Archive -Path '$name' -DestinationPath '$name.zip'" ;;
   *) tar -czf "$name.tar.gz" "$name" ;;
 esac
 rm -rf "$stage"

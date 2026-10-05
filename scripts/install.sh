@@ -24,7 +24,8 @@ fi
 [ -n "$KARA_VERSION" ] || { echo "Could not determine the latest version" >&2; exit 1; }
 
 asset="kara-v$KARA_VERSION-$target.tar.gz"
-base="https://github.com/$REPO/releases/download/v$KARA_VERSION"
+# KARA_RELEASE_BASE points at a mirror or a local directory (file://...) for testing.
+base="${KARA_RELEASE_BASE:-https://github.com/$REPO/releases/download/v$KARA_VERSION}"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 

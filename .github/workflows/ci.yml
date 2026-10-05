@@ -77,6 +77,16 @@ jobs:
           KARA_HOME="$RUNNER_TEMP/kara-home" "$bin" privacy
           KARA_HOME="$RUNNER_TEMP/kara-home" "$bin" doctor
           KARA_HOME="$RUNNER_TEMP/kara-home" "$bin" models list
+      - name: Package and install through the install script (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          version="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          target="$(rustc -vV | sed -n 's/^host: //p')"
+          scripts/package-release.sh "$version" "$target" target/release/kara
+          (cd dist && (sha256sum * 2>/dev/null || shasum -a 256 *) > SHA256SUMS)
+          KARA_VERSION="$version" KARA_RELEASE_BASE="file://$PWD/dist" KARA_INSTALL_DIR="$RUNNER_TEMP/bin" sh scripts/install.sh
+          cd "$RUNNER_TEMP" && "$RUNNER_TEMP/bin/kara" --version
       - name: Evaluation harness (oracle, no model)
         shell: bash
         run: KARA_HOME="$RUNNER_TEMP/kara-home" ./target/release/kara eval --oracle --out "$RUNNER_TEMP/oracle.json"

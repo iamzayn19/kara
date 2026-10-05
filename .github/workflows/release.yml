@@ -77,6 +77,17 @@ jobs:
       - name: Checksums
         working-directory: dist
         run: sha256sum * > SHA256SUMS && cat SHA256SUMS
+      - name: Homebrew formula and winget manifests
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ "$GITHUB_REF_TYPE" = tag ] || version="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          python3 packaging/render.py --version "$version" --sums dist/SHA256SUMS --out packaging-out
+          cp packaging-out/homebrew/kara.rb dist/kara.rb
+          (cd packaging-out && zip -qr ../dist/winget-manifests.zip winget)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: dist/*
       - name: Create draft release
         if: github.ref_type == 'tag'
         env:

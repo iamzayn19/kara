@@ -2,14 +2,15 @@
 #   irm https://raw.githubusercontent.com/iamzayn19/kara/main/scripts/install.ps1 | iex
 $ErrorActionPreference = "Stop"
 $Repo = "iamzayn19/kara"
-$InstallDir = if ($env:KARA_INSTALL_DIR) { $env:KARA_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA "Programs\kara" }
+# Default: Kara's data directory, where the VS Code extension also looks.
+$InstallDir = if ($env:KARA_INSTALL_DIR) { $env:KARA_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA "Kara\bin" }
 $Version = $env:KARA_VERSION
 if (-not $Version) {
   $Version = (Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest").tag_name.TrimStart("v")
 }
 if ($env:PROCESSOR_ARCHITECTURE -ne "AMD64") { throw "No prebuilt Kara for $env:PROCESSOR_ARCHITECTURE. Build from source: https://github.com/$Repo" }
 $Asset = "kara-v$Version-x86_64-pc-windows-msvc.zip"
-$Base = "https://github.com/$Repo/releases/download/v$Version"
+$Base = if ($env:KARA_RELEASE_BASE) { $env:KARA_RELEASE_BASE } else { "https://github.com/$Repo/releases/download/v$Version" }
 $Tmp = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ("kara-" + [guid]::NewGuid()))
 try {
   Invoke-WebRequest "$Base/$Asset" -OutFile (Join-Path $Tmp $Asset)
@@ -24,8 +25,14 @@ try {
   $Exe = Get-ChildItem -Path $Tmp -Recurse -Filter kara.exe | Select-Object -First 1
   Copy-Item $Exe.FullName (Join-Path $InstallDir "kara.exe") -Force
   Write-Host "Installed kara $Version to $InstallDir (sha256 verified)"
-  if (-not ($env:PATH -split ";" | Where-Object { $_ -eq $InstallDir })) {
-    Write-Host "Add $InstallDir to your PATH to run 'kara'."
+  $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+  if (-not (($UserPath -split ";") -contains $InstallDir)) {
+    if ($env:KARA_NO_MODIFY_PATH) {
+      Write-Host "Add $InstallDir to your PATH to run 'kara'."
+    } else {
+      [Environment]::SetEnvironmentVariable("Path", "$UserPath;$InstallDir", "User")
+      Write-Host "Added $InstallDir to your user PATH. Open a new terminal to run 'kara'."
+    }
   }
 } finally {
   Remove-Item -Recurse -Force $Tmp
