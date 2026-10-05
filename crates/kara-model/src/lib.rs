@@ -17,10 +17,10 @@ pub mod registry;
 pub mod scripted;
 pub mod toolparse;
 
+use kara_protocol::TokenUsage;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
-use kara_protocol::TokenUsage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

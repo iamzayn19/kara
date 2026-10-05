@@ -5,13 +5,13 @@ use crate::process::{run_shell, ProcessResult};
 use crate::testparse;
 use crate::worktree::WorktreeSnapshot;
 use crate::{arg_str, opt_str, opt_str_list, opt_u64, Assessment, Tool, ToolContext, ToolOutput};
-use regex::Regex;
-use serde_json::{json, Value};
-use std::time::Duration;
 use kara_context::project::expand_targeted;
 use kara_context::CommandCategory;
 use kara_protocol::{ActionKind, TestReport};
 use kara_sandbox::{classify_command, CommandContext};
+use regex::Regex;
+use serde_json::{json, Value};
+use std::time::Duration;
 
 fn classify(cmd: &str, ctx: &ToolContext) -> Assessment {
     let known = ctx.known_commands();

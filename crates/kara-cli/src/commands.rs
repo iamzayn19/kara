@@ -5,10 +5,10 @@ use crate::models::{self, Consent};
 use crate::render::colorize_diff;
 use crate::tui::Session;
 use console::style;
-use serde_json::json;
-use kara_core::permissions::{PolicyDecision, Profile};
+use kara_core::permissions::{Mode, PolicyDecision};
 use kara_protocol::AgentMode;
 use kara_tools::{Tool, UndoReport};
+use serde_json::json;
 
 pub enum Action {
     Continue,
@@ -49,7 +49,7 @@ pub const COMMANDS: &[(&str, &str)] = &[
     ("/compact", "summarize the conversation to free context"),
     (
         "/permissions",
-        "show permissions, or /permissions <safe|balanced|autonomous>",
+        "show permissions, or /permissions <ask|workspace|full>",
     ),
     ("/privacy", "what leaves this machine"),
     ("/doctor", "hardware, runtime and model diagnostics"),
@@ -249,7 +249,7 @@ fn status(s: &Session) {
         }
     );
     println!("  {:<13}{}", "repository", s.app.root.display());
-    println!("  {:<13}{}", "permissions", s.agent.policy.profile.as_str());
+    println!("  {:<13}{}", "permissions", s.agent.policy.mode.as_str());
     println!("  {:<13}{}", "session", s.session_id);
     let turns = s
         .app
@@ -310,8 +310,7 @@ fn diff(s: &Session) {
         for path in &kara {
             let before_bytes = j.original_content(path).flatten().unwrap_or_default();
             let after_bytes = std::fs::read(root.join(path)).unwrap_or_default();
-            if kara_context::looks_binary(&before_bytes)
-                || kara_context::looks_binary(&after_bytes)
+            if kara_context::looks_binary(&before_bytes) || kara_context::looks_binary(&after_bytes)
             {
                 println!(
                     "{} {path} {}",
@@ -383,18 +382,18 @@ fn direct_tool(
 
 fn permissions(s: &mut Session, arg: &str) -> anyhow::Result<()> {
     if !arg.is_empty() {
-        let p = Profile::parse(arg).ok_or_else(|| {
-            anyhow::anyhow!("unknown profile `{arg}` (safe, balanced, autonomous)")
+        let p = Mode::parse(arg).ok_or_else(|| {
+            anyhow::anyhow!("unknown permission mode `{arg}` (ask, workspace, full)")
         })?;
-        s.agent.policy.set_profile(p);
+        s.agent.policy.set_mode(p);
         println!(
-            "Permission profile for this session: {} ({})",
+            "Permission mode for this session: {} ({})",
             p.as_str(),
             p.describe()
         );
         return Ok(());
     }
-    let p = s.agent.policy.profile;
+    let p = s.agent.policy.mode;
     header(&format!("Permissions: {} ({})", p.as_str(), p.describe()));
     for (kind, decision, granted) in s.agent.policy.table() {
         let d = match decision {
@@ -411,7 +410,7 @@ fn permissions(s: &mut Session, arg: &str) -> anyhow::Result<()> {
         };
         println!("  {:<18} {d}{note}", kind.label());
     }
-    println!("  {}", style("Change with /permissions <safe|balanced|autonomous>; set the default in ~/.kara/config.toml.").dim());
+    println!("  {}", style("Change for this session with /permissions <ask|workspace|full>; set the default with `kara config set permissions.mode <mode>`.").dim());
     Ok(())
 }
 
@@ -575,7 +574,7 @@ fn matrix(s: &Session) {
     println!(
         "{} {agent_state} · permissions {}",
         g("│ agent       "),
-        s.agent.policy.profile.as_str()
+        s.agent.policy.mode.as_str()
     );
     println!(
         "{}",

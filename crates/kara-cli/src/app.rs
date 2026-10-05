@@ -1,21 +1,22 @@
 //! Shared setup for every entry point: configuration, workspace, index,
 //! project profile, sessions and the tool context.
 
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use kara_agent::session::SessionStore;
 use kara_agent::AgentSettings;
 use kara_context::{git, LanguageRegistry, ProjectProfile, RepoIndex};
 use kara_core::config::{Config, DEFAULT_CONFIG_TOML};
-use kara_core::permissions::Profile;
+use kara_core::permissions::Mode;
 use kara_core::KaraPaths;
 use kara_sandbox::Workspace;
 use kara_tools::{Journal, ToolContext};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Default)]
 pub struct Options {
     pub dir: Option<PathBuf>,
-    pub profile: Option<String>,
+    /// Per-session permission mode override (`--permissions`).
+    pub permissions: Option<String>,
 }
 
 /// The repository to work in: `--dir`, else the git root containing the
@@ -57,9 +58,11 @@ impl App {
         let loaded = Config::load(&paths.config_file(), Some(&root))?;
         let mut config = loaded.config;
         let mut warnings = loaded.warnings;
-        if let Some(p) = &opts.profile {
-            config.permissions.profile = Profile::parse(p).ok_or_else(|| {
-                anyhow::anyhow!("unknown profile `{p}` (safe, balanced, autonomous)")
+        // A session override is an explicit user action (command-line flag
+        // or a user-scoped editor setting), never repository content.
+        if let Some(p) = &opts.permissions {
+            config.permissions.mode = Mode::parse(p).ok_or_else(|| {
+                anyhow::anyhow!("unknown permission mode `{p}` (ask, workspace, full)")
             })?;
         }
         match config.ui.color.as_str() {
@@ -67,8 +70,7 @@ impl App {
             "always" => console::set_colors_enabled(true),
             _ => {}
         }
-        let (registry, pack_warnings) =
-            LanguageRegistry::with_user_dir(&paths.home.join("languages"));
+        let (registry, pack_warnings) = LanguageRegistry::with_user_dir(&paths.languages_dir());
         warnings.extend(pack_warnings);
         let index = Arc::new(RepoIndex::open(
             &root,
@@ -128,7 +130,7 @@ impl App {
             max_recovery_attempts: self.config.agent.max_recovery_attempts,
             verify_after_edit: self.config.agent.verify_after_edit,
             repeat_guard: self.config.agent.repeat_guard,
-            temperature: self.config.model.temperature,
+            temperature: self.config.inference.temperature,
             max_orientation_files: self.config.context.max_orientation_files,
             context_window: context_window.unwrap_or(32768),
             trace_dir: self

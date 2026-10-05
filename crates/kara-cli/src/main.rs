@@ -23,9 +23,9 @@ struct Cli {
     #[arg(short = 'C', long, global = true)]
     dir: Option<std::path::PathBuf>,
 
-    /// Permission profile for this run: safe, balanced or autonomous.
+    /// Permission mode for this session: ask, workspace or full.
     #[arg(long, global = true)]
-    profile: Option<String>,
+    permissions: Option<String>,
 
     /// Resume the most recent session for this repository.
     #[arg(long)]
@@ -85,6 +85,10 @@ enum Command {
 
 #[derive(Subcommand)]
 enum ConfigCmd {
+    /// Print the effective value of a key, e.g. `permissions.mode`.
+    Get { key: String },
+    /// Set a key in your user config, e.g. `permissions.mode workspace`.
+    Set { key: String, value: String },
     /// Print the config file path.
     Path,
     /// Print the effective configuration.
@@ -143,7 +147,7 @@ fn install_signal_handlers(rt: &tokio::runtime::Runtime) {
 fn run(cli: Cli, rt: &tokio::runtime::Runtime) -> anyhow::Result<i32> {
     let opts = app::Options {
         dir: cli.dir.clone(),
-        profile: cli.profile.clone(),
+        permissions: cli.permissions.clone(),
     };
     match cli.command {
         None => tui::interactive(rt, &opts, cli.resume),
@@ -179,6 +183,21 @@ fn run(cli: Cli, rt: &tokio::runtime::Runtime) -> anyhow::Result<i32> {
             let paths = kara_core::KaraPaths::discover()?;
             match action.unwrap_or(ConfigCmd::Show) {
                 ConfigCmd::Path => println!("{}", paths.config_file().display()),
+                ConfigCmd::Get { key } => {
+                    let root = app::workspace_root(&opts).ok();
+                    let loaded = kara_core::Config::load(&paths.config_file(), root.as_deref())?;
+                    println!("{}", kara_core::config_edit::get(&loaded.config, &key)?);
+                }
+                ConfigCmd::Set { key, value } => {
+                    app::ensure_user_config(&paths)?;
+                    kara_core::config_edit::set_in_file(&paths.config_file(), &key, &value)?;
+                    println!("{key} = {value}  ({})", paths.config_file().display());
+                    if key == "permissions.mode" && value.trim() == "full" {
+                        eprintln!(
+                            "note: full mode lets Kara run shell commands, delete files, use the network and commit without asking. Secrets, sudo, git push, destructive commands and paths outside the workspace still ask."
+                        );
+                    }
+                }
                 ConfigCmd::Init => {
                     app::ensure_user_config(&paths)?;
                     println!("{}", paths.config_file().display());

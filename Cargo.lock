@@ -1004,6 +1004,196 @@ dependencies = [
 ]
 
 [[package]]
+name = "kara-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "kara-context",
+ "kara-core",
+ "kara-model",
+ "kara-protocol",
+ "kara-sandbox",
+ "kara-tools",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "toml",
+ "uuid",
+]
+
+[[package]]
+name = "kara-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "async-trait",
+ "chrono",
+ "clap",
+ "console",
+ "indicatif",
+ "kara-agent",
+ "kara-context",
+ "kara-core",
+ "kara-model",
+ "kara-protocol",
+ "kara-runtime",
+ "kara-sandbox",
+ "kara-tools",
+ "rustyline",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "toml",
+]
+
+[[package]]
+name = "kara-context"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "globset",
+ "hex",
+ "ignore",
+ "rayon",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "shell-words",
+ "tempfile",
+ "toml",
+]
+
+[[package]]
+name = "kara-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dirs",
+ "kara-protocol",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml",
+ "toml_edit",
+]
+
+[[package]]
+name = "kara-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "kara-agent",
+ "kara-context",
+ "kara-core",
+ "kara-model",
+ "kara-protocol",
+ "kara-sandbox",
+ "kara-tools",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "toml",
+]
+
+[[package]]
+name = "kara-model"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures-util",
+ "kara-protocol",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tokio",
+ "tokio-util",
+ "toml",
+]
+
+[[package]]
+name = "kara-protocol"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kara-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "flate2",
+ "futures-util",
+ "hex",
+ "kara-model",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sysinfo",
+ "tar",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "toml",
+ "zip",
+]
+
+[[package]]
+name = "kara-sandbox"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "kara-protocol",
+ "regex",
+ "shell-words",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "kara-tools"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "hex",
+ "ignore",
+ "kara-context",
+ "kara-protocol",
+ "kara-sandbox",
+ "libc",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "shell-words",
+ "similar",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2059,195 +2249,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "kara-agent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tokio-util",
- "toml",
- "uuid",
- "kara-context",
- "kara-core",
- "kara-model",
- "kara-protocol",
- "kara-sandbox",
- "kara-tools",
-]
-
-[[package]]
-name = "kara-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "async-trait",
- "chrono",
- "clap",
- "console",
- "indicatif",
- "rustyline",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "tokio",
- "tokio-util",
- "toml",
- "kara-agent",
- "kara-context",
- "kara-core",
- "kara-model",
- "kara-protocol",
- "kara-runtime",
- "kara-sandbox",
- "kara-tools",
-]
-
-[[package]]
-name = "kara-context"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "globset",
- "hex",
- "ignore",
- "rayon",
- "regex",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "shell-words",
- "tempfile",
- "toml",
-]
-
-[[package]]
-name = "kara-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "dirs",
- "serde",
- "serde_json",
- "tempfile",
- "toml",
- "kara-protocol",
-]
-
-[[package]]
-name = "kara-integration-tests"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tokio-util",
- "toml",
- "kara-agent",
- "kara-context",
- "kara-core",
- "kara-model",
- "kara-protocol",
- "kara-sandbox",
- "kara-tools",
-]
-
-[[package]]
-name = "kara-model"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "futures-util",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "sysinfo",
- "tokio",
- "tokio-util",
- "toml",
- "kara-protocol",
-]
-
-[[package]]
-name = "kara-protocol"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "kara-runtime"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "flate2",
- "futures-util",
- "hex",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "sysinfo",
- "tar",
- "tempfile",
- "tokio",
- "tokio-util",
- "toml",
- "kara-model",
- "zip",
-]
-
-[[package]]
-name = "kara-sandbox"
-version = "0.1.0"
-dependencies = [
- "dirs",
- "regex",
- "shell-words",
- "tempfile",
- "thiserror 1.0.69",
- "kara-protocol",
-]
-
-[[package]]
-name = "kara-tools"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "hex",
- "ignore",
- "libc",
- "regex",
- "serde",
- "serde_json",
- "sha2",
- "shell-words",
- "similar",
- "tempfile",
- "tokio",
- "tokio-util",
- "kara-context",
- "kara-protocol",
- "kara-sandbox",
-]
 
 [[package]]
 name = "wait-timeout"

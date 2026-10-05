@@ -203,7 +203,7 @@
       case "status":
         modelEl.textContent = m.running ? (m.modelAvailable ? m.model : "no model, choose one") : "agent not running";
         modelEl.classList.toggle("warn", !m.modelAvailable || !m.running);
-        profileEl.textContent = m.profile ? "permissions: " + m.profile : "";
+        profileEl.textContent = m.permissionsMode ? "permissions: " + m.permissionsMode : "";
         break;
       case "info":
         add(el("div", "notice", m.text));

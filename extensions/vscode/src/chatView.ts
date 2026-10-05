@@ -61,7 +61,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       running: agent?.running ?? false,
       model: agent?.info?.model?.label ?? "",
       modelAvailable: agent?.info?.model?.available ?? false,
-      profile: agent?.info?.profile ?? "",
+      permissionsMode: agent?.info?.permissionsMode ?? "",
       workspace: agent?.info?.workspace ?? "",
     });
   }

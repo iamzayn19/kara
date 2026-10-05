@@ -16,12 +16,12 @@ pub mod search;
 pub mod testparse;
 pub mod worktree;
 
-use serde_json::Value;
-use std::sync::{Arc, Mutex};
-use tokio_util::sync::CancellationToken;
 use kara_context::{ProjectProfile, RepoIndex};
 use kara_protocol::{ActionKind, FileChange, TestReport};
 use kara_sandbox::Workspace;
+use serde_json::Value;
+use std::sync::{Arc, Mutex};
+use tokio_util::sync::CancellationToken;
 
 pub use journal::{Journal, UndoReport};
 
@@ -272,8 +272,7 @@ pub(crate) mod testutil {
         let state = tempfile::tempdir().unwrap();
         let ws = Workspace::new(dir.path()).unwrap();
         let journal = Journal::open(ws.root(), state.path()).unwrap();
-        let profile =
-            ProjectProfile::detect(ws.root(), &kara_context::LanguageRegistry::builtin());
+        let profile = ProjectProfile::detect(ws.root(), &kara_context::LanguageRegistry::builtin());
         let ctx = ToolContext {
             workspace: ws,
             profile,

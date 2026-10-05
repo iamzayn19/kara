@@ -148,7 +148,7 @@
             "autonomous"
           ],
           "default": "",
-          "description": "Permission profile for editor sessions. Empty uses ~/.kara/config.toml."
+          "description": "Permission mode for editor sessions. Empty uses your Kara user configuration."
         },
         "kara.includeDiagnostics": {
           "type": "boolean",

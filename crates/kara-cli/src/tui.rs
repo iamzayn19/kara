@@ -5,6 +5,12 @@ use crate::commands::{self, Action};
 use crate::models::{self, Consent, ModelRuntime};
 use crate::render::Renderer;
 use console::style;
+use kara_agent::approver::{ApproveOrdinary, Approver, DenyAll};
+use kara_agent::session::TurnRecord;
+use kara_agent::{Agent, TurnResult};
+use kara_core::permissions::PermissionPolicy;
+use kara_model::{ChatRequest, ChatResponse, EventSink, ModelProvider, ProviderInfo};
+use kara_protocol::{AgentMode, PermissionDecision, PermissionRequest};
 use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
@@ -14,12 +20,6 @@ use std::borrow::Cow;
 use std::io::Write;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
-use kara_agent::approver::{ApproveOrdinary, Approver, DenyAll};
-use kara_agent::session::TurnRecord;
-use kara_agent::{Agent, TurnResult};
-use kara_core::permissions::PermissionPolicy;
-use kara_model::{ChatRequest, ChatResponse, EventSink, ModelProvider, ProviderInfo};
-use kara_protocol::{AgentMode, PermissionDecision, PermissionRequest};
 
 /// Placeholder provider when no model is running; explains how to get one.
 pub struct NoModel(pub String);
@@ -238,7 +238,7 @@ fn build_session(
     let mut agent = Agent::new(
         provider,
         ctx,
-        PermissionPolicy::new(app.config.permissions.profile),
+        PermissionPolicy::new(app.config.permissions.mode),
         approver,
         Arc::new(move |e| r2.handle(&e)),
         app.agent_settings(runtime.context),
@@ -305,7 +305,7 @@ fn banner(s: &Session) {
     println!(
         "{:<13}{} · {}",
         "Permissions:",
-        app.config.permissions.profile.as_str(),
+        app.config.permissions.mode.as_str(),
         style("/help for commands, Ctrl-C cancels a running task, Ctrl-D exits").dim()
     );
     println!();

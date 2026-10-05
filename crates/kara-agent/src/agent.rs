@@ -15,12 +15,6 @@
 
 use crate::approver::Approver;
 use crate::prompts;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::collections::BTreeSet;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Instant;
 use kara_context::{git, orient, CommandCategory};
 use kara_core::permissions::{PermissionPolicy, PolicyDecision};
 use kara_core::state::TaskState;
@@ -30,6 +24,12 @@ use kara_protocol::{
     StepStatus, TestReport, TokenUsage, TurnOutcome,
 };
 use kara_tools::{Tool, ToolContext, ToolOutput};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Instant;
 
 pub type EventFn = Arc<dyn Fn(AgentEvent) + Send + Sync>;
 
@@ -814,7 +814,7 @@ impl Agent {
                 stats.denied += 1;
                 let out = ToolOutput::err(format!(
                     "denied by the `{}` permission profile ({}). {}",
-                    self.policy.profile.as_str(),
+                    self.policy.mode.as_str(),
                     assessment
                         .kinds
                         .iter()

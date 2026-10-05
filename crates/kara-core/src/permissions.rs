@@ -1,41 +1,54 @@
-//! Permission profiles and decisions.
+//! Permission modes and decisions.
 //!
 //! A tool invocation is classified (by `kara-sandbox`) into one or more
 //! [`ActionKind`]s. The policy combines the decisions for each kind: any deny
 //! wins, then any ask, otherwise allow.
 //!
+//! Modes:
+//!
+//! * `ask`: reading, searching and running tests are free; every edit and
+//!   shell command asks.
+//! * `workspace` (default): normal coding inside the workspace (edits, tests,
+//!   lint, builds, git inspection) is free; anything risky or leaving the
+//!   workspace asks.
+//! * `full`: explicit opt-in to broad tool execution (shell, deletes, network,
+//!   commits).
+//!
 //! Hard boundaries (secrets, privilege escalation, git push, destructive
-//! commands, paths outside the workspace) are never `Allow` in any profile and
+//! commands, paths outside the workspace) are never `Allow` in any mode and
 //! can never be remembered for the session: each occurrence needs explicit
-//! consent.
+//! consent. `full` can only come from user configuration or an explicit
+//! interactive action, never from repository or workspace configuration.
 
+use kara_protocol::ActionKind;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use kara_protocol::ActionKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
-pub enum Profile {
-    Safe,
+pub enum Mode {
+    Ask,
     #[default]
-    Balanced,
-    Autonomous,
+    Workspace,
+    Full,
 }
 
-impl Profile {
+impl Mode {
+    pub const ALL: [Mode; 3] = [Mode::Ask, Mode::Workspace, Mode::Full];
+
     pub fn as_str(self) -> &'static str {
         match self {
-            Profile::Safe => "safe",
-            Profile::Balanced => "balanced",
-            Profile::Autonomous => "autonomous",
+            Mode::Ask => "ask",
+            Mode::Workspace => "workspace",
+            Mode::Full => "full",
         }
     }
 
-    pub fn parse(s: &str) -> Option<Profile> {
+    pub fn parse(s: &str) -> Option<Mode> {
         match s.trim().to_ascii_lowercase().as_str() {
-            "safe" => Some(Profile::Safe),
-            "balanced" => Some(Profile::Balanced),
-            "autonomous" | "auto" => Some(Profile::Autonomous),
+            "ask" => Some(Mode::Ask),
+            "workspace" => Some(Mode::Workspace),
+            "full" => Some(Mode::Full),
             _ => None,
         }
     }
@@ -43,17 +56,17 @@ impl Profile {
     /// Higher is stricter.
     pub fn strictness(self) -> u8 {
         match self {
-            Profile::Safe => 2,
-            Profile::Balanced => 1,
-            Profile::Autonomous => 0,
+            Mode::Ask => 2,
+            Mode::Workspace => 1,
+            Mode::Full => 0,
         }
     }
 
     pub fn describe(self) -> &'static str {
         match self {
-            Profile::Safe => "reads, search, git-read and tests run freely; every write and shell command asks",
-            Profile::Balanced => "project edits, tests, lint and builds run freely; destructive, network, commit and push ask",
-            Profile::Autonomous => "ordinary repository development runs freely; high-risk boundaries still ask",
+            Mode::Ask => "reads, search, git inspection and tests run freely; every edit and shell command asks",
+            Mode::Workspace => "edits, tests, lint and builds inside the workspace run freely; risky or out-of-workspace actions ask",
+            Mode::Full => "broad tool execution (shell, deletes, network, commits) runs freely; high-risk boundaries still ask",
         }
     }
 }
@@ -66,61 +79,58 @@ pub enum PolicyDecision {
     Deny,
 }
 
-/// Static profile table.
-pub fn profile_decision(profile: Profile, kind: ActionKind) -> PolicyDecision {
+/// Static mode table.
+pub fn mode_decision(mode: Mode, kind: ActionKind) -> PolicyDecision {
     use ActionKind::*;
     use PolicyDecision::*;
-    match (profile, kind) {
+    match (mode, kind) {
         // Hard boundaries: never silently granted.
         (_, Secrets) | (_, Privileged) | (_, OutsideWorkspace) | (_, Destructive) => Ask,
-        (Profile::Safe, GitPush) => Deny,
+        (Mode::Ask, GitPush) => Deny,
         (_, GitPush) => Ask,
 
         (_, Read) | (_, Search) | (_, GitRead) => Allow,
         (_, Test) => Allow,
 
-        (Profile::Safe, Lint) | (Profile::Safe, Build) => Ask,
+        (Mode::Ask, Lint) | (Mode::Ask, Build) => Ask,
         (_, Lint) | (_, Build) => Allow,
 
-        (Profile::Safe, Write) => Ask,
+        (Mode::Ask, Write) => Ask,
         (_, Write) => Allow,
 
-        (Profile::Autonomous, Delete) => Allow,
-        (_, Delete) => Ask,
-
-        (Profile::Autonomous, Shell) => Allow,
-        (_, Shell) => Ask,
-
-        (_, Network) => Ask,
-        (_, GitCommit) => Ask,
+        (Mode::Full, Delete)
+        | (Mode::Full, Shell)
+        | (Mode::Full, Network)
+        | (Mode::Full, GitCommit) => Allow,
+        (_, Delete) | (_, Shell) | (_, Network) | (_, GitCommit) => Ask,
     }
 }
 
-/// Live policy for a session: the profile plus grants the user made with
+/// Live policy for a session: the mode plus grants the user made with
 /// "allow for this session".
 #[derive(Debug, Clone)]
 pub struct PermissionPolicy {
-    pub profile: Profile,
+    pub mode: Mode,
     session_grants: BTreeSet<ActionKind>,
 }
 
 impl PermissionPolicy {
-    pub fn new(profile: Profile) -> Self {
+    pub fn new(mode: Mode) -> Self {
         Self {
-            profile,
+            mode,
             session_grants: BTreeSet::new(),
         }
     }
 
-    pub fn set_profile(&mut self, profile: Profile) {
-        self.profile = profile;
+    pub fn set_mode(&mut self, mode: Mode) {
+        self.mode = mode;
         self.session_grants.clear();
     }
 
     pub fn decide(&self, kinds: &[ActionKind]) -> PolicyDecision {
         let mut worst = PolicyDecision::Allow;
         for &kind in kinds {
-            let mut d = profile_decision(self.profile, kind);
+            let mut d = mode_decision(self.mode, kind);
             if d == PolicyDecision::Ask
                 && !kind.is_hard_boundary()
                 && self.session_grants.contains(&kind)
@@ -165,53 +175,81 @@ mod tests {
     use PolicyDecision::*;
 
     #[test]
-    fn safe_profile_matches_spec() {
-        let p = Profile::Safe;
+    fn ask_mode_matches_spec() {
+        let m = Mode::Ask;
         for k in [Read, Search, GitRead, Test] {
-            assert_eq!(profile_decision(p, k), Allow, "{k:?}");
+            assert_eq!(mode_decision(m, k), Allow, "{k:?}");
         }
-        for k in [Write, Shell, Delete, Network, GitCommit] {
-            assert_eq!(profile_decision(p, k), Ask, "{k:?}");
+        for k in [Write, Shell, Delete, Network, GitCommit, Lint, Build] {
+            assert_eq!(mode_decision(m, k), Ask, "{k:?}");
         }
-        assert_eq!(profile_decision(p, GitPush), Deny);
+        assert_eq!(mode_decision(m, GitPush), Deny);
     }
 
     #[test]
-    fn balanced_profile_matches_spec() {
-        let p = Profile::Balanced;
-        for k in [Read, Search, Write, Test, Build, Lint] {
-            assert_eq!(profile_decision(p, k), Allow, "{k:?}");
+    fn workspace_mode_matches_spec() {
+        let m = Mode::Workspace;
+        for k in [Read, Search, GitRead, Write, Test, Build, Lint] {
+            assert_eq!(mode_decision(m, k), Allow, "{k:?}");
         }
-        for k in [Destructive, Network, GitCommit, GitPush, OutsideWorkspace] {
-            assert_eq!(profile_decision(p, k), Ask, "{k:?}");
+        for k in [
+            Shell,
+            Delete,
+            Destructive,
+            Network,
+            GitCommit,
+            GitPush,
+            OutsideWorkspace,
+            Secrets,
+        ] {
+            assert_eq!(mode_decision(m, k), Ask, "{k:?}");
         }
     }
 
     #[test]
-    fn no_profile_silently_allows_hard_boundaries() {
-        for p in [Profile::Safe, Profile::Balanced, Profile::Autonomous] {
+    fn full_mode_allows_broad_execution_but_not_hard_boundaries() {
+        let m = Mode::Full;
+        for k in [Write, Shell, Delete, Network, GitCommit, Build] {
+            assert_eq!(mode_decision(m, k), Allow, "{k:?}");
+        }
+        for k in [Secrets, Privileged, OutsideWorkspace, Destructive, GitPush] {
+            assert_eq!(mode_decision(m, k), Ask, "{k:?}");
+        }
+    }
+
+    #[test]
+    fn no_mode_silently_allows_hard_boundaries() {
+        for m in Mode::ALL {
             for k in ActionKind::ALL
                 .iter()
                 .copied()
                 .filter(|k| k.is_hard_boundary())
             {
-                assert_ne!(profile_decision(p, k), Allow, "{p:?} {k:?}");
+                assert_ne!(mode_decision(m, k), Allow, "{m:?} {k:?}");
             }
         }
     }
 
     #[test]
+    fn mode_names_round_trip() {
+        for m in Mode::ALL {
+            assert_eq!(Mode::parse(m.as_str()), Some(m));
+        }
+        assert_eq!(Mode::parse("autonomous"), None);
+    }
+
+    #[test]
     fn combined_decision_takes_the_strictest() {
-        let policy = PermissionPolicy::new(Profile::Autonomous);
+        let policy = PermissionPolicy::new(Mode::Full);
         assert_eq!(policy.decide(&[Read, Shell]), Allow);
         assert_eq!(policy.decide(&[Shell, Secrets]), Ask);
-        let safe = PermissionPolicy::new(Profile::Safe);
+        let safe = PermissionPolicy::new(Mode::Ask);
         assert_eq!(safe.decide(&[Read, GitPush]), Deny);
     }
 
     #[test]
     fn session_grants_never_cover_hard_boundaries() {
-        let mut policy = PermissionPolicy::new(Profile::Balanced);
+        let mut policy = PermissionPolicy::new(Mode::Workspace);
         assert_eq!(policy.decide(&[Network]), Ask);
         assert!(policy.grant_session(&[Network]));
         assert_eq!(policy.decide(&[Network]), Allow);

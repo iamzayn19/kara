@@ -3,10 +3,10 @@
 //! suite honest: a task that already passes, or whose solution does not work,
 //! is a broken benchmark.
 
-use serde_json::json;
-use std::sync::{Arc, Mutex};
 use kara_integration_tests::*;
 use kara_tools::{Journal, Tool, ToolContext};
+use serde_json::json;
+use std::sync::{Arc, Mutex};
 
 fn toolchain_for(fixture: &str) -> Option<(&'static str, &'static str)> {
     match fixture {

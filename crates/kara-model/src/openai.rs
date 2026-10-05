@@ -10,11 +10,11 @@ use crate::{
     ToolCall,
 };
 use futures_util::StreamExt;
+use kara_protocol::TokenUsage;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use kara_protocol::TokenUsage;
 
 #[derive(Debug, Clone)]
 pub struct OpenAiCompatProvider {

@@ -84,7 +84,7 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
 
     println!("\n{}", style("Runtime").bold());
     let mgr = LlamaCppManager::new(&app.paths.runtimes_dir());
-    match mgr.locate(&app.config.runtime.llama_server_path) {
+    match mgr.locate(&app.config.inference.local.server_path) {
         Some(found) => {
             row("llama.cpp", found.describe());
             if let Some(v) = version(found.binary()) {
@@ -102,8 +102,8 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
     if let Some(asset) = mgr.pin.select(&hw) {
         row("build for this host", &asset.name);
     }
-    row("bind address", &app.config.runtime.bind_host);
-    row("provider", app.config.model.provider.label());
+    row("bind address", &app.config.inference.local.bind_host);
+    row("provider", app.config.inference.provider.label());
 
     println!("\n{}", style("Models").bold());
     let store = ModelStore::new(&app.paths.models_dir());
@@ -163,7 +163,7 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
 
     println!("\n{}", style("Configuration").bold());
     row("config file", display_path(&app.paths.config_file()));
-    row("permissions", app.config.permissions.profile.as_str());
+    row("permissions", app.config.permissions.mode.as_str());
     row("telemetry", style("none (Kara has no telemetry)").green());
     for w in &app.warnings {
         row("warning", style(w).yellow());

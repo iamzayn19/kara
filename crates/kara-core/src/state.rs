@@ -5,9 +5,9 @@
 //! `update_plan` tool), rendered into a compact "working memory" block on every
 //! model call, and persisted so sessions can be resumed.
 
+use kara_protocol::{PlanStep, StepStatus, TestReport};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use kara_protocol::{PlanStep, StepStatus, TestReport};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct TaskState {

@@ -4,11 +4,7 @@ use crate::app::{display_path, App, Options};
 use clap::Subcommand;
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::io::Write;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio_util::sync::CancellationToken;
-use kara_core::config::{ModelMode, ProviderKind};
+use kara_core::config::ProviderKind;
 use kara_model::hardware::{format_bytes, HardwareInfo};
 use kara_model::openai::OpenAiCompatProvider;
 use kara_model::recommend::{recommend, Placement};
@@ -17,6 +13,10 @@ use kara_model::ModelProvider;
 use kara_runtime::llamacpp::LlamaCppManager;
 use kara_runtime::server::{LlamaServer, ServerOptions};
 use kara_runtime::store::ModelStore;
+use std::io::Write;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Subcommand)]
 pub enum ModelsCmd {
@@ -176,7 +176,7 @@ pub async fn install_llama(
     consent: Consent,
 ) -> anyhow::Result<std::path::PathBuf> {
     let mgr = LlamaCppManager::new(&app.paths.runtimes_dir());
-    if let Some(found) = mgr.locate(&app.config.runtime.llama_server_path) {
+    if let Some(found) = mgr.locate(&app.config.inference.local.server_path) {
         return Ok(found.binary().to_path_buf());
     }
     let asset = mgr
@@ -223,6 +223,23 @@ pub async fn install_llama(
     }
 }
 
+/// Bearer token for an endpoint: from `api_key_env`, else `api_key_file`.
+fn endpoint_key(config: &kara_core::Config) -> Option<String> {
+    let inf = &config.inference;
+    if !inf.api_key_env.is_empty() {
+        if let Ok(v) = std::env::var(&inf.api_key_env) {
+            return Some(v);
+        }
+    }
+    if !inf.api_key_file.is_empty() {
+        return std::fs::read_to_string(&inf.api_key_file)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+    }
+    None
+}
+
 /// Resolve which registry model to use and with what context/placement.
 pub fn choose_model(
     app: &App,
@@ -233,8 +250,8 @@ pub fn choose_model(
     let id = match requested {
         Some(id) if id != "auto" => Some(id.to_string()),
         Some(_) => None,
-        None if app.config.model.mode == ModelMode::Manual && !app.config.model.id.is_empty() => {
-            Some(app.config.model.id.clone())
+        None if !app.config.inference.model.is_empty() && app.config.inference.model != "auto" => {
+            Some(app.config.inference.model.clone())
         }
         None => None,
     };
@@ -260,8 +277,8 @@ pub fn choose_model(
             (spec, rec.context, rec.placement.clone())
         }
     };
-    let ctx = if app.config.model.context_length > 0 {
-        app.config.model.context_length
+    let ctx = if app.config.inference.context_length > 0 {
+        app.config.inference.context_length
     } else {
         ctx
     };
@@ -275,42 +292,40 @@ pub async fn start_runtime(
     requested: Option<&str>,
 ) -> anyhow::Result<ModelRuntime> {
     // External OpenAI-compatible runtimes (Ollama, LM Studio, vLLM, ...).
-    if app.config.model.provider != ProviderKind::Llamacpp && requested.is_none() {
+    if app.config.inference.provider != ProviderKind::Local && requested.is_none() {
         let endpoint = app.config.endpoint().ok_or_else(|| {
             anyhow::anyhow!(
-                "model.endpoint is required for provider {:?}",
-                app.config.model.provider
+                "inference.endpoint is required for provider {:?}",
+                app.config.inference.provider
             )
         })?;
-        let key = (!app.config.model.api_key_env.is_empty())
-            .then(|| std::env::var(&app.config.model.api_key_env).ok())
-            .flatten();
-        let mut provider = OpenAiCompatProvider::new(&endpoint, &app.config.model.api_model)
+        let key = endpoint_key(&app.config);
+        let mut provider = OpenAiCompatProvider::new(&endpoint, &app.config.inference.model)
             .with_api_key(key.clone())
-            .with_label(app.config.model.provider.label());
-        let mut model = app.config.model.api_model.clone();
+            .with_label(app.config.inference.provider.label());
+        let mut model = app.config.inference.model.clone();
         if model.is_empty() {
             let models = provider.list_models().await.map_err(|e| {
                 anyhow::anyhow!(
                     "cannot reach {} at {endpoint}: {e}",
-                    app.config.model.provider.label()
+                    app.config.inference.provider.label()
                 )
             })?;
             model = models.first().cloned().ok_or_else(|| {
-                anyhow::anyhow!("{endpoint} serves no models; set model.api_model")
+                anyhow::anyhow!("{endpoint} serves no models; set inference.model")
             })?;
             provider = OpenAiCompatProvider::new(&endpoint, &model)
                 .with_api_key(key)
-                .with_label(app.config.model.provider.label());
+                .with_label(app.config.inference.provider.label());
         }
-        let ctx = (app.config.model.context_length > 0)
-            .then_some(app.config.model.context_length)
+        let ctx = (app.config.inference.context_length > 0)
+            .then_some(app.config.inference.context_length)
             .or(Some(32768));
         let provider = provider.with_context_length(ctx);
         return Ok(ModelRuntime {
             label: format!(
                 "{model} ({}, {endpoint})",
-                app.config.model.provider.label()
+                app.config.inference.provider.label()
             ),
             provider: Some(Arc::new(provider)),
             server: None,
@@ -356,24 +371,24 @@ pub async fn start_runtime(
     let opts = ServerOptions {
         binary,
         model_path: store.path_for(&spec),
-        host: app.config.runtime.bind_host.clone(),
+        host: app.config.inference.local.bind_host.clone(),
         context: ctx,
         gpu_layers: if gpu {
-            app.config.runtime.gpu_layers
+            app.config.inference.local.gpu_layers
         } else {
             0
         },
         cpu_moe: placement == Some(Placement::PartialOffload),
         alias: spec.id.clone(),
-        reasoning: app.config.model.reasoning.clone(),
-        reasoning_budget: if app.config.model.reasoning_budget != 0 {
-            app.config.model.reasoning_budget
+        reasoning: app.config.inference.reasoning.clone(),
+        reasoning_budget: if app.config.inference.reasoning_budget != 0 {
+            app.config.inference.reasoning_budget
         } else {
             spec.reasoning_budget
         },
-        extra_args: app.config.runtime.extra_args.clone(),
+        extra_args: app.config.inference.local.extra_args.clone(),
         log_file: app.paths.logs_dir().join("llama-server.log"),
-        startup_timeout: Duration::from_secs(app.config.runtime.startup_timeout_secs),
+        startup_timeout: Duration::from_secs(app.config.inference.local.startup_timeout_secs),
     };
     let reaped = kara_runtime::server::reap_stale(&app.paths.logs_dir());
     if reaped > 0 {
@@ -396,56 +411,6 @@ pub async fn start_runtime(
         spec: Some(spec),
         context: Some(ctx),
     })
-}
-
-/// Set `[model] mode = "manual"` / `id = "..."` (or back to auto) in the
-/// config text, preserving everything else including comments.
-pub fn set_model_in_config(text: &str, id: Option<&str>) -> String {
-    let mut out = Vec::new();
-    let mut in_model = false;
-    let mut wrote = false;
-    let mode = if id.is_some() { "manual" } else { "auto" };
-    let push_settings = |out: &mut Vec<String>| {
-        out.push(format!("mode = \"{mode}\""));
-        if let Some(id) = id {
-            out.push(format!("id = \"{id}\""));
-        }
-    };
-    for line in text.lines() {
-        let t = line.trim();
-        if t.starts_with('[') {
-            if in_model && !wrote {
-                push_settings(&mut out);
-                wrote = true;
-            }
-            in_model = t == "[model]";
-            out.push(line.to_string());
-            continue;
-        }
-        if in_model
-            && (t.starts_with("mode") || t.starts_with("id ") || t.starts_with("id="))
-            && t.contains('=')
-        {
-            if !wrote {
-                push_settings(&mut out);
-                wrote = true;
-            }
-            continue;
-        }
-        out.push(line.to_string());
-    }
-    if in_model && !wrote {
-        push_settings(&mut out);
-        wrote = true;
-    }
-    if !wrote {
-        out.push(String::new());
-        out.push("[model]".into());
-        push_settings(&mut out);
-    }
-    let mut s = out.join("\n");
-    s.push('\n');
-    s
 }
 
 pub fn print_list(app: &App) {
@@ -550,38 +515,16 @@ pub fn run(
                 .get(&id)
                 .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?;
             let f = app.paths.config_file();
-            let text = std::fs::read_to_string(&f).unwrap_or_default();
-            std::fs::write(&f, set_model_in_config(&text, Some(&spec.id)))?;
+            kara_core::config_edit::set_in_file(&f, "inference.provider", "local")?;
+            kara_core::config_edit::set_in_file(&f, "inference.model", &spec.id)?;
             println!("Default model set to {} in {}", spec.name, display_path(&f));
             Ok(0)
         }
         ModelsCmd::Auto => {
             let f = app.paths.config_file();
-            let text = std::fs::read_to_string(&f).unwrap_or_default();
-            std::fs::write(&f, set_model_in_config(&text, None))?;
+            kara_core::config_edit::set_in_file(&f, "inference.model", "auto")?;
             println!("Model selection set to auto in {}", display_path(&f));
             Ok(0)
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn config_model_edit_preserves_comments() {
-        let text = kara_core::config::DEFAULT_CONFIG_TOML;
-        let edited = set_model_in_config(text, Some("qwen3-4b-q4_k_m"));
-        assert!(edited.contains("# Kara configuration"));
-        let c = kara_core::Config::parse(&edited).unwrap();
-        assert_eq!(c.model.mode, ModelMode::Manual);
-        assert_eq!(c.model.id, "qwen3-4b-q4_k_m");
-        let back = set_model_in_config(&edited, None);
-        let c = kara_core::Config::parse(&back).unwrap();
-        assert_eq!(c.model.mode, ModelMode::Auto);
-        assert!(c.model.id.is_empty());
-        let fresh = set_model_in_config("", Some("x"));
-        assert_eq!(kara_core::Config::parse(&fresh).unwrap().model.id, "x");
     }
 }

@@ -44,7 +44,7 @@ test("serve --stdio protocol round trip", { skip: !bin }, async () => {
     assert.ok(info.commands.some((c: any) => c.name === "/oracle"));
 
     const status: any = await client.request("session/status");
-    assert.equal(status.profile, "balanced");
+    assert.equal(status.permissionsMode, "workspace");
 
     const models: any = await client.request("models/list");
     assert.ok(models.models.length >= 5);
@@ -56,7 +56,7 @@ test("serve --stdio protocol round trip", { skip: !bin }, async () => {
 
     const privacy: any = await client.request("session/command", { name: "privacy" });
     assert.equal(privacy.telemetry, false);
-    assert.equal(privacy.cloud_inference, false);
+    assert.equal(privacy.remote_inference, false);
 
     const changes: any = await client.request("session/changes");
     assert.deepEqual(changes.kara, []);

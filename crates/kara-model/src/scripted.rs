@@ -7,12 +7,12 @@
 use crate::{
     ChatRequest, ChatResponse, EventSink, ModelProvider, ProviderInfo, StreamEvent, ToolCall,
 };
+use kara_protocol::TokenUsage;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use tokio_util::sync::CancellationToken;
-use kara_protocol::TokenUsage;
 
 type Responder = dyn Fn(&ChatRequest, usize) -> ChatResponse + Send + Sync;
 

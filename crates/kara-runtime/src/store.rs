@@ -9,10 +9,10 @@
 //! license, SHA-256 and download time.
 
 use crate::download::{download_verified, sha256_file, Progress};
+use kara_model::registry::ModelSpec;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio_util::sync::CancellationToken;
-use kara_model::registry::ModelSpec;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ModelRecord {

@@ -9,6 +9,15 @@
 use crate::app::{App, Options};
 use crate::models::{self, Consent, ModelRuntime};
 use crate::tui::{no_model_message, NoModel};
+use kara_agent::approver::Approver;
+use kara_agent::Agent;
+use kara_core::permissions::{Mode, PermissionPolicy};
+use kara_model::hardware::HardwareInfo;
+use kara_model::recommend::recommend;
+use kara_model::ModelProvider;
+use kara_protocol::jsonrpc::{codes, methods, Message, RpcError};
+use kara_protocol::{AgentMode, PermissionDecision, PermissionRequest, PROTOCOL_VERSION};
+use kara_runtime::store::ModelStore;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -16,15 +25,6 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio_util::sync::CancellationToken;
-use kara_agent::approver::Approver;
-use kara_agent::Agent;
-use kara_core::permissions::{PermissionPolicy, Profile};
-use kara_model::hardware::HardwareInfo;
-use kara_model::recommend::recommend;
-use kara_model::ModelProvider;
-use kara_protocol::jsonrpc::{codes, methods, Message, RpcError};
-use kara_protocol::{AgentMode, PermissionDecision, PermissionRequest, PROTOCOL_VERSION};
-use kara_runtime::store::ModelStore;
 
 type Pending = Arc<std::sync::Mutex<HashMap<u64, oneshot::Sender<Result<Value, RpcError>>>>>;
 
@@ -171,8 +171,14 @@ impl Server {
         if let Some(ws) = params.get("workspace").and_then(Value::as_str) {
             opts.dir = Some(ws.into());
         }
-        if let Some(p) = params.get("profile").and_then(Value::as_str) {
-            opts.profile = Some(p.to_string());
+        // Comes from the editor's user-scoped setting (workspace settings
+        // cannot provide it); an empty value keeps the user config.
+        if let Some(p) = params
+            .get("permissionsMode")
+            .and_then(Value::as_str)
+            .filter(|p| !p.is_empty())
+        {
+            opts.permissions = Some(p.to_string());
         }
         let app = App::load(&opts).map_err(internal)?;
         for w in &app.warnings {
@@ -197,7 +203,7 @@ impl Server {
             "karaVersion": kara_core::VERSION,
             "workspace": app.root,
             "session": session_id,
-            "profile": app.config.permissions.profile.as_str(),
+            "permissionsMode": app.config.permissions.mode.as_str(),
             "model": runtime_json(&runtime),
             "commands": crate::commands::COMMANDS.iter().map(|(n, d)| json!({"name": n, "description": d})).collect::<Vec<_>>(),
         });
@@ -229,7 +235,7 @@ impl Server {
         Ok(Agent::new(
             provider,
             ctx,
-            PermissionPolicy::new(app.config.permissions.profile),
+            PermissionPolicy::new(app.config.permissions.mode),
             Arc::new(RpcApprover {
                 peer: self.peer.clone(),
             }),
@@ -326,7 +332,7 @@ impl Server {
             "workspace": s.app.root,
             "session": s.session_id,
             "model": runtime_json(&s.runtime),
-            "profile": s.agent.policy.profile.as_str(),
+            "permissionsMode": s.agent.policy.mode.as_str(),
             "pendingPlan": s.agent.pending_plan().map(|(t, p)| json!({"task": t, "plan": p})),
             "task": s.agent.state.task,
             "plan": s.agent.state.plan,
@@ -441,9 +447,9 @@ impl Server {
             }
             "permissions" => {
                 if !arg.is_empty() {
-                    let p = Profile::parse(&arg)
-                        .ok_or_else(|| invalid("profile must be safe, balanced or autonomous"))?;
-                    s.agent.policy.set_profile(p);
+                    let p = Mode::parse(&arg)
+                        .ok_or_else(|| invalid("mode must be ask, workspace or full"))?;
+                    s.agent.policy.set_mode(p);
                 }
                 let rows: Vec<Value> = s
                     .agent
@@ -452,7 +458,7 @@ impl Server {
                     .into_iter()
                     .map(|(k, d, g)| json!({"kind": k.label(), "decision": format!("{d:?}").to_lowercase(), "sessionGrant": g, "hardBoundary": k.is_hard_boundary()}))
                     .collect();
-                Ok(json!({"profile": s.agent.policy.profile.as_str(), "rows": rows}))
+                Ok(json!({"permissionsMode": s.agent.policy.mode.as_str(), "rows": rows}))
             }
             "revert" => {
                 s.agent.ctx.journal().revert_path(&arg).map_err(internal)?;

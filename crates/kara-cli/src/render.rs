@@ -1,9 +1,9 @@
 //! Terminal rendering of agent events.
 
 use console::style;
+use kara_protocol::{AgentEvent, ChangeKind, NoticeLevel, Phase, StepStatus, TurnOutcome};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use kara_protocol::{AgentEvent, ChangeKind, NoticeLevel, Phase, StepStatus, TurnOutcome};
 
 #[derive(Default)]
 struct State {

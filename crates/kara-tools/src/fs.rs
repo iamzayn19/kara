@@ -8,9 +8,9 @@ use crate::patch::{apply_hunks, edit_replace, parse_unified, unified_diff};
 use crate::{
     arg_str, opt_bool, opt_str, opt_u64, path_kinds, Assessment, Tool, ToolContext, ToolOutput,
 };
-use serde_json::{json, Value};
 use kara_protocol::{ActionKind, ChangeKind, FileChange};
 use kara_sandbox::{injection, ResolvedPath};
+use serde_json::{json, Value};
 
 const MAX_READ_BYTES: u64 = 20 * 1024 * 1024;
 const DEFAULT_READ_LINES: u64 = 400;

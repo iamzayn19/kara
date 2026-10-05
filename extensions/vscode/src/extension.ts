@@ -89,7 +89,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       status.tooltip = "Choose a local model";
     } else {
       status.text = `$(hubot) Kara`;
-      status.tooltip = `Kara · ${agent.info.model.label} · permissions: ${agent.info.profile}`;
+      status.tooltip = `Kara · ${agent.info.model.label} · permissions: ${agent.info.permissionsMode}`;
     }
     status.show();
   };

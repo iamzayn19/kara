@@ -17,7 +17,7 @@ export interface InitializeResult {
   karaVersion: string;
   workspace: string;
   session: string;
-  profile: string;
+  permissionsMode: string;
   model: ModelInfo;
   commands: { name: string; description: string }[];
 }
@@ -82,7 +82,7 @@ export class AgentProcess implements vscode.Disposable {
     this.info = await client.request<InitializeResult>("initialize", {
       workspace,
       clientName: "vscode",
-      ...(profile ? { profile } : {}),
+      ...(profile ? { permissionsMode: profile } : {}),
     });
     this.stateEmitter.fire();
     return this.info;

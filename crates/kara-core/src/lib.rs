@@ -2,6 +2,7 @@
 //! permission policy, privacy reporting and structured task state.
 
 pub mod config;
+pub mod config_edit;
 pub mod paths;
 pub mod permissions;
 pub mod privacy;
@@ -9,7 +10,7 @@ pub mod state;
 
 pub use config::Config;
 pub use paths::KaraPaths;
-pub use permissions::{PermissionPolicy, PolicyDecision, Profile};
+pub use permissions::{Mode, PermissionPolicy, PolicyDecision};
 
 /// Version of the Kara binary and crates.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

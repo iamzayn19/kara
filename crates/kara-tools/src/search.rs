@@ -2,10 +2,10 @@
 
 use crate::output::for_model;
 use crate::{arg_str, opt_bool, opt_str, opt_u64, Assessment, Tool, ToolContext, ToolOutput};
-use serde_json::{json, Value};
 use kara_context::search::{find_files, grep, GrepOptions};
 use kara_protocol::ActionKind;
 use kara_sandbox::injection;
+use serde_json::{json, Value};
 
 fn search_assess(
     title: String,

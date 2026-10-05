@@ -8,11 +8,11 @@
 //! files) the change is added to the undo journal. Anything else is reported
 //! as not undoable.
 
+use kara_context::git;
+use kara_context::search::{rel_path, walk_files};
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 use std::time::UNIX_EPOCH;
-use kara_context::git;
-use kara_context::search::{rel_path, walk_files};
 
 use crate::journal::Journal;
 

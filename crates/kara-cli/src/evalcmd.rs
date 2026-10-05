@@ -4,9 +4,9 @@ use crate::app::{App, Options};
 use crate::models::{self, Consent};
 use clap::Args;
 use console::style;
+use kara_agent::eval::{self, EvalReport};
 use std::path::PathBuf;
 use std::sync::Arc;
-use kara_agent::eval::{self, EvalReport};
 
 #[derive(Args)]
 pub struct EvalArgs {

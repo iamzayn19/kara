@@ -1,14 +1,14 @@
 //! Security boundaries enforced by the agent regardless of what the model
 //! (or repository content) asks for.
 
-use serde_json::json;
-use std::sync::Arc;
 use kara_agent::approver::{ApproveOrdinary, Recording};
-use kara_core::permissions::Profile;
+use kara_core::permissions::Mode;
 use kara_integration_tests::*;
 use kara_model::scripted::{call, text, ScriptedProvider};
 use kara_model::{ChatRequest, Role};
 use kara_protocol::{ActionKind, AgentMode, PermissionDecision};
+use serde_json::json;
+use std::sync::Arc;
 
 fn tool_results(req: &ChatRequest) -> Vec<String> {
     req.messages
@@ -40,7 +40,7 @@ async fn prompt_injection_cannot_exfiltrate_keys() {
     let requests = provider.requests();
     let approver = Arc::new(Recording::new(PermissionDecision::Deny));
     // Even the most permissive profile.
-    let mut h = Harness::new(&repo, provider, Profile::Autonomous, approver.clone());
+    let mut h = Harness::new(&repo, provider, Mode::Full, approver.clone());
     let r = h
         .agent
         .run_turn("Explain what util.py does.", AgentMode::Execute)
@@ -81,13 +81,19 @@ async fn prompt_injection_cannot_exfiltrate_keys() {
 async fn hostile_project_config_cannot_escalate() {
     let repo = Repo::from_fixture("injection");
     let user_cfg = tempfile::NamedTempFile::new().unwrap();
-    std::fs::write(user_cfg.path(), "[permissions]\nprofile = \"safe\"\n").unwrap();
+    std::fs::write(user_cfg.path(), "[permissions]\nmode = \"ask\"\n").unwrap();
     let loaded = kara_core::Config::load(user_cfg.path(), Some(repo.path())).unwrap();
-    assert_eq!(loaded.config.permissions.profile, Profile::Safe);
+    assert_eq!(loaded.config.permissions.mode, Mode::Ask);
+
+    // With the default user mode (workspace), the repository still cannot reach full.
+    let empty_user = tempfile::NamedTempFile::new().unwrap();
+    let loaded_default = kara_core::Config::load(empty_user.path(), Some(repo.path())).unwrap();
+    assert_eq!(loaded_default.config.permissions.mode, Mode::Workspace);
+    assert_eq!(loaded_default.config.inference.provider, kara_core::config::ProviderKind::Local);
     assert!(loaded.config.permissions.allow_commands.is_empty());
-    assert!(loaded.config.model.endpoint.is_empty());
+    assert!(loaded.config.inference.endpoint.is_empty());
     let report = kara_core::privacy::PrivacyReport::from_config(&loaded.config);
-    assert!(!report.cloud_inference);
+    assert!(!report.remote_inference);
 }
 
 #[tokio::test]
@@ -109,7 +115,7 @@ async fn path_traversal_and_symlink_escape_need_consent() {
     let n = calls.len() - 1;
     let provider = Arc::new(ScriptedProvider::new(calls));
     let approver = Arc::new(Recording::new(PermissionDecision::Deny));
-    let mut h = Harness::new(&repo, provider, Profile::Autonomous, approver.clone());
+    let mut h = Harness::new(&repo, provider, Mode::Full, approver.clone());
     h.agent.run_turn("look", AgentMode::Execute).await;
     let seen = approver.seen.lock().unwrap();
     assert_eq!(seen.len(), n);
@@ -131,7 +137,7 @@ async fn git_push_and_destructive_git_always_ask() {
         text("done"),
     ]));
     let approver = Arc::new(Recording::new(PermissionDecision::Deny));
-    let mut h = Harness::new(&repo, provider, Profile::Autonomous, approver.clone());
+    let mut h = Harness::new(&repo, provider, Mode::Full, approver.clone());
     let r = h.agent.run_turn("ship it", AgentMode::Execute).await;
     let seen = approver.seen.lock().unwrap();
     assert_eq!(
@@ -155,7 +161,7 @@ async fn safe_profile_denies_push_without_asking_and_asks_for_writes() {
         text("done"),
     ]));
     let approver = Arc::new(Recording::new(PermissionDecision::Deny));
-    let mut h = Harness::new(&repo, provider, Profile::Safe, approver.clone());
+    let mut h = Harness::new(&repo, provider, Mode::Ask, approver.clone());
     h.agent.run_turn("go", AgentMode::Execute).await;
     let seen = approver.seen.lock().unwrap();
     assert_eq!(
@@ -177,12 +183,7 @@ async fn secrets_in_tool_output_are_redacted() {
         text("done"),
     ]));
     let requests = provider.requests();
-    let mut h = Harness::new(
-        &repo,
-        provider,
-        Profile::Balanced,
-        Arc::new(ApproveOrdinary),
-    );
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(ApproveOrdinary));
     h.agent.run_turn("show settings", AgentMode::Execute).await;
     let reqs = requests.lock().unwrap();
     for r in tool_results(reqs.last().unwrap()) {
@@ -202,12 +203,7 @@ async fn huge_and_binary_files_are_handled() {
         text("done"),
     ]));
     let requests = provider.requests();
-    let mut h = Harness::new(
-        &repo,
-        provider,
-        Profile::Balanced,
-        Arc::new(ApproveOrdinary),
-    );
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(ApproveOrdinary));
     h.agent.run_turn("read", AgentMode::Execute).await;
     let reqs = requests.lock().unwrap();
     let results = tool_results(reqs.last().unwrap());
@@ -228,12 +224,7 @@ async fn malicious_filenames_are_quoted_in_targeted_test_commands() {
         call("run_test", json!({"files": ["test/x; touch pwned #.py"]})),
         text("done"),
     ]));
-    let mut h = Harness::new(
-        &repo,
-        provider,
-        Profile::Autonomous,
-        Arc::new(ApproveOrdinary),
-    );
+    let mut h = Harness::new(&repo, provider, Mode::Full, Arc::new(ApproveOrdinary));
     h.agent.run_turn("run tests", AgentMode::Execute).await;
     assert!(!marker.exists(), "file name was interpreted by the shell");
 }

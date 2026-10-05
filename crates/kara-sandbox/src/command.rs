@@ -8,8 +8,8 @@
 
 use crate::secrets::SECRET_COMMAND_FRAGMENTS;
 use crate::workspace::Workspace;
-use std::collections::BTreeSet;
 use kara_protocol::ActionKind;
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CommandAssessment {

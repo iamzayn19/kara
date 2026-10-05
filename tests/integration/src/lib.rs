@@ -2,18 +2,18 @@
 //! temporary git repo, build an agent over a scripted model, and collect the
 //! events it emits.
 
-use serde::Deserialize;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::{Arc, Mutex};
 use kara_agent::approver::Approver;
 use kara_agent::{Agent, AgentSettings};
 use kara_context::{LanguageRegistry, ProjectProfile, RepoIndex};
-use kara_core::permissions::{PermissionPolicy, Profile};
+use kara_core::permissions::{Mode, PermissionPolicy};
 use kara_model::ModelProvider;
 use kara_protocol::AgentEvent;
 use kara_sandbox::Workspace;
 use kara_tools::{Journal, ToolContext};
+use serde::Deserialize;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 pub fn fixtures_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../fixtures/repos")
@@ -155,7 +155,7 @@ impl Harness {
     pub fn new(
         repo: &Repo,
         provider: Arc<dyn ModelProvider>,
-        profile: Profile,
+        profile: Mode,
         approver: Arc<dyn Approver>,
     ) -> Harness {
         Self::with_settings(repo, provider, profile, approver, AgentSettings::default())
@@ -164,7 +164,7 @@ impl Harness {
     pub fn with_settings(
         repo: &Repo,
         provider: Arc<dyn ModelProvider>,
-        profile: Profile,
+        profile: Mode,
         approver: Arc<dyn Approver>,
         settings: AgentSettings,
     ) -> Harness {

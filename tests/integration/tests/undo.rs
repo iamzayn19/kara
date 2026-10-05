@@ -1,13 +1,13 @@
 //! `/undo` restores exactly what existed before Kara's last turn, keeps the
 //! user's own uncommitted work, and never overwrites later user edits.
 
-use serde_json::json;
-use std::sync::Arc;
 use kara_agent::approver::DenyAll;
-use kara_core::permissions::Profile;
+use kara_core::permissions::Mode;
 use kara_integration_tests::*;
 use kara_model::scripted::{call, text, ScriptedProvider};
 use kara_protocol::AgentMode;
+use serde_json::json;
+use std::sync::Arc;
 
 #[tokio::test]
 async fn undo_preserves_uncommitted_user_changes() {
@@ -34,7 +34,7 @@ async fn undo_preserves_uncommitted_user_changes() {
         ),
         text("done"),
     ]));
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     h.agent.settings.verify_after_edit = false;
     let r = h.agent.run_turn("fix discount", AgentMode::Execute).await;
     assert_eq!(r.changed_files, vec!["shop/cart.py", "shop/new_helper.py"]);
@@ -74,7 +74,7 @@ async fn undo_skips_files_the_user_edited_afterwards() {
         ),
         text("done"),
     ]));
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     h.agent.settings.verify_after_edit = false;
     h.agent.run_turn("edit two files", AgentMode::Execute).await;
 
@@ -104,7 +104,7 @@ async fn each_turn_is_a_separate_undo_batch() {
         ),
         text("two"),
     ]));
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     h.agent.settings.verify_after_edit = false;
     h.agent.run_turn("first", AgentMode::Execute).await;
     h.agent.run_turn("second", AgentMode::Execute).await;

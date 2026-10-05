@@ -2,7 +2,7 @@
 //!
 //! Each task is a fixture repository plus a prompt and a check command. The
 //! harness copies the fixture into a throwaway git repository, runs the agent
-//! (autonomous profile; hard boundaries are always denied), then runs the
+//! (full permission mode; hard boundaries are always denied), then runs the
 //! check command independently of anything the agent reported.
 //!
 //! The `oracle` provider replays each task's reference solution through the
@@ -11,19 +11,19 @@
 
 use crate::agent::{Agent, AgentSettings, TurnResult};
 use crate::approver::ApproveOrdinary;
+use kara_context::{LanguageRegistry, ProjectProfile, RepoIndex};
+use kara_core::permissions::{Mode, PermissionPolicy};
+use kara_model::scripted::{call, text, ScriptedProvider};
+use kara_model::ModelProvider;
+use kara_protocol::{AgentMode, TurnOutcome};
+use kara_sandbox::Workspace;
+use kara_tools::{Journal, ToolContext};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use kara_context::{LanguageRegistry, ProjectProfile, RepoIndex};
-use kara_core::permissions::{PermissionPolicy, Profile};
-use kara_model::scripted::{call, text, ScriptedProvider};
-use kara_model::ModelProvider;
-use kara_protocol::{AgentMode, TurnOutcome};
-use kara_sandbox::Workspace;
-use kara_tools::{Journal, ToolContext};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvalTask {
@@ -308,7 +308,7 @@ pub async fn run_task(
     let mut agent = Agent::new(
         provider,
         ctx,
-        PermissionPolicy::new(Profile::Autonomous),
+        PermissionPolicy::new(Mode::Full),
         Arc::new(ApproveOrdinary),
         Arc::new(|_| {}),
         settings,

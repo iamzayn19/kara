@@ -2,15 +2,15 @@
 //! prompt -> search -> file selection -> edit -> test -> failure recovery ->
 //! passing test -> summary.
 
-use serde_json::json;
-use std::sync::Arc;
 use kara_agent::approver::{ApproveOrdinary, DenyAll};
 use kara_agent::AgentSettings;
-use kara_core::permissions::Profile;
+use kara_core::permissions::Mode;
 use kara_integration_tests::*;
 use kara_model::scripted::{call, text, ScriptedProvider};
 use kara_model::{ChatRequest, ChatResponse, Role};
 use kara_protocol::{AgentEvent, AgentMode, TurnOutcome};
+use serde_json::json;
+use std::sync::Arc;
 
 fn last_tool_result(req: &ChatRequest) -> String {
     req.messages
@@ -42,7 +42,7 @@ async fn fixes_bug_with_failure_recovery() {
     ];
     let provider = Arc::new(ScriptedProvider::new(script));
     let requests = provider.requests();
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     let r = h
         .agent
         .run_turn(
@@ -135,7 +135,7 @@ async fn verification_gate_requires_tests_after_edits() {
             }
         }
     }));
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     let r = h
         .agent
         .run_turn(
@@ -175,7 +175,7 @@ async fn recovery_is_bounded_and_reported() {
     let mut h = Harness::with_settings(
         &repo,
         provider,
-        Profile::Balanced,
+        Mode::Workspace,
         Arc::new(DenyAll),
         settings,
     );
@@ -194,7 +194,7 @@ async fn repeated_identical_calls_stall_instead_of_looping_forever() {
     let provider = Arc::new(ScriptedProvider::from_fn(|_: &ChatRequest, _| {
         call("grep", json!({"pattern": "nothing_matches_this"}))
     }));
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     let r = h.agent.run_turn("find it", AgentMode::Execute).await;
     assert_eq!(r.outcome, TurnOutcome::Stalled);
     assert!(r.stats.tool_calls <= 7, "{}", r.stats.tool_calls);
@@ -216,7 +216,7 @@ async fn invalid_tool_calls_are_reported_back_and_counted() {
         text("I could not complete the request."),
     ]));
     let requests = provider.requests();
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     let r = h.agent.run_turn("look around", AgentMode::Execute).await;
     assert_eq!(r.stats.invalid_tool_calls, 2);
     let reqs = requests.lock().unwrap();
@@ -240,12 +240,7 @@ async fn plan_mode_is_read_only_and_waits_for_approval() {
         text("Implemented the plan; tests pass."),
     ]));
     let requests = provider.requests();
-    let mut h = Harness::new(
-        &repo,
-        provider,
-        Profile::Autonomous,
-        Arc::new(ApproveOrdinary),
-    );
+    let mut h = Harness::new(&repo, provider, Mode::Full, Arc::new(ApproveOrdinary));
     let r = h
         .agent
         .run_turn("Fix the discount bug", AgentMode::Plan)
@@ -281,7 +276,7 @@ async fn review_mode_receives_the_diff() {
         "## High\n- shop/format.py:2: format_money drops currency formatting; test/test_report.py will fail.\nOverall risk: high.",
     )]));
     let requests = provider.requests();
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     let r = h
         .agent
         .run_turn("Review my current diff.", AgentMode::Review)
@@ -323,7 +318,7 @@ async fn context_is_compacted_on_long_tasks() {
     let mut h = Harness::with_settings(
         &repo,
         provider,
-        Profile::Balanced,
+        Mode::Workspace,
         Arc::new(DenyAll),
         settings,
     );
@@ -379,7 +374,7 @@ async fn claiming_done_while_tests_fail_is_pushed_back() {
             }
         }
     }));
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     let r = h
         .agent
         .run_turn("fix the discount", AgentMode::Execute)
@@ -403,7 +398,7 @@ async fn finishing_with_failing_tests_is_reported_honestly() {
         1 => call("run_test", json!({"files": ["test/test_cart.py"]})),
         _ => text("Done, everything works."),
     }));
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     let r = h
         .agent
         .run_turn("fix the discount", AgentMode::Execute)
@@ -424,7 +419,7 @@ async fn claiming_an_edit_that_never_applied_is_caught() {
         _ => text("I added the test successfully."),
     }));
     let requests = provider.requests();
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     let r = h.agent.run_turn("add a test", AgentMode::Execute).await;
     assert!(r.changed_files.is_empty());
     assert!(r.summary.contains("no files were changed"), "{}", r.summary);
@@ -442,7 +437,7 @@ async fn orientation_points_to_project_docs() {
     let repo = Repo::from_fixture("python-shop");
     let provider = Arc::new(ScriptedProvider::new(vec![text("ok")]));
     let requests = provider.requests();
-    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let mut h = Harness::new(&repo, provider, Mode::Workspace, Arc::new(DenyAll));
     h.agent
         .run_turn("Explain the architecture", AgentMode::Execute)
         .await;

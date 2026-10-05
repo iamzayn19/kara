@@ -10,10 +10,10 @@
 
 use crate::archive;
 use crate::download::{download_verified, Progress};
+use kara_model::hardware::HardwareInfo;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio_util::sync::CancellationToken;
-use kara_model::hardware::HardwareInfo;
 
 pub const RUNTIME_MANIFEST: &str = include_str!("../../../models/runtimes.toml");
 
