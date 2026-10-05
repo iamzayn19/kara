@@ -37,12 +37,21 @@ pub struct ModelSpec {
     pub eval_score: Option<f64>,
     #[serde(default = "yes")]
     pub auto_select: bool,
+    /// Default thinking-token budget per response (-1 = unlimited). Small
+    /// models on modest hardware spend most of their time thinking; a budget
+    /// keeps agent steps responsive. Users override with model.reasoning_budget.
+    #[serde(default = "unlimited")]
+    pub reasoning_budget: i32,
     #[serde(default)]
     pub notes: String,
 }
 
 fn yes() -> bool {
     true
+}
+
+fn unlimited() -> i32 {
+    -1
 }
 
 #[derive(Debug, Serialize, Deserialize)]

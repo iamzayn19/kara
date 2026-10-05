@@ -345,6 +345,48 @@ impl Journal {
         Ok(report)
     }
 
+    /// Revert a single file to its content before Veyra first touched it in
+    /// any live batch ("reject change" in an editor). Refuses when the file
+    /// was edited after Veyra's last write.
+    pub fn revert_path(&mut self, rel: &str) -> anyhow::Result<()> {
+        self.end();
+        let latest_after = self
+            .batches
+            .iter()
+            .rev()
+            .filter(|b| !b.undone)
+            .flat_map(|b| b.entries.iter())
+            .find(|e| e.path == rel)
+            .map(|e| e.after_hash.clone())
+            .ok_or_else(|| anyhow::anyhow!("{rel} has no Veyra changes"))?;
+        let abs = self.root.join(rel);
+        let current = std::fs::read(&abs).ok().map(|b| hash_bytes(&b));
+        if current != latest_after {
+            anyhow::bail!("{rel} was edited after Veyra changed it; not reverting");
+        }
+        let original = self.original_content(rel).ok_or_else(|| anyhow::anyhow!("no snapshot for {rel}"))?;
+        match original {
+            Some(bytes) => {
+                if let Some(p) = abs.parent() {
+                    std::fs::create_dir_all(p)?;
+                }
+                std::fs::write(&abs, bytes)?;
+            }
+            None => {
+                if abs.exists() {
+                    std::fs::remove_file(&abs)?;
+                }
+            }
+        }
+        for b in self.batches.iter_mut().filter(|b| !b.undone) {
+            b.entries.retain(|e| e.path != rel);
+        }
+        self.batches.retain(|b| !b.entries.is_empty() || b.undone);
+        self.seen.remove(rel);
+        self.save()?;
+        Ok(())
+    }
+
     fn snapshot_path(&self, hash: &str) -> PathBuf {
         self.dir.join("snapshots").join(hash)
     }
@@ -475,6 +517,27 @@ mod tests {
         j.end();
         j.undo(None).unwrap();
         assert_eq!(read(r, "gone.txt").as_deref(), Some("keep me"));
+    }
+
+    #[test]
+    fn revert_single_path_across_batches() {
+        let (root, _s, mut j) = setup();
+        let r = root.path();
+        write(r, "a.txt", "a0");
+        write(r, "b.txt", "b0");
+        j.begin("t1", None);
+        veyra_write(&mut j, r, "a.txt", "a1");
+        veyra_write(&mut j, r, "b.txt", "b1");
+        j.begin("t2", None);
+        veyra_write(&mut j, r, "a.txt", "a2");
+        j.end();
+        j.revert_path("a.txt").unwrap();
+        assert_eq!(read(r, "a.txt").as_deref(), Some("a0"));
+        assert_eq!(read(r, "b.txt").as_deref(), Some("b1"));
+        assert!(!j.veyra_changed_paths().contains("a.txt"));
+        write(r, "b.txt", "user");
+        assert!(j.revert_path("b.txt").is_err());
+        assert!(j.revert_path("nope.txt").is_err());
     }
 
     #[test]

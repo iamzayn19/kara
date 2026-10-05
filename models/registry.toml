@@ -14,6 +14,7 @@
 #                     memory planning. Estimates; see docs/MODEL_SUPPORT.md.
 #   auto_select       false keeps a model out of automatic selection (e.g.
 #                     pending evaluation or too weak for agent work).
+#   reasoning_budget  Default thinking tokens per response (-1 = unlimited).
 #
 # Sizes, revisions and SHA-256 values were taken from the Hugging Face API at
 # registry creation time (2026-10-05). Downloads are pinned to `revision` and
@@ -116,6 +117,7 @@ tool_calling = "native"
 tier = "low"
 quality_rank = 30
 auto_select = true
+reasoning_budget = 1024
 notes = "Runs on constrained hardware. Expect simpler tasks to work and multi-file changes to need more guidance."
 
 [[model]]
@@ -141,6 +143,7 @@ tool_calling = "native"
 tier = "minimal"
 quality_rank = 10
 auto_select = false
+reasoning_budget = 512
 notes = "For smoke tests and very small machines only; too weak for reliable agent work."
 
 [[model]]

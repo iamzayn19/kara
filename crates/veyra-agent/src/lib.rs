@@ -9,6 +9,7 @@
 pub mod agent;
 pub mod approver;
 pub mod prompts;
+pub mod eval;
 pub mod session;
 
 pub use agent::{Agent, AgentSettings, EventFn, TurnResult, TurnStats};

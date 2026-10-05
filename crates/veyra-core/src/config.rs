@@ -99,6 +99,11 @@ pub struct ModelConfig {
     pub context_length: u32,
     /// Sampling temperature.
     pub temperature: f32,
+    /// Thinking mode for reasoning models: "auto", "on" or "off".
+    pub reasoning: String,
+    /// Thinking-token budget per response; 0 uses the registry default,
+    /// -1 is unlimited.
+    pub reasoning_budget: i32,
 }
 
 impl Default for ModelConfig {
@@ -112,6 +117,8 @@ impl Default for ModelConfig {
             api_key_env: String::new(),
             context_length: 0,
             temperature: 0.2,
+            reasoning: "auto".into(),
+            reasoning_budget: 0,
         }
     }
 }

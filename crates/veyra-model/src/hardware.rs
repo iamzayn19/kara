@@ -51,12 +51,16 @@ impl HardwareInfo {
             .unwrap_or_default();
         let mut info = HardwareInfo {
             os: std::env::consts::OS.to_string(),
-            os_version: System::long_os_version().unwrap_or_default(),
+            os_version: System::long_os_version().unwrap_or_default().trim().to_string(),
             arch: std::env::consts::ARCH.to_string(),
             cpu,
             cpu_cores: sys.cpus().len(),
             total_ram: sys.total_memory(),
-            available_ram: sys.available_memory(),
+            // Some platforms report 0 for "available"; fall back to total - used.
+            available_ram: match sys.available_memory() {
+                0 => sys.total_memory().saturating_sub(sys.used_memory()),
+                n => n,
+            },
             ..Default::default()
         };
 

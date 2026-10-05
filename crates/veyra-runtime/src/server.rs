@@ -20,6 +20,10 @@ pub struct ServerOptions {
     /// Keep MoE expert weights in system RAM (`--cpu-moe`).
     pub cpu_moe: bool,
     pub alias: String,
+    /// "auto", "on" or "off".
+    pub reasoning: String,
+    /// Thinking-token budget (-1 = unlimited).
+    pub reasoning_budget: i32,
     pub extra_args: Vec<String>,
     pub log_file: PathBuf,
     pub startup_timeout: Duration,
@@ -57,6 +61,14 @@ pub fn build_args(opts: &ServerOptions, port: u16) -> Vec<String> {
     ];
     if opts.cpu_moe {
         args.push("--cpu-moe".into());
+    }
+    if matches!(opts.reasoning.as_str(), "on" | "off") {
+        args.push("--reasoning".into());
+        args.push(opts.reasoning.clone());
+    }
+    if opts.reasoning_budget >= 0 {
+        args.push("--reasoning-budget".into());
+        args.push(opts.reasoning_budget.to_string());
     }
     args.extend(opts.extra_args.iter().cloned());
     args
@@ -200,6 +212,8 @@ mod tests {
             gpu_layers: -1,
             cpu_moe: false,
             alias: "veyra".into(),
+            reasoning: "auto".into(),
+            reasoning_budget: -1,
             extra_args: vec![],
             log_file: "/tmp/l.log".into(),
             startup_timeout: Duration::from_secs(1),
@@ -214,6 +228,18 @@ mod tests {
         assert!(!args.iter().any(|a| a == "0.0.0.0"));
         assert!(args.contains(&"--no-webui".to_string()));
         assert!(args.contains(&"--jinja".to_string()));
+    }
+
+    #[test]
+    fn reasoning_flags() {
+        let mut o = opts();
+        assert!(!build_args(&o, 1).contains(&"--reasoning-budget".to_string()));
+        o.reasoning_budget = 1024;
+        o.reasoning = "off".into();
+        let a = build_args(&o, 1);
+        let i = a.iter().position(|x| x == "--reasoning-budget").unwrap();
+        assert_eq!(a[i + 1], "1024");
+        assert!(a.windows(2).any(|w| w[0] == "--reasoning" && w[1] == "off"));
     }
 
     #[test]
