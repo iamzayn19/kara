@@ -102,6 +102,15 @@ pub struct Agent {
 
 const UPDATE_PLAN: &str = "update_plan";
 
+const MUTATING_TOOLS: &[&str] = &[
+    "edit_file",
+    "write_file",
+    "create_file",
+    "apply_patch",
+    "move_file",
+    "delete_file",
+];
+
 fn update_plan_def() -> ToolDef {
     ToolDef {
         name: UPDATE_PLAN.into(),
@@ -299,6 +308,7 @@ impl Agent {
     fn orientation(&self, task: &str) -> String {
         let mut s = String::new();
         let root = self.ctx.root();
+        s.push_str(&project_layout(root));
         let dirty = if git::is_repo(root) {
             git::dirty_paths(root)
         } else {
@@ -418,6 +428,8 @@ impl Agent {
         let mut edits_since_test = false;
         let mut verify_nudged = false;
         let mut failing_nudges = 0u32;
+        let mut failed_mutations = 0u32;
+        let mut no_change_nudged = false;
         let mut empty_nudges = 0;
         let mut recent_calls: Vec<String> = Vec::new();
         let mut repeat_warnings = 0u32;
@@ -501,6 +513,20 @@ impl Agent {
                     messages.push(Message::user(prompts::VERIFY_NUDGE));
                     continue;
                 }
+                // Edits were attempted but nothing changed: the model may be
+                // about to claim work it did not do.
+                let nothing_applied =
+                    mode == AgentMode::Execute && changed.is_empty() && failed_mutations > 0;
+                if nothing_applied && !no_change_nudged {
+                    no_change_nudged = true;
+                    self.notice(
+                        NoticeLevel::Info,
+                        "no edit was applied; asking the model to retry or explain",
+                    );
+                    messages.push(Message::assistant(text, vec![]));
+                    messages.push(Message::user(prompts::NO_CHANGE_NUDGE));
+                    continue;
+                }
                 // Do not accept "done" while the agent's own latest test run
                 // fails. Push back (bounded) before letting the turn end.
                 let still_failing = mode == AgentMode::Execute
@@ -538,6 +564,13 @@ impl Agent {
                         } else {
                             format!(": {}", t.failed_tests.join(", "))
                         }
+                    );
+                    self.notice(NoticeLevel::Warning, note.clone());
+                    text = format!("{text}\n\n{note}");
+                }
+                if nothing_applied {
+                    let note = format!(
+                        "Note from Veyra: no files were changed in this turn ({failed_mutations} edit attempt(s) failed)."
                     );
                     self.notice(NoticeLevel::Warning, note.clone());
                     text = format!("{text}\n\n{note}");
@@ -625,6 +658,9 @@ impl Agent {
                             }
                         }
                     }
+                }
+                if !out.ok && MUTATING_TOOLS.contains(&call.name.as_str()) {
+                    failed_mutations += 1;
                 }
                 trace.push(json!({"tool": call.name, "arguments": call.arguments, "ok": out.ok, "summary": out.summary}));
                 messages.push(Message::tool(&call.id, &call.name, content));
@@ -1017,6 +1053,50 @@ impl Agent {
             }
         }
     }
+}
+
+/// Top-level entries and documentation files, so explanatory tasks start
+/// from the project's own docs (README, ARCHITECTURE, docs/).
+fn project_layout(root: &std::path::Path) -> String {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return String::new();
+    };
+    let mut dirs = Vec::new();
+    let mut docs = Vec::new();
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if name.starts_with('.') || name == "target" || name == "node_modules" {
+            continue;
+        }
+        if e.path().is_dir() {
+            dirs.push(format!("{name}/"));
+        } else if name.to_ascii_lowercase().ends_with(".md") {
+            docs.push(name);
+        }
+    }
+    if let Ok(d) = std::fs::read_dir(root.join("docs")) {
+        for e in d.flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name.ends_with(".md") {
+                docs.push(format!("docs/{name}"));
+            }
+        }
+    }
+    dirs.sort();
+    docs.sort();
+    dirs.truncate(30);
+    docs.truncate(20);
+    let mut s = String::new();
+    if !dirs.is_empty() {
+        s.push_str(&format!("Top-level directories: {}\n", dirs.join(" ")));
+    }
+    if !docs.is_empty() {
+        s.push_str(&format!(
+            "Documentation (read these first for overview questions): {}\n",
+            docs.join(", ")
+        ));
+    }
+    s
 }
 
 fn phase_for(tool: &str) -> Phase {

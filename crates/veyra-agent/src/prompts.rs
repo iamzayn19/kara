@@ -78,3 +78,5 @@ pub fn failing_nudge(command: &str, failed: &[String]) -> String {
         "The last test run (`{command}`) still fails.{which} The task is not done. Read the failure output, re-read the code you changed, fix the cause, and run the tests again. If you cannot make them pass, say so plainly and explain what is blocking you."
     )
 }
+
+pub const NO_CHANGE_NUDGE: &str = "Your edit attempts failed, so no files have been changed yet. Do not claim the change was made. Read the file again (read_file), copy the exact text for old_string, and retry; or explain why the change cannot be made.";

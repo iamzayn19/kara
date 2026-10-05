@@ -396,3 +396,33 @@ async fn finishing_with_failing_tests_is_reported_honestly() {
     assert!(r.summary.contains("Note from Veyra"), "{}", r.summary);
     assert!(r.summary.contains("still failing"));
 }
+
+#[tokio::test]
+async fn claiming_an_edit_that_never_applied_is_caught() {
+    let repo = Repo::from_fixture("python-shop");
+    let provider = Arc::new(ScriptedProvider::from_fn(|_: &ChatRequest, n| match n {
+        // The edit's old_string does not exist, so nothing changes.
+        0 => call("edit_file", json!({"path": "shop/cart.py", "old_string": "no such text", "new_string": "x"})),
+        _ => text("I added the test successfully."),
+    }));
+    let requests = provider.requests();
+    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    let r = h.agent.run_turn("add a test", AgentMode::Execute).await;
+    assert!(r.changed_files.is_empty());
+    assert!(r.summary.contains("no files were changed"), "{}", r.summary);
+    let reqs = requests.lock().unwrap();
+    assert!(reqs.iter().any(|q| q.messages.last().unwrap().content.contains("no files have been changed yet")));
+}
+
+#[tokio::test]
+async fn orientation_points_to_project_docs() {
+    let repo = Repo::from_fixture("python-shop");
+    let provider = Arc::new(ScriptedProvider::new(vec![text("ok")]));
+    let requests = provider.requests();
+    let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
+    h.agent.run_turn("Explain the architecture", AgentMode::Execute).await;
+    let reqs = requests.lock().unwrap();
+    let user = &reqs[0].messages.iter().find(|m| m.role == Role::User).unwrap().content;
+    assert!(user.contains("Documentation (read these first for overview questions): README.md"), "{user}");
+    assert!(user.contains("Top-level directories: shop/ test/"), "{user}");
+}

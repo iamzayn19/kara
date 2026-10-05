@@ -289,13 +289,9 @@ fn banner(s: &Session) {
     } else {
         "not a git repository".into()
     };
-    let langs: Vec<&str> = app
-        .profile
-        .languages
-        .keys()
-        .map(String::as_str)
-        .take(4)
-        .collect();
+    let mut by_count: Vec<(&String, &usize)> = app.profile.languages.iter().collect();
+    by_count.sort_by(|a, b| b.1.cmp(a.1));
+    let langs: Vec<&str> = by_count.iter().map(|(l, _)| l.as_str()).take(4).collect();
     println!(
         "{:<13}{} ({git}){}",
         "Repository:",
