@@ -71,9 +71,9 @@ Results are machine-specific. Speed depends on hardware; solve rate depends
 on the model, quantization and Veyra version.
 
 <!-- RESULTS:BEGIN -->
-### Qwen3-4B Q4_K_M · Apple M5, 16 GB (Metal) · 2026-10-05 · Veyra 0.1.0 (pre-gate build)
+### Qwen3-4B Q4_K_M · Apple M5, 16 GB (Metal) · 2026-10-05 · Veyra 0.1.0
 
-Solved **5 / 10** runnable tasks (Go tasks skipped: Go not installed on this
+Full run with the first build: solved **5 / 10** runnable tasks (Go tasks skipped: Go not installed on this
 machine). Generation speed about 12-15 tokens/s; every task took 3-10 minutes.
 Per-task limit: 600 s.
 
@@ -104,6 +104,24 @@ What the failures taught us:
   a plain capability limit of a 4B model.
 
 Raw report: `tests/evals/results/2026-10-05-qwen3-4b-q4-k-m.json`.
+
+#### Rerun of the five failed tasks after the "still failing" gate
+
+Same model, machine and limits, with the updated agent (push back when tests
+still fail, no test editing):
+
+| Task | Before | After | Model calls | Time (s) |
+|---|---|---|---|---|
+| python-validation | no | **yes** | 4 | 340 |
+| python-import | no (time limit) | no (time limit) | 6 | 601 |
+| ruby-session-expiry | no | **yes** | 5 | 199 |
+| ts-pagination-offset | no | **yes** | 9 | 265 |
+| ts-query-validation | no (time limit) | no (time limit) | 16 | 602 |
+
+3 of the 5 previous failures are now solved. This is a rerun of the failed
+subset, not a fresh full run. Local models are not deterministic, so the full
+suite should be rerun before quoting an overall rate for this build. Raw
+report: `tests/evals/results/2026-10-05-qwen3-4b-q4-k-m-rerun.json`.
 
 This is one small model on one modest machine. It shows Veyra's loop works
 end to end with a real local model, not how capable the high-tier default is.
