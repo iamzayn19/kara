@@ -32,6 +32,10 @@ pub struct GrepOptions {
     pub path: Option<String>,
     pub max_matches: usize,
     pub max_file_bytes: u64,
+    /// Stop scanning further files once `max_matches` matches were found.
+    /// Faster on huge trees, but which files are reported is not
+    /// deterministic, so only heuristics (ranking) use it.
+    pub stop_early: bool,
 }
 
 impl Default for GrepOptions {
@@ -44,6 +48,7 @@ impl Default for GrepOptions {
             path: None,
             max_matches: 200,
             max_file_bytes: 2_000_000,
+            stop_early: false,
         }
     }
 }
@@ -106,7 +111,10 @@ pub fn build_regex(pattern: &str, opts: &GrepOptions) -> Result<Regex, regex::Er
         let (start, end) = if opts.regex {
             (true, true)
         } else {
-            (is_word(pattern.chars().next()), is_word(pattern.chars().last()))
+            (
+                is_word(pattern.chars().next()),
+                is_word(pattern.chars().last()),
+            )
         };
         pat = format!(
             "{}(?:{pat}){}",
@@ -140,9 +148,13 @@ pub fn grep(root: &Path, pattern: &str, opts: &GrepOptions) -> Result<GrepResult
         .collect();
     let searched = files.len();
 
+    let found = std::sync::atomic::AtomicUsize::new(0);
     let mut per_file: Vec<(String, Vec<GrepMatch>, bool)> = files
         .par_iter()
         .filter_map(|p| {
+            if opts.stop_early && found.load(std::sync::atomic::Ordering::Relaxed) >= opts.max_matches {
+                return None;
+            }
             let md = std::fs::metadata(p).ok()?;
             if md.len() > opts.max_file_bytes {
                 return None;
@@ -168,6 +180,7 @@ pub fn grep(root: &Path, pattern: &str, opts: &GrepOptions) -> Result<GrepResult
                     });
                 }
             }
+            found.fetch_add(ms.len(), std::sync::atomic::Ordering::Relaxed);
             (!ms.is_empty()).then_some((rel, ms, capped))
         })
         .collect();
@@ -245,7 +258,10 @@ mod tests {
             std::fs::create_dir_all(p.parent().unwrap()).unwrap();
             std::fs::write(p, t).unwrap();
         };
-        w("src/auth.rs", b"fn authenticate() {}\nfn other() { authenticate(); }\n");
+        w(
+            "src/auth.rs",
+            b"fn authenticate() {}\nfn other() { authenticate(); }\n",
+        );
         w("src/lib.rs", b"mod auth;\n");
         w("node_modules/x/index.js", b"authenticate\n");
         w("bin/blob", b"authenticate\0\0");
@@ -259,7 +275,11 @@ mod tests {
     fn grep_respects_ignores_and_skips_binary() {
         let d = repo();
         let r = grep(d.path(), "authenticate", &GrepOptions::default()).unwrap();
-        let paths: Vec<_> = r.matches.iter().map(|m| (m.path.as_str(), m.line)).collect();
+        let paths: Vec<_> = r
+            .matches
+            .iter()
+            .map(|m| (m.path.as_str(), m.line))
+            .collect();
         assert_eq!(paths, vec![("src/auth.rs", 1), ("src/auth.rs", 2)]);
         assert_eq!(r.files_with_matches, 1);
     }
@@ -282,7 +302,10 @@ mod tests {
     #[test]
     fn find_files_by_glob_and_substring() {
         let d = repo();
-        assert_eq!(find_files(d.path(), "*.rs", 10).0, vec!["src/auth.rs", "src/lib.rs"]);
+        assert_eq!(
+            find_files(d.path(), "*.rs", 10).0,
+            vec!["src/auth.rs", "src/lib.rs"]
+        );
         assert_eq!(find_files(d.path(), "AUTH", 10).0, vec!["src/auth.rs"]);
         let (f, t) = find_files(d.path(), "src", 1);
         assert_eq!(f.len(), 1);

@@ -42,7 +42,9 @@ impl SessionStore {
         if let Some(p) = db.parent() {
             std::fs::create_dir_all(p)?;
         }
-        let s = SessionStore { db: db.to_path_buf() };
+        let s = SessionStore {
+            db: db.to_path_buf(),
+        };
         s.conn()?.execute_batch(
             "CREATE TABLE IF NOT EXISTS sessions (
                 id TEXT PRIMARY KEY, workspace TEXT NOT NULL, created TEXT NOT NULL,
@@ -161,7 +163,12 @@ impl SessionStore {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
-    pub fn save_state(&self, session: &str, state: &serde_json::Value, history: &serde_json::Value) -> anyhow::Result<()> {
+    pub fn save_state(
+        &self,
+        session: &str,
+        state: &serde_json::Value,
+        history: &serde_json::Value,
+    ) -> anyhow::Result<()> {
         self.conn()?.execute(
             "INSERT OR REPLACE INTO agent_state(session_id, state, history) VALUES (?1, ?2, ?3)",
             params![session, state.to_string(), history.to_string()],
@@ -169,7 +176,10 @@ impl SessionStore {
         Ok(())
     }
 
-    pub fn load_state(&self, session: &str) -> anyhow::Result<Option<(serde_json::Value, serde_json::Value)>> {
+    pub fn load_state(
+        &self,
+        session: &str,
+    ) -> anyhow::Result<Option<(serde_json::Value, serde_json::Value)>> {
         let row: Option<(String, String)> = self
             .conn()?
             .query_row(
@@ -217,7 +227,9 @@ mod tests {
         assert_eq!(list[0].title, "fix auth");
         assert_eq!(list[0].turns, 1);
         assert_eq!(store.turns(&id).unwrap()[0].changed_files, vec!["a.rb"]);
-        store.save_state(&id, &serde_json::json!({"a": 1}), &serde_json::json!([])).unwrap();
+        store
+            .save_state(&id, &serde_json::json!({"a": 1}), &serde_json::json!([]))
+            .unwrap();
         assert_eq!(store.load_state(&id).unwrap().unwrap().0["a"], 1);
     }
 }

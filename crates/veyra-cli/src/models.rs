@@ -78,7 +78,10 @@ pub fn confirm(question: &str, default_yes: bool) -> bool {
     if !std::io::stdin().is_terminal() {
         return false;
     }
-    print!("{question} {} ", if default_yes { "[Y/n]" } else { "[y/N]" });
+    print!(
+        "{question} {} ",
+        if default_yes { "[Y/n]" } else { "[y/N]" }
+    );
     let _ = std::io::stdout().flush();
     let mut line = String::new();
     if std::io::stdin().read_line(&mut line).is_err() {
@@ -93,8 +96,18 @@ pub fn confirm(question: &str, default_yes: bool) -> bool {
 
 pub fn describe_download(spec: &ModelSpec, context: u32, store: &ModelStore) {
     let need = spec.memory_needed(context);
-    println!("  {:<10} {} ({})", "Model", style(&spec.name).bold(), spec.quantization);
-    println!("  {:<10} {} (revision {})", "Source", spec.source_url(), &spec.revision[..12]);
+    println!(
+        "  {:<10} {} ({})",
+        "Model",
+        style(&spec.name).bold(),
+        spec.quantization
+    );
+    println!(
+        "  {:<10} {} (revision {})",
+        "Source",
+        spec.source_url(),
+        &spec.revision[..12]
+    );
     println!("  {:<10} {}", "License", spec.license);
     let partial = store.partial_bytes(spec);
     if partial > 0 {
@@ -107,8 +120,16 @@ pub fn describe_download(spec: &ModelSpec, context: u32, store: &ModelStore) {
     } else {
         println!("  {:<10} {}", "Download", format_bytes(spec.size_bytes));
     }
-    println!("  {:<10} about {} while running ({context}-token context)", "Memory", format_bytes(need));
-    println!("  {:<10} {}", "Saved to", display_path(&store.path_for(spec)));
+    println!(
+        "  {:<10} about {} while running ({context}-token context)",
+        "Memory",
+        format_bytes(need)
+    );
+    println!(
+        "  {:<10} {}",
+        "Saved to",
+        display_path(&store.path_for(spec))
+    );
     if !spec.notes.is_empty() {
         println!("  {:<10} {}", "Notes", spec.notes);
     }
@@ -117,9 +138,11 @@ pub fn describe_download(spec: &ModelSpec, context: u32, store: &ModelStore) {
 fn progress_bar(total: u64, label: &str) -> ProgressBar {
     let pb = ProgressBar::new(total);
     pb.set_style(
-        ProgressStyle::with_template("  {msg} [{bar:30}] {bytes}/{total_bytes} {bytes_per_sec} eta {eta}")
-            .unwrap()
-            .progress_chars("=> "),
+        ProgressStyle::with_template(
+            "  {msg} [{bar:30}] {bytes}/{total_bytes} {bytes_per_sec} eta {eta}",
+        )
+        .unwrap()
+        .progress_chars("=> "),
     );
     pb.set_message(label.to_string());
     pb
@@ -147,7 +170,11 @@ pub async fn download_model(store: &ModelStore, spec: &ModelSpec) -> anyhow::Res
     res.map(|_| ())
 }
 
-pub async fn install_llama(app: &App, hw: &HardwareInfo, consent: Consent) -> anyhow::Result<std::path::PathBuf> {
+pub async fn install_llama(
+    app: &App,
+    hw: &HardwareInfo,
+    consent: Consent,
+) -> anyhow::Result<std::path::PathBuf> {
     let mgr = LlamaCppManager::new(&app.paths.runtimes_dir());
     if let Some(found) = mgr.locate(&app.config.runtime.llama_server_path) {
         return Ok(found.binary().to_path_buf());
@@ -178,7 +205,11 @@ pub async fn install_llama(app: &App, hw: &HardwareInfo, consent: Consent) -> an
     let pb = progress_bar(total, "llama.cpp");
     let pb2 = pb.clone();
     let rec = mgr
-        .install(hw, &move |_, p| pb2.set_position(p.downloaded), &CancellationToken::new())
+        .install(
+            hw,
+            &move |_, p| pb2.set_position(p.downloaded),
+            &CancellationToken::new(),
+        )
         .await;
     match rec {
         Ok(r) => {
@@ -193,12 +224,18 @@ pub async fn install_llama(app: &App, hw: &HardwareInfo, consent: Consent) -> an
 }
 
 /// Resolve which registry model to use and with what context/placement.
-pub fn choose_model(app: &App, hw: &HardwareInfo, requested: Option<&str>) -> anyhow::Result<(ModelSpec, u32, Option<Placement>)> {
+pub fn choose_model(
+    app: &App,
+    hw: &HardwareInfo,
+    requested: Option<&str>,
+) -> anyhow::Result<(ModelSpec, u32, Option<Placement>)> {
     let rec = recommend(&app.models, hw);
     let id = match requested {
         Some(id) if id != "auto" => Some(id.to_string()),
         Some(_) => None,
-        None if app.config.model.mode == ModelMode::Manual && !app.config.model.id.is_empty() => Some(app.config.model.id.clone()),
+        None if app.config.model.mode == ModelMode::Manual && !app.config.model.id.is_empty() => {
+            Some(app.config.model.id.clone())
+        }
         None => None,
     };
     let (spec, ctx, placement) = match id {
@@ -209,26 +246,42 @@ pub fn choose_model(app: &App, hw: &HardwareInfo, requested: Option<&str>) -> an
                 .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`; see `veyra models`"))?
                 .clone();
             let cand = rec.candidates.iter().find(|c| c.id == spec.id);
-            let ctx = cand.filter(|c| c.fits).map(|c| c.context).unwrap_or(spec.default_context);
+            let ctx = cand
+                .filter(|c| c.fits)
+                .map(|c| c.context)
+                .unwrap_or(spec.default_context);
             (spec, ctx, cand.and_then(|c| c.placement.clone()))
         }
         None => {
-            let spec = rec.model.clone().ok_or_else(|| anyhow::anyhow!("{}", rec.summary))?;
+            let spec = rec
+                .model
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("{}", rec.summary))?;
             (spec, rec.context, rec.placement.clone())
         }
     };
-    let ctx = if app.config.model.context_length > 0 { app.config.model.context_length } else { ctx };
+    let ctx = if app.config.model.context_length > 0 {
+        app.config.model.context_length
+    } else {
+        ctx
+    };
     Ok((spec, ctx, placement))
 }
 
 /// Start the configured model runtime.
-pub async fn start_runtime(app: &App, consent: Consent, requested: Option<&str>) -> anyhow::Result<ModelRuntime> {
+pub async fn start_runtime(
+    app: &App,
+    consent: Consent,
+    requested: Option<&str>,
+) -> anyhow::Result<ModelRuntime> {
     // External OpenAI-compatible runtimes (Ollama, LM Studio, vLLM, ...).
     if app.config.model.provider != ProviderKind::Llamacpp && requested.is_none() {
-        let endpoint = app
-            .config
-            .endpoint()
-            .ok_or_else(|| anyhow::anyhow!("model.endpoint is required for provider {:?}", app.config.model.provider))?;
+        let endpoint = app.config.endpoint().ok_or_else(|| {
+            anyhow::anyhow!(
+                "model.endpoint is required for provider {:?}",
+                app.config.model.provider
+            )
+        })?;
         let key = (!app.config.model.api_key_env.is_empty())
             .then(|| std::env::var(&app.config.model.api_key_env).ok())
             .flatten();
@@ -238,20 +291,27 @@ pub async fn start_runtime(app: &App, consent: Consent, requested: Option<&str>)
         let mut model = app.config.model.api_model.clone();
         if model.is_empty() {
             let models = provider.list_models().await.map_err(|e| {
-                anyhow::anyhow!("cannot reach {} at {endpoint}: {e}", app.config.model.provider.label())
+                anyhow::anyhow!(
+                    "cannot reach {} at {endpoint}: {e}",
+                    app.config.model.provider.label()
+                )
             })?;
-            model = models
-                .first()
-                .cloned()
-                .ok_or_else(|| anyhow::anyhow!("{endpoint} serves no models; set model.api_model"))?;
+            model = models.first().cloned().ok_or_else(|| {
+                anyhow::anyhow!("{endpoint} serves no models; set model.api_model")
+            })?;
             provider = OpenAiCompatProvider::new(&endpoint, &model)
                 .with_api_key(key)
                 .with_label(app.config.model.provider.label());
         }
-        let ctx = (app.config.model.context_length > 0).then_some(app.config.model.context_length).or(Some(32768));
+        let ctx = (app.config.model.context_length > 0)
+            .then_some(app.config.model.context_length)
+            .or(Some(32768));
         let provider = provider.with_context_length(ctx);
         return Ok(ModelRuntime {
-            label: format!("{model} ({}, {endpoint})", app.config.model.provider.label()),
+            label: format!(
+                "{model} ({}, {endpoint})",
+                app.config.model.provider.label()
+            ),
             provider: Some(Arc::new(provider)),
             server: None,
             spec: None,
@@ -278,7 +338,10 @@ pub async fn start_runtime(app: &App, consent: Consent, requested: Option<&str>)
                 println!("\nVeyra needs a local model. Recommended for this machine:");
                 describe_download(&spec, ctx, &store);
                 if spec.size_bytes > 20_000_000_000 {
-                    println!("  {}", style("This is a large download (over 20 GB).").yellow());
+                    println!(
+                        "  {}",
+                        style("This is a large download (over 20 GB).").yellow()
+                    );
                 }
                 if !confirm("Download it now?", false) {
                     return Ok(ModelRuntime::none("no model (download declined)"));
@@ -295,7 +358,11 @@ pub async fn start_runtime(app: &App, consent: Consent, requested: Option<&str>)
         model_path: store.path_for(&spec),
         host: app.config.runtime.bind_host.clone(),
         context: ctx,
-        gpu_layers: if gpu { app.config.runtime.gpu_layers } else { 0 },
+        gpu_layers: if gpu {
+            app.config.runtime.gpu_layers
+        } else {
+            0
+        },
         cpu_moe: placement == Some(Placement::PartialOffload),
         alias: spec.id.clone(),
         reasoning: app.config.model.reasoning.clone(),
@@ -313,7 +380,13 @@ pub async fn start_runtime(app: &App, consent: Consent, requested: Option<&str>)
         .with_label("llama.cpp")
         .with_context_length(Some(ctx));
     Ok(ModelRuntime {
-        label: format!("{} {} (llama.cpp, {}, {}k context)", spec.name, spec.quantization, server.base_url.trim_end_matches("/v1"), ctx / 1024),
+        label: format!(
+            "{} {} (llama.cpp, {}, {}k context)",
+            spec.name,
+            spec.quantization,
+            server.base_url.trim_end_matches("/v1"),
+            ctx / 1024
+        ),
         provider: Some(Arc::new(provider)),
         server: Some(server),
         spec: Some(spec),
@@ -345,7 +418,10 @@ pub fn set_model_in_config(text: &str, id: Option<&str>) -> String {
             out.push(line.to_string());
             continue;
         }
-        if in_model && (t.starts_with("mode") || t.starts_with("id ") || t.starts_with("id=")) && t.contains('=') {
+        if in_model
+            && (t.starts_with("mode") || t.starts_with("id ") || t.starts_with("id="))
+            && t.contains('=')
+        {
             if !wrote {
                 push_settings(&mut out);
                 wrote = true;
@@ -390,7 +466,11 @@ pub fn print_list(app: &App) {
             m.tier,
             m.license,
             mark,
-            if installed { style("  installed").green().to_string() } else { String::new() }
+            if installed {
+                style("  installed").green().to_string()
+            } else {
+                String::new()
+            }
         );
         if let Some(c) = c {
             println!("  {:<26} {}", "", style(&c.reason).dim());
@@ -399,7 +479,11 @@ pub fn print_list(app: &App) {
     println!("\n{}", rec.summary);
 }
 
-pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, action: Option<ModelsCmd>) -> anyhow::Result<i32> {
+pub fn run(
+    rt: &tokio::runtime::Runtime,
+    opts: &Options,
+    action: Option<ModelsCmd>,
+) -> anyhow::Result<i32> {
     let app = App::load(opts)?;
     let store = ModelStore::new(&app.paths.models_dir());
     match action.unwrap_or(ModelsCmd::List) {
@@ -408,9 +492,17 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, action: Option<ModelsCm
             Ok(0)
         }
         ModelsCmd::Pull { id, yes } => {
-            let spec = app.models.get(&id).ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?.clone();
+            let spec = app
+                .models
+                .get(&id)
+                .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?
+                .clone();
             if store.is_installed(&spec) {
-                println!("{} is already installed at {}", spec.name, display_path(&store.path_for(&spec)));
+                println!(
+                    "{} is already installed at {}",
+                    spec.name,
+                    display_path(&store.path_for(&spec))
+                );
                 return Ok(0);
             }
             describe_download(&spec, spec.default_context, &store);
@@ -420,11 +512,18 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, action: Option<ModelsCm
             }
             rt.block_on(download_model(&store, &spec))?;
             let hw = HardwareInfo::detect(&app.paths.models_dir());
-            rt.block_on(install_llama(&app, &hw, if yes { Consent::Granted } else { Consent::Ask }))?;
+            rt.block_on(install_llama(
+                &app,
+                &hw,
+                if yes { Consent::Granted } else { Consent::Ask },
+            ))?;
             Ok(0)
         }
         ModelsCmd::Verify { id } => {
-            let spec = app.models.get(&id).ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?;
+            let spec = app
+                .models
+                .get(&id)
+                .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?;
             if !store.path_for(spec).exists() {
                 anyhow::bail!("{} is not downloaded", spec.name);
             }
@@ -434,12 +533,18 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, action: Option<ModelsCm
                 println!("{}", style("sha256 OK").green());
                 Ok(0)
             } else {
-                println!("{}", style("sha256 MISMATCH: delete the file and download again").red());
+                println!(
+                    "{}",
+                    style("sha256 MISMATCH: delete the file and download again").red()
+                );
                 Ok(1)
             }
         }
         ModelsCmd::Use { id } => {
-            let spec = app.models.get(&id).ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?;
+            let spec = app
+                .models
+                .get(&id)
+                .ok_or_else(|| anyhow::anyhow!("unknown model `{id}`"))?;
             let f = app.paths.config_file();
             let text = std::fs::read_to_string(&f).unwrap_or_default();
             std::fs::write(&f, set_model_in_config(&text, Some(&spec.id)))?;

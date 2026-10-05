@@ -54,7 +54,10 @@ impl LlamaCppPin {
     }
 
     pub fn url(&self, name: &str) -> String {
-        format!("https://github.com/{}/releases/download/{}/{}", self.repo, self.tag, name)
+        format!(
+            "https://github.com/{}/releases/download/{}/{}",
+            self.repo, self.tag, name
+        )
     }
 
     /// Pick the best asset for this machine. GPU builds are preferred when
@@ -147,7 +150,9 @@ impl LlamaCppManager {
     }
 
     fn record_path(&self) -> PathBuf {
-        self.runtimes_dir.join(&self.pin.tag).join("veyra-install.json")
+        self.runtimes_dir
+            .join(&self.pin.tag)
+            .join("veyra-install.json")
     }
 
     pub fn locate(&self, configured: &str) -> Option<Located> {
@@ -158,7 +163,8 @@ impl LlamaCppManager {
         if let Some(p) = which(exe_name()) {
             return Some(Located::Path(p));
         }
-        let rec: InstallRecord = serde_json::from_slice(&std::fs::read(self.record_path()).ok()?).ok()?;
+        let rec: InstallRecord =
+            serde_json::from_slice(&std::fs::read(self.record_path()).ok()?).ok()?;
         rec.binary.is_file().then_some(Located::Managed(rec))
     }
 
@@ -188,9 +194,16 @@ impl LlamaCppManager {
         for (name, sha) in &files {
             let dest = dl.join(name);
             let label = name.clone();
-            download_verified(&client, &self.pin.url(name), &dest, Some(sha), &|p| on_progress(&label, p), cancel)
-                .await
-                .map_err(|e| anyhow::anyhow!("{name}: {e}"))?;
+            download_verified(
+                &client,
+                &self.pin.url(name),
+                &dest,
+                Some(sha),
+                &|p| on_progress(&label, p),
+                cancel,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("{name}: {e}"))?;
             archive::extract(&dest, &dir)?;
             let _ = std::fs::remove_file(&dest);
         }
@@ -241,9 +254,18 @@ fn find_file(dir: &Path, name: &str) -> Option<PathBuf> {
 
 /// `llama-server --version`, first useful line.
 pub fn version(binary: &Path) -> Option<String> {
-    let out = std::process::Command::new(binary).arg("--version").output().ok()?;
-    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
-    text.lines().find(|l| l.starts_with("version")).map(|l| l.trim().to_string())
+    let out = std::process::Command::new(binary)
+        .arg("--version")
+        .output()
+        .ok()?;
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    text.lines()
+        .find(|l| l.starts_with("version"))
+        .map(|l| l.trim().to_string())
 }
 
 #[cfg(test)]
@@ -256,25 +278,64 @@ mod tests {
         assert!(pin.tag.starts_with('b'));
         for a in &pin.assets {
             assert_eq!(a.sha256.len(), 64, "{}", a.name);
-            assert!(a.name.contains(&pin.tag) || a.name.starts_with("cudart"), "{}", a.name);
+            assert!(
+                a.name.contains(&pin.tag) || a.name.starts_with("cudart"),
+                "{}",
+                a.name
+            );
         }
     }
 
     #[test]
     fn asset_selection() {
         let pin = LlamaCppPin::builtin();
-        let mac = HardwareInfo { os: "macos".into(), arch: "aarch64".into(), ..Default::default() };
+        let mac = HardwareInfo {
+            os: "macos".into(),
+            arch: "aarch64".into(),
+            ..Default::default()
+        };
         assert!(pin.select(&mac).unwrap().name.contains("macos-arm64"));
-        let linux_cuda = HardwareInfo { os: "linux".into(), arch: "x86_64".into(), cuda: true, vulkan: true, ..Default::default() };
+        let linux_cuda = HardwareInfo {
+            os: "linux".into(),
+            arch: "x86_64".into(),
+            cuda: true,
+            vulkan: true,
+            ..Default::default()
+        };
         assert!(pin.select(&linux_cuda).unwrap().name.contains("cuda"));
-        let linux_vk = HardwareInfo { os: "linux".into(), arch: "x86_64".into(), vulkan: true, ..Default::default() };
+        let linux_vk = HardwareInfo {
+            os: "linux".into(),
+            arch: "x86_64".into(),
+            vulkan: true,
+            ..Default::default()
+        };
         assert!(pin.select(&linux_vk).unwrap().name.contains("vulkan"));
-        let linux_arm = HardwareInfo { os: "linux".into(), arch: "aarch64".into(), cuda: true, ..Default::default() };
-        assert!(pin.select(&linux_arm).unwrap().name.contains("ubuntu-arm64"), "CPU fallback");
-        let win = HardwareInfo { os: "windows".into(), arch: "x86_64".into(), cuda: true, ..Default::default() };
+        let linux_arm = HardwareInfo {
+            os: "linux".into(),
+            arch: "aarch64".into(),
+            cuda: true,
+            ..Default::default()
+        };
+        assert!(
+            pin.select(&linux_arm)
+                .unwrap()
+                .name
+                .contains("ubuntu-arm64"),
+            "CPU fallback"
+        );
+        let win = HardwareInfo {
+            os: "windows".into(),
+            arch: "x86_64".into(),
+            cuda: true,
+            ..Default::default()
+        };
         let a = pin.select(&win).unwrap();
         assert!(a.name.contains("win-cuda") && a.extra_name.is_some());
-        let bsd = HardwareInfo { os: "freebsd".into(), arch: "x86_64".into(), ..Default::default() };
+        let bsd = HardwareInfo {
+            os: "freebsd".into(),
+            arch: "x86_64".into(),
+            ..Default::default()
+        };
         assert!(pin.select(&bsd).is_none());
     }
 
@@ -284,7 +345,10 @@ mod tests {
         let fake = dir.path().join("llama-server");
         std::fs::write(&fake, "x").unwrap();
         let m = LlamaCppManager::new(dir.path());
-        assert_eq!(m.locate(fake.to_str().unwrap()), Some(Located::Configured(fake.clone())));
+        assert_eq!(
+            m.locate(fake.to_str().unwrap()),
+            Some(Located::Configured(fake.clone()))
+        );
         assert_eq!(m.locate(dir.path().join("missing").to_str().unwrap()), None);
     }
 }

@@ -57,7 +57,11 @@ pub fn build_args(opts: &ServerOptions, port: u16) -> Vec<String> {
         "--jinja".into(),
         "--no-webui".into(),
         "--n-gpu-layers".into(),
-        if opts.gpu_layers < 0 { "999".into() } else { opts.gpu_layers.to_string() },
+        if opts.gpu_layers < 0 {
+            "999".into()
+        } else {
+            opts.gpu_layers.to_string()
+        },
     ];
     if opts.cpu_moe {
         args.push("--cpu-moe".into());
@@ -103,7 +107,11 @@ impl LlamaServer {
         let child = cmd
             .spawn()
             .map_err(|e| anyhow::anyhow!("failed to start {}: {e}", opts.binary.display()))?;
-        let host = if opts.host.contains(':') { format!("[{}]", opts.host) } else { opts.host.clone() };
+        let host = if opts.host.contains(':') {
+            format!("[{}]", opts.host)
+        } else {
+            opts.host.clone()
+        };
         let mut server = LlamaServer {
             child: Some(child),
             port,
@@ -116,7 +124,9 @@ impl LlamaServer {
     }
 
     async fn wait_healthy(&mut self, host: &str, timeout: Duration) -> anyhow::Result<()> {
-        let client = reqwest::Client::builder().timeout(Duration::from_secs(5)).build()?;
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()?;
         let url = format!("http://{host}:{}/health", self.port);
         let start = Instant::now();
         loop {
@@ -155,11 +165,16 @@ impl LlamaServer {
 
     /// Graceful stop: SIGTERM, then kill after a grace period.
     pub async fn stop(&mut self) {
-        let Some(mut child) = self.child.take() else { return };
+        let Some(mut child) = self.child.take() else {
+            return;
+        };
         #[cfg(unix)]
         if let Some(pid) = child.id() {
             unsafe_term(pid);
-            if tokio::time::timeout(Duration::from_secs(5), child.wait()).await.is_ok() {
+            if tokio::time::timeout(Duration::from_secs(5), child.wait())
+                .await
+                .is_ok()
+            {
                 return;
             }
         }
@@ -266,7 +281,11 @@ mod tests {
     async fn early_exit_is_reported_with_log() {
         let dir = tempfile::tempdir().unwrap();
         let fake = dir.path().join("fake-server");
-        std::fs::write(&fake, "#!/bin/sh\necho 'error: failed to load model' >&2\nexit 3\n").unwrap();
+        std::fs::write(
+            &fake,
+            "#!/bin/sh\necho 'error: failed to load model' >&2\nexit 3\n",
+        )
+        .unwrap();
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
         let model = dir.path().join("m.gguf");

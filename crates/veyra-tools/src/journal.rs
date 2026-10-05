@@ -151,7 +151,9 @@ impl Journal {
         let Some(expected) = self.seen.get(rel) else {
             return Ok(false);
         };
-        let current = std::fs::read(self.root.join(rel)).ok().map(|b| hash_bytes(&b));
+        let current = std::fs::read(self.root.join(rel))
+            .ok()
+            .map(|b| hash_bytes(&b));
         match current {
             Some(h) if &h == expected => Ok(true),
             Some(_) => Err(format!(
@@ -258,7 +260,11 @@ impl Journal {
     pub fn before_content(&self, batch: u64, rel: &str) -> Option<Option<Vec<u8>>> {
         let b = self.batches.iter().find(|b| b.id == batch)?;
         let e = b.entries.iter().find(|e| e.path == rel)?;
-        Some(e.before_hash.as_ref().and_then(|h| std::fs::read(self.snapshot_path(h)).ok()))
+        Some(
+            e.before_hash
+                .as_ref()
+                .and_then(|h| std::fs::read(self.snapshot_path(h)).ok()),
+        )
     }
 
     /// Earliest pre-Veyra content of `rel` across all live batches.
@@ -283,7 +289,10 @@ impl Journal {
     }
 
     pub fn last_live_batch(&self) -> Option<&Batch> {
-        self.batches.iter().rev().find(|b| !b.undone && !b.entries.is_empty())
+        self.batches
+            .iter()
+            .rev()
+            .find(|b| !b.undone && !b.entries.is_empty())
     }
 
     /// Undo the most recent live batch (or a specific one).
@@ -315,13 +324,12 @@ impl Journal {
                 continue;
             }
             let res = match &e.before_hash {
-                Some(h) => std::fs::read(self.snapshot_path(h))
-                    .and_then(|bytes| {
-                        if let Some(parent) = abs.parent() {
-                            std::fs::create_dir_all(parent)?;
-                        }
-                        std::fs::write(&abs, bytes)
-                    }),
+                Some(h) => std::fs::read(self.snapshot_path(h)).and_then(|bytes| {
+                    if let Some(parent) = abs.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::write(&abs, bytes)
+                }),
                 None => std::fs::remove_file(&abs),
             };
             match res {
@@ -364,7 +372,9 @@ impl Journal {
         if current != latest_after {
             anyhow::bail!("{rel} was edited after Veyra changed it; not reverting");
         }
-        let original = self.original_content(rel).ok_or_else(|| anyhow::anyhow!("no snapshot for {rel}"))?;
+        let original = self
+            .original_content(rel)
+            .ok_or_else(|| anyhow::anyhow!("no snapshot for {rel}"))?;
         match original {
             Some(bytes) => {
                 if let Some(p) = abs.parent() {
@@ -463,7 +473,10 @@ mod tests {
         veyra_write(&mut j, r, "app.rb", "committed\n+ user wip\n+ veyra fix\n");
         j.end();
         j.undo(None).unwrap();
-        assert_eq!(read(r, "app.rb").as_deref(), Some("committed\n+ user wip\n"));
+        assert_eq!(
+            read(r, "app.rb").as_deref(),
+            Some("committed\n+ user wip\n")
+        );
     }
 
     #[test]

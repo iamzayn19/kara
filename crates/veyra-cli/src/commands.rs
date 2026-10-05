@@ -17,12 +17,21 @@ pub enum Action {
 
 pub const COMMANDS: &[(&str, &str)] = &[
     ("/help", "show commands"),
-    ("/model", "show the model, or /model <id> | /model auto to switch"),
+    (
+        "/model",
+        "show the model, or /model <id> | /model auto to switch",
+    ),
     ("/models", "list models and what fits this machine"),
     ("/status", "session, model and repository status"),
     ("/context", "context window usage and working memory"),
-    ("/plan", "plan a task without changing anything (alias of /morpheus)"),
-    ("/morpheus", "mentor mode: investigate, propose a plan, wait for approval"),
+    (
+        "/plan",
+        "plan a task without changing anything (alias of /morpheus)",
+    ),
+    (
+        "/morpheus",
+        "mentor mode: investigate, propose a plan, wait for approval",
+    ),
     ("/approve", "carry out the pending plan"),
     ("/diff", "show Veyra's changes, separately from your own"),
     ("/test", "run the project's tests (optionally: files)"),
@@ -31,11 +40,17 @@ pub const COMMANDS: &[(&str, &str)] = &[
     ("/git", "git status with change ownership"),
     ("/review", "review the current diff (alias of /oracle)"),
     ("/oracle", "risk review of the diff by severity"),
-    ("/matrix", "what Veyra currently sees: repo, files, symbols, model, state"),
+    (
+        "/matrix",
+        "what Veyra currently sees: repo, files, symbols, model, state",
+    ),
     ("/undo", "undo Veyra's most recent change batch"),
     ("/clear", "forget the conversation (files are untouched)"),
     ("/compact", "summarize the conversation to free context"),
-    ("/permissions", "show permissions, or /permissions <safe|balanced|autonomous>"),
+    (
+        "/permissions",
+        "show permissions, or /permissions <safe|balanced|autonomous>",
+    ),
     ("/privacy", "what leaves this machine"),
     ("/doctor", "hardware, runtime and model diagnostics"),
     ("/sessions", "recent sessions in this repository"),
@@ -46,18 +61,27 @@ fn header(title: &str) {
     println!("{}", style(title).bold());
 }
 
-pub fn handle(s: &mut Session, rt: &tokio::runtime::Runtime, input: &str) -> anyhow::Result<Action> {
+pub fn handle(
+    s: &mut Session,
+    rt: &tokio::runtime::Runtime,
+    input: &str,
+) -> anyhow::Result<Action> {
     let (cmd, arg) = match input.split_once(char::is_whitespace) {
         Some((c, a)) => (c, a.trim()),
         None => (input, ""),
     };
     match cmd {
         "/help" | "/?" => {
-            header("Talk to Veyra in plain language, e.g. \"fix the failing auth tests\". Commands:");
+            header(
+                "Talk to Veyra in plain language, e.g. \"fix the failing auth tests\". Commands:",
+            );
             for (name, desc) in COMMANDS {
                 println!("  {:<13} {}", style(name).cyan(), desc);
             }
-            println!("  {}", style("End a line with \\ for multi-line input.").dim());
+            println!(
+                "  {}",
+                style("End a line with \\ for multi-line input.").dim()
+            );
         }
         "/exit" | "/quit" | "/q" => return Ok(Action::Exit),
         "/model" => model_cmd(s, rt, arg)?,
@@ -76,7 +100,10 @@ pub fn handle(s: &mut Session, rt: &tokio::runtime::Runtime, input: &str) -> any
             } else if s.runtime.provider.is_none() {
                 println!("{}", style(crate::tui::no_model_message()).yellow());
             } else {
-                println!("{}", style("Planning (read-only). Nothing will change until you approve.").dim());
+                println!(
+                    "{}",
+                    style("Planning (read-only). Nothing will change until you approve.").dim()
+                );
                 s.turn(rt, arg, AgentMode::Plan);
             }
         }
@@ -103,11 +130,19 @@ pub fn handle(s: &mut Session, rt: &tokio::runtime::Runtime, input: &str) -> any
         "/diff" => diff(s),
         "/test" => {
             let files: Vec<String> = arg.split_whitespace().map(str::to_string).collect();
-            let args = if files.is_empty() { json!({}) } else { json!({"files": files}) };
+            let args = if files.is_empty() {
+                json!({})
+            } else {
+                json!({"files": files})
+            };
             direct_tool(s, rt, &veyra_tools::exec::RunTest, args);
         }
         "/lint" => {
-            let args = if arg == "typecheck" { json!({"kind": "typecheck"}) } else { json!({}) };
+            let args = if arg == "typecheck" {
+                json!({"kind": "typecheck"})
+            } else {
+                json!({})
+            };
             direct_tool(s, rt, &veyra_tools::exec::RunLint, args);
         }
         "/build" => direct_tool(s, rt, &veyra_tools::exec::RunBuild, json!({})),
@@ -132,8 +167,18 @@ pub fn handle(s: &mut Session, rt: &tokio::runtime::Runtime, input: &str) -> any
         "/doctor" => crate::doctor::print_doctor(&s.app, rt),
         "/sessions" => {
             for info in s.app.sessions.list(Some(&s.app.root), 10)? {
-                let current = if info.id == s.session_id { " (current)" } else { "" };
-                println!("  {}  {}  {:>3} turns  {}{current}", &info.id[..8], info.updated.get(..16).unwrap_or(""), info.turns, info.title);
+                let current = if info.id == s.session_id {
+                    " (current)"
+                } else {
+                    ""
+                };
+                println!(
+                    "  {}  {}  {:>3} turns  {}{current}",
+                    &info.id[..8],
+                    info.updated.get(..16).unwrap_or(""),
+                    info.turns,
+                    info.title
+                );
             }
         }
         "/matrix" => matrix(s),
@@ -148,10 +193,21 @@ fn model_cmd(s: &mut Session, rt: &tokio::runtime::Runtime, arg: &str) -> anyhow
         if s.runtime.provider.is_some() {
             println!("  {}", s.model_label());
             if let Some(spec) = &s.runtime.spec {
-                println!("  {} {} ({}), license {}", style("source:").dim(), spec.source_url(), &spec.revision[..12], spec.license);
+                println!(
+                    "  {} {} ({}), license {}",
+                    style("source:").dim(),
+                    spec.source_url(),
+                    &spec.revision[..12],
+                    spec.license
+                );
             }
             if let Some(server) = &s.runtime.server {
-                println!("  {} pid {:?}, log {}", style("runtime:").dim(), server.pid(), crate::app::display_path(&server.log_file));
+                println!(
+                    "  {} pid {:?}, log {}",
+                    style("runtime:").dim(),
+                    server.pid(),
+                    crate::app::display_path(&server.log_file)
+                );
             }
         } else {
             println!("  none. Use /model auto");
@@ -183,16 +239,43 @@ fn model_cmd(s: &mut Session, rt: &tokio::runtime::Runtime, arg: &str) -> anyhow
 
 fn status(s: &Session) {
     header("Status");
-    println!("  {:<13}{}", "model", if s.runtime.provider.is_some() { s.model_label() } else { "none".into() });
+    println!(
+        "  {:<13}{}",
+        "model",
+        if s.runtime.provider.is_some() {
+            s.model_label()
+        } else {
+            "none".into()
+        }
+    );
     println!("  {:<13}{}", "repository", s.app.root.display());
     println!("  {:<13}{}", "permissions", s.agent.policy.profile.as_str());
     println!("  {:<13}{}", "session", s.session_id);
-    let turns = s.app.sessions.turns(&s.session_id).map(|t| t.len()).unwrap_or(0);
-    println!("  {:<13}{turns} turns, {} tokens in / {} out", "usage", s.agent.total_usage.prompt_tokens, s.agent.total_usage.completion_tokens);
+    let turns = s
+        .app
+        .sessions
+        .turns(&s.session_id)
+        .map(|t| t.len())
+        .unwrap_or(0);
+    println!(
+        "  {:<13}{turns} turns, {} tokens in / {} out",
+        "usage", s.agent.total_usage.prompt_tokens, s.agent.total_usage.completion_tokens
+    );
     let changed = s.agent.ctx.journal().veyra_changed_paths();
-    println!("  {:<13}{}", "veyra edits", if changed.is_empty() { "none".to_string() } else { changed.into_iter().collect::<Vec<_>>().join(", ") });
+    println!(
+        "  {:<13}{}",
+        "veyra edits",
+        if changed.is_empty() {
+            "none".to_string()
+        } else {
+            changed.into_iter().collect::<Vec<_>>().join(", ")
+        }
+    );
     if let Ok(st) = s.app.index.stats() {
-        println!("  {:<13}{} files, {} symbols", "index", st.files, st.symbols);
+        println!(
+            "  {:<13}{} files, {} symbols",
+            "index", st.files, st.symbols
+        );
     }
     if let Some((task, _)) = s.agent.pending_plan() {
         println!("  {:<13}plan awaiting approval: {task}", "agent");
@@ -225,12 +308,28 @@ fn diff(s: &Session) {
     } else {
         header("Changes made by Veyra");
         for path in &veyra {
-            let before = j.original_content(path).flatten().map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default();
-            let after = std::fs::read(root.join(path)).map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default();
-            print!("{}", colorize_diff(&veyra_tools::patch::unified_diff(path, &before, &after)));
+            let before_bytes = j.original_content(path).flatten().unwrap_or_default();
+            let after_bytes = std::fs::read(root.join(path)).unwrap_or_default();
+            if veyra_context::looks_binary(&before_bytes) || veyra_context::looks_binary(&after_bytes) {
+                println!(
+                    "{} {path} {}",
+                    style("binary").yellow(),
+                    style(format!("({} → {} bytes)", before_bytes.len(), after_bytes.len())).dim()
+                );
+                continue;
+            }
+            let before = String::from_utf8_lossy(&before_bytes).into_owned();
+            let after = String::from_utf8_lossy(&after_bytes).into_owned();
+            print!(
+                "{}",
+                colorize_diff(&veyra_tools::patch::unified_diff(path, &before, &after))
+            );
         }
     }
-    let user: Vec<String> = veyra_context::git::dirty_paths(&root).into_iter().filter(|p| !veyra.contains(p)).collect();
+    let user: Vec<String> = veyra_context::git::dirty_paths(&root)
+        .into_iter()
+        .filter(|p| !veyra.contains(p))
+        .collect();
     if !user.is_empty() {
         println!();
         header("Your uncommitted changes (not made by Veyra)");
@@ -240,7 +339,12 @@ fn diff(s: &Session) {
     }
 }
 
-fn direct_tool(s: &Session, rt: &tokio::runtime::Runtime, tool: &dyn Tool, args: serde_json::Value) {
+fn direct_tool(
+    s: &Session,
+    rt: &tokio::runtime::Runtime,
+    tool: &dyn Tool,
+    args: serde_json::Value,
+) {
     // The user typed the command, so it is authorized; hard limits still apply.
     match tool.assess(&args, &s.agent.ctx) {
         Ok(a) => {
@@ -257,9 +361,13 @@ fn direct_tool(s: &Session, rt: &tokio::runtime::Runtime, tool: &dyn Tool, args:
     }
     let out = rt.block_on(tool.run(&args, &s.agent.ctx));
     if let Some(t) = &out.test {
-        s.renderer.handle(&veyra_protocol::AgentEvent::TestFinished { report: t.clone() });
+        s.renderer
+            .handle(&veyra_protocol::AgentEvent::TestFinished { report: t.clone() });
         if !t.succeeded() {
-            println!("{}", style("Ask Veyra to fix the failures, e.g. \"fix the failing tests\".").dim());
+            println!(
+                "{}",
+                style("Ask Veyra to fix the failures, e.g. \"fix the failing tests\".").dim()
+            );
         }
     } else {
         println!("{}", out.content.trim_end());
@@ -268,9 +376,15 @@ fn direct_tool(s: &Session, rt: &tokio::runtime::Runtime, tool: &dyn Tool, args:
 
 fn permissions(s: &mut Session, arg: &str) -> anyhow::Result<()> {
     if !arg.is_empty() {
-        let p = Profile::parse(arg).ok_or_else(|| anyhow::anyhow!("unknown profile `{arg}` (safe, balanced, autonomous)"))?;
+        let p = Profile::parse(arg).ok_or_else(|| {
+            anyhow::anyhow!("unknown profile `{arg}` (safe, balanced, autonomous)")
+        })?;
         s.agent.policy.set_profile(p);
-        println!("Permission profile for this session: {} ({})", p.as_str(), p.describe());
+        println!(
+            "Permission profile for this session: {} ({})",
+            p.as_str(),
+            p.describe()
+        );
         return Ok(());
     }
     let p = s.agent.policy.profile;
@@ -296,7 +410,10 @@ fn permissions(s: &mut Session, arg: &str) -> anyhow::Result<()> {
 
 fn matrix(s: &Session) {
     let g = |t: &str| style(t.to_string()).green().bold();
-    println!("{}", style("┌─ the matrix: what Veyra sees right now ─────────────────────────").green());
+    println!(
+        "{}",
+        style("┌─ the matrix: what Veyra sees right now ─────────────────────────").green()
+    );
     let app = &s.app;
     let _ = app.index.refresh();
     if let Ok(st) = app.index.stats() {
@@ -309,48 +426,154 @@ fn matrix(s: &Session) {
             st.symbols,
             st.test_files
         );
-        let langs: Vec<String> = st.by_language.iter().take(8).map(|(l, n)| format!("{l} {n}")).collect();
-        println!("{} {}", g("│ languages   "), if langs.is_empty() { "unrecognized (generic tools only)".into() } else { langs.join(" · ") });
+        let langs: Vec<String> = st
+            .by_language
+            .iter()
+            .take(8)
+            .map(|(l, n)| format!("{l} {n}"))
+            .collect();
+        println!(
+            "{} {}",
+            g("│ languages   "),
+            if langs.is_empty() {
+                "unrecognized (generic tools only)".into()
+            } else {
+                langs.join(" · ")
+            }
+        );
     }
     let state = &s.agent.state;
-    let read: Vec<&str> = state.files_read.iter().map(String::as_str).take(10).collect();
-    let changed: Vec<&str> = state.files_changed.iter().map(String::as_str).take(10).collect();
+    let read: Vec<&str> = state
+        .files_read
+        .iter()
+        .map(String::as_str)
+        .take(10)
+        .collect();
+    let changed: Vec<&str> = state
+        .files_changed
+        .iter()
+        .map(String::as_str)
+        .take(10)
+        .collect();
     println!(
         "{} read: {} · changed: {}",
         g("│ active files"),
-        if read.is_empty() { "-".into() } else { read.join(", ") },
-        if changed.is_empty() { "-".into() } else { changed.join(", ") }
+        if read.is_empty() {
+            "-".into()
+        } else {
+            read.join(", ")
+        },
+        if changed.is_empty() {
+            "-".into()
+        } else {
+            changed.join(", ")
+        }
     );
     let mut syms = Vec::new();
-    for f in state.files_changed.iter().chain(state.files_read.iter()).take(4) {
+    for f in state
+        .files_changed
+        .iter()
+        .chain(state.files_read.iter())
+        .take(4)
+    {
         if let Ok(list) = app.index.symbols_in(f) {
             for sym in list.into_iter().take(4) {
-                syms.push(format!("{} {} ({}:{})", sym.kind, sym.name, sym.path, sym.line));
+                syms.push(format!(
+                    "{} {} ({}:{})",
+                    sym.kind, sym.name, sym.path, sym.line
+                ));
             }
         }
     }
-    println!("{} {}", g("│ symbols     "), if syms.is_empty() { "-".into() } else { syms.join(", ") });
+    println!(
+        "{} {}",
+        g("│ symbols     "),
+        if syms.is_empty() {
+            "-".into()
+        } else {
+            syms.join(", ")
+        }
+    );
     let veyra = s.agent.ctx.journal().veyra_changed_paths();
-    let user: Vec<String> = veyra_context::git::dirty_paths(&app.root).into_iter().filter(|p| !veyra.contains(p)).collect();
+    let user: Vec<String> = veyra_context::git::dirty_paths(&app.root)
+        .into_iter()
+        .filter(|p| !veyra.contains(p))
+        .collect();
     println!(
         "{} veyra: {} · yours: {}",
         g("│ changes     "),
-        if veyra.is_empty() { "-".into() } else { veyra.iter().cloned().collect::<Vec<_>>().join(", ") },
-        if user.is_empty() { "-".into() } else { user.join(", ") }
+        if veyra.is_empty() {
+            "-".into()
+        } else {
+            veyra.iter().cloned().collect::<Vec<_>>().join(", ")
+        },
+        if user.is_empty() {
+            "-".into()
+        } else {
+            user.join(", ")
+        }
     );
-    println!("{} {}", g("│ model       "), if s.runtime.provider.is_some() { s.model_label() } else { "none".into() });
+    println!(
+        "{} {}",
+        g("│ model       "),
+        if s.runtime.provider.is_some() {
+            s.model_label()
+        } else {
+            "none".into()
+        }
+    );
     let window = s.agent.settings.context_window as usize;
     let used = s.agent.history_tokens();
-    println!("{} ~{used} / {window} tokens of history ({:.0}%)", g("│ context     "), used as f64 * 100.0 / window.max(1) as f64);
+    println!(
+        "{} ~{used} / {window} tokens of history ({:.0}%)",
+        g("│ context     "),
+        used as f64 * 100.0 / window.max(1) as f64
+    );
     let tools: Vec<&str> = s.agent.tools().iter().map(|t| t.name()).collect();
-    println!("{} {} + update_plan ({} tools)", g("│ tools       "), tools.join(" "), tools.len() + 1);
-    println!("{} {}", g("│ task        "), if state.task.is_empty() { "-".to_string() } else { state.task.lines().next().unwrap_or("").chars().take(100).collect() });
+    println!(
+        "{} {} + update_plan ({} tools)",
+        g("│ tools       "),
+        tools.join(" "),
+        tools.len() + 1
+    );
+    println!(
+        "{} {}",
+        g("│ task        "),
+        if state.task.is_empty() {
+            "-".to_string()
+        } else {
+            state
+                .task
+                .lines()
+                .next()
+                .unwrap_or("")
+                .chars()
+                .take(100)
+                .collect()
+        }
+    );
     for step in &state.plan {
-        println!("{}   {:?}: {}", g("│             "), step.status, step.title);
+        println!(
+            "{}   {:?}: {}",
+            g("│             "),
+            step.status,
+            step.title
+        );
     }
-    let agent_state = if s.agent.pending_plan().is_some() { "awaiting plan approval" } else { "idle" };
-    println!("{} {agent_state} · permissions {}", g("│ agent       "), s.agent.policy.profile.as_str());
-    println!("{}", style("└─────────────────────────────────────────────────────────────────").green());
+    let agent_state = if s.agent.pending_plan().is_some() {
+        "awaiting plan approval"
+    } else {
+        "idle"
+    };
+    println!(
+        "{} {agent_state} · permissions {}",
+        g("│ agent       "),
+        s.agent.policy.profile.as_str()
+    );
+    println!(
+        "{}",
+        style("└─────────────────────────────────────────────────────────────────").green()
+    );
 }
 
 pub fn print_undo(r: &UndoReport) {

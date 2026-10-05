@@ -35,7 +35,12 @@ impl ModelProvider for NoModel {
             context_length: None,
         }
     }
-    async fn chat(&self, _: ChatRequest, _: EventSink<'_>, _: &CancellationToken) -> anyhow::Result<ChatResponse> {
+    async fn chat(
+        &self,
+        _: ChatRequest,
+        _: EventSink<'_>,
+        _: &CancellationToken,
+    ) -> anyhow::Result<ChatResponse> {
         anyhow::bail!("{}", self.0)
     }
 }
@@ -59,7 +64,13 @@ fn prompt_permission(r: &PermissionRequest) -> PermissionDecision {
     println!();
     println!(
         "{} {}",
-        style(if hard { "⚠ approval needed (high risk)" } else { "? approval needed" }).yellow().bold(),
+        style(if hard {
+            "⚠ approval needed (high risk)"
+        } else {
+            "? approval needed"
+        })
+        .yellow()
+        .bold(),
         style(&r.title).bold()
     );
     println!("  {} {}", style("category:").dim(), kinds.join(", "));
@@ -72,7 +83,10 @@ fn prompt_permission(r: &PermissionRequest) -> PermissionDecision {
         if lines <= 30 {
             print!("{}", crate::render::colorize_diff(&r.detail));
         } else {
-            println!("  {} ({lines} lines; press d to view)", style("diff preview").dim());
+            println!(
+                "  {} ({lines} lines; press d to view)",
+                style("diff preview").dim()
+            );
         }
     } else if !r.detail.is_empty() && r.detail != r.title.trim_start_matches("run: ") {
         println!("  {}", r.detail);
@@ -128,7 +142,10 @@ impl Session {
         };
         let _ = self.app.sessions.record_turn(&self.session_id, &rec);
         let (state, history) = self.agent.snapshot();
-        let _ = self.app.sessions.save_state(&self.session_id, &state, &history);
+        let _ = self
+            .app
+            .sessions
+            .save_state(&self.session_id, &state, &history);
     }
 
     pub fn model_label(&self) -> String {
@@ -136,7 +153,12 @@ impl Session {
     }
 
     /// Run one turn with Ctrl-C cancellation.
-    pub fn turn(&mut self, rt: &tokio::runtime::Runtime, task: &str, mode: AgentMode) -> TurnResult {
+    pub fn turn(
+        &mut self,
+        rt: &tokio::runtime::Runtime,
+        task: &str,
+        mode: AgentMode,
+    ) -> TurnResult {
         let started = chrono::Utc::now().to_rfc3339();
         let token = CancellationToken::new();
         self.agent.ctx.cancel = token.clone();
@@ -238,28 +260,54 @@ fn build_session(
 
 fn banner(s: &Session) {
     let app = &s.app;
-    println!("{} {}", style("Veyra").bold().cyan(), style(format!("{} · Your code. Your machine. Your AI.", veyra_core::VERSION)).dim());
-    let model = if s.runtime.provider.is_some() { s.model_label() } else { style("none (try /model auto)").yellow().to_string() };
-    println!("{:<12}{}", "Local model:", model);
+    println!(
+        "{} {}",
+        style("Veyra").bold().cyan(),
+        style(format!(
+            "{} · Your code. Your machine. Your AI.",
+            veyra_core::VERSION
+        ))
+        .dim()
+    );
+    let model = if s.runtime.provider.is_some() {
+        s.model_label()
+    } else {
+        style("none (try /model auto)").yellow().to_string()
+    };
+    println!("{:<13}{}", "Local model:", model);
     let git = if veyra_context::git::is_repo(&app.root) {
         let dirty = veyra_context::git::dirty_paths(&app.root).len();
         format!(
             "git: {}{}",
             veyra_context::git::branch(&app.root).unwrap_or_default(),
-            if dirty > 0 { format!(", {dirty} uncommitted") } else { String::new() }
+            if dirty > 0 {
+                format!(", {dirty} uncommitted")
+            } else {
+                String::new()
+            }
         )
     } else {
         "not a git repository".into()
     };
-    let langs: Vec<&str> = app.profile.languages.keys().map(String::as_str).take(4).collect();
+    let langs: Vec<&str> = app
+        .profile
+        .languages
+        .keys()
+        .map(String::as_str)
+        .take(4)
+        .collect();
     println!(
-        "{:<12}{} ({git}){}",
+        "{:<13}{} ({git}){}",
         "Repository:",
         app.repo_name(),
-        if langs.is_empty() { String::new() } else { format!(" · {}", langs.join(", ")) }
+        if langs.is_empty() {
+            String::new()
+        } else {
+            format!(" · {}", langs.join(", "))
+        }
     );
     println!(
-        "{:<12}{} · {}",
+        "{:<13}{} · {}",
         "Permissions:",
         app.config.permissions.profile.as_str(),
         style("/help for commands, Ctrl-C cancels a running task, Ctrl-D exits").dim()
@@ -273,7 +321,12 @@ struct VeyraHelper {
 
 impl Completer for VeyraHelper {
     type Candidate = Pair;
-    fn complete(&self, line: &str, pos: usize, _: &Context<'_>) -> rustyline::Result<(usize, Vec<Pair>)> {
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        _: &Context<'_>,
+    ) -> rustyline::Result<(usize, Vec<Pair>)> {
         if !line.starts_with('/') || line[..pos].contains(' ') {
             return Ok((0, vec![]));
         }
@@ -323,9 +376,20 @@ impl Validator for VeyraHelper {
 
 impl Helper for VeyraHelper {}
 
-pub fn interactive(rt: &tokio::runtime::Runtime, opts: &Options, resume: bool) -> anyhow::Result<i32> {
+pub fn interactive(
+    rt: &tokio::runtime::Runtime,
+    opts: &Options,
+    resume: bool,
+) -> anyhow::Result<i32> {
     let renderer = Renderer::new(false, false);
-    let mut session = build_session(rt, opts, resume, Consent::Ask, Arc::new(TerminalApprover), renderer)?;
+    let mut session = build_session(
+        rt,
+        opts,
+        resume,
+        Consent::Ask,
+        Arc::new(TerminalApprover),
+        renderer,
+    )?;
     banner(&session);
 
     let mut rl: Editor<VeyraHelper, rustyline::history::FileHistory> = Editor::new()?;
@@ -364,7 +428,10 @@ pub fn interactive(rt: &tokio::runtime::Runtime, opts: &Options, resume: bool) -
             continue;
         }
         if session.agent.pending_plan().is_some()
-            && matches!(input.to_ascii_lowercase().as_str(), "y" | "yes" | "approve" | "go" | "ok" | "do it" | "proceed")
+            && matches!(
+                input.to_ascii_lowercase().as_str(),
+                "y" | "yes" | "approve" | "go" | "ok" | "do it" | "proceed"
+            )
         {
             session.approve(rt);
             continue;
@@ -391,13 +458,21 @@ pub fn run_once(
     if prompt.trim().is_empty() && mode != AgentMode::Review {
         anyhow::bail!("give the task as an argument, e.g. veyra run \"fix the failing tests\"");
     }
-    let approver: Arc<dyn Approver> = if yes { Arc::new(ApproveOrdinary) } else { Arc::new(DenyAll) };
+    let approver: Arc<dyn Approver> = if yes {
+        Arc::new(ApproveOrdinary)
+    } else {
+        Arc::new(DenyAll)
+    };
     let renderer = Renderer::new(false, json);
     let mut session = build_session(rt, opts, false, Consent::Never, approver, renderer)?;
     if session.runtime.provider.is_none() {
         anyhow::bail!("{}", no_model_message());
     }
-    let task = if prompt.trim().is_empty() { "Review my current diff." } else { prompt };
+    let task = if prompt.trim().is_empty() {
+        "Review my current diff."
+    } else {
+        prompt
+    };
     let r = session.turn(rt, task, mode);
     rt.block_on(session.runtime.shutdown());
     Ok(match r.outcome {
@@ -423,7 +498,11 @@ pub fn undo_cli(opts: &Options) -> anyhow::Result<i32> {
     }
     let report = j.undo(None)?;
     commands::print_undo(&report);
-    Ok(if report.conflicts.is_empty() && report.errors.is_empty() { 0 } else { 1 })
+    Ok(if report.conflicts.is_empty() && report.errors.is_empty() {
+        0
+    } else {
+        1
+    })
 }
 
 pub fn sessions_cli(opts: &Options) -> anyhow::Result<i32> {
@@ -438,7 +517,11 @@ pub fn sessions_cli(opts: &Options) -> anyhow::Result<i32> {
             &s.id[..8],
             s.updated.get(..16).unwrap_or(&s.updated),
             s.turns,
-            if s.title.is_empty() { "(empty)" } else { &s.title }
+            if s.title.is_empty() {
+                "(empty)"
+            } else {
+                &s.title
+            }
         );
     }
     Ok(0)

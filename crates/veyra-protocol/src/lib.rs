@@ -310,9 +310,7 @@ mod tests {
 
     #[test]
     fn events_serialize_with_type_tag() {
-        let ev = AgentEvent::Phase {
-            phase: Phase::Test,
-        };
+        let ev = AgentEvent::Phase { phase: Phase::Test };
         let json = serde_json::to_string(&ev).unwrap();
         assert_eq!(json, r#"{"type":"phase","phase":"test"}"#);
         let back: AgentEvent = serde_json::from_str(&json).unwrap();

@@ -33,7 +33,11 @@ pub struct EvalArgs {
 
 fn select(tasks: Vec<eval::EvalTask>, filter: &Option<String>) -> Vec<eval::EvalTask> {
     let Some(f) = filter else { return tasks };
-    let wanted: Vec<&str> = f.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    let wanted: Vec<&str> = f
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
     tasks
         .into_iter()
         .filter(|t| {
@@ -47,7 +51,10 @@ fn select(tasks: Vec<eval::EvalTask>, filter: &Option<String>) -> Vec<eval::Eval
 
 pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyhow::Result<i32> {
     let app = App::load(opts)?;
-    let suite = args.suite.clone().unwrap_or_else(|| app.root.join("tests/fixtures/repos"));
+    let suite = args
+        .suite
+        .clone()
+        .unwrap_or_else(|| app.root.join("tests/fixtures/repos"));
     if !suite.exists() {
         anyhow::bail!("suite {} not found; pass --suite <dir>", suite.display());
     }
@@ -58,19 +65,33 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
 
     let mut runtime = None;
     let (model_name, provider_label) = if args.oracle {
-        ("oracle (reference solutions)".to_string(), "scripted".to_string())
+        (
+            "oracle (reference solutions)".to_string(),
+            "scripted".to_string(),
+        )
     } else {
-        let consent = if args.yes { Consent::Granted } else { Consent::Ask };
+        let consent = if args.yes {
+            Consent::Granted
+        } else {
+            Consent::Ask
+        };
         let r = rt.block_on(models::start_runtime(&app, consent, args.model.as_deref()))?;
         if r.provider.is_none() {
             anyhow::bail!("no model available to evaluate");
         }
-        let name = r.spec.as_ref().map(|s| format!("{} {}", s.name, s.quantization)).unwrap_or_else(|| r.label.clone());
+        let name = r
+            .spec
+            .as_ref()
+            .map(|s| format!("{} {}", s.name, s.quantization))
+            .unwrap_or_else(|| r.label.clone());
         runtime = Some(r);
         (name, "llama.cpp".to_string())
     };
 
-    let server_pid = runtime.as_ref().and_then(|r| r.server.as_ref()).and_then(|s| s.pid());
+    let server_pid = runtime
+        .as_ref()
+        .and_then(|r| r.server.as_ref())
+        .and_then(|s| s.pid());
     let sampler: Option<Arc<dyn Fn() -> Option<u64> + Send + Sync>> = server_pid.map(|pid| {
         let f: Arc<dyn Fn() -> Option<u64> + Send + Sync> = Arc::new(move || {
             let mut sys = sysinfo::System::new();
@@ -102,16 +123,27 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
         let provider: Arc<dyn veyra_model::ModelProvider> = if args.oracle {
             Arc::new(eval::oracle_provider(t)?)
         } else {
-            runtime.as_ref().and_then(|r| r.provider.clone()).expect("provider")
+            runtime
+                .as_ref()
+                .and_then(|r| r.provider.clone())
+                .expect("provider")
         };
         let settings = app.agent_settings(runtime.as_ref().and_then(|r| r.context));
         let r = rt.block_on(eval::run_task(t, provider, settings, sampler.clone()));
         if let Some(why) = &r.skipped {
-            println!("{} {}", style("skipped").yellow(), style(format!("({why})")).dim());
+            println!(
+                "{} {}",
+                style("skipped").yellow(),
+                style(format!("({why})")).dim()
+            );
             report.results.push(r);
             continue;
         }
-        let mark = if r.success { style("solved").green() } else { style("failed").red() };
+        let mark = if r.success {
+            style("solved").green()
+        } else {
+            style("failed").red()
+        };
         println!(
             "{mark} {}",
             style(format!(
@@ -119,7 +151,10 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
                 r.iterations,
                 r.tool_calls,
                 r.duration_ms as f64 / 1000.0,
-                r.error.as_ref().map(|e| format!(", {}", e.chars().take(80).collect::<String>())).unwrap_or_default()
+                r.error
+                    .as_ref()
+                    .map(|e| format!(", {}", e.chars().take(80).collect::<String>()))
+                    .unwrap_or_default()
             ))
             .dim()
         );
@@ -136,7 +171,13 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
             let slug: String = model_name
                 .to_ascii_lowercase()
                 .chars()
-                .map(|c| if c.is_ascii_alphanumeric() || c == '.' { c } else { '-' })
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || c == '.' {
+                        c
+                    } else {
+                        '-'
+                    }
+                })
                 .collect();
             dir.join(format!("{}-{slug}.json", &report.started[..10]))
         })
@@ -145,5 +186,9 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
         std::fs::write(&p, serde_json::to_vec_pretty(&report)?)?;
         println!("Report written to {}", p.display());
     }
-    Ok(if report.solved() == report.attempted() { 0 } else { 2 })
+    Ok(if report.solved() == report.attempted() {
+        0
+    } else {
+        2
+    })
 }

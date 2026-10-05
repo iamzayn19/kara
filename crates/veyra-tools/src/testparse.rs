@@ -55,7 +55,9 @@ fn p() -> &'static Patterns {
             cargo_fail: r(r"(?m)^test (\S+) \.\.\. FAILED"),
             go_fail: r(r"(?m)^\s*--- FAIL: (\S+)"),
             go_pass: r(r"(?m)^\s*--- PASS: "),
-            jest: r(r"(?m)^Tests:\s+(?:(\d+) failed, )?(?:\d+ skipped, )?(?:(\d+) passed, )?\d+ total"),
+            jest: r(
+                r"(?m)^Tests:\s+(?:(\d+) failed, )?(?:\d+ skipped, )?(?:(\d+) passed, )?\d+ total",
+            ),
             vitest: r(r"(?m)^\s*Tests\s+(?:(\d+) failed)?\s*\|?\s*(?:(\d+) passed)?"),
             jest_fail: r(r"(?m)^\s*(?:✕|×|✗)\s+(.+?)(?:\s+\(\d+ ?ms\))?$"),
             node_pass: r(r"(?m)^(?:# |ℹ )pass (\d+)"),
@@ -85,7 +87,11 @@ pub fn parse(output: &str) -> ParsedTests {
         let failed: u32 = c[2].parse::<u32>().unwrap_or(0) + c[3].parse::<u32>().unwrap_or(0);
         t.failed = Some(failed);
         t.passed = Some(total.saturating_sub(failed));
-        names.extend(p.minitest_fail.captures_iter(output).map(|c| c[1].to_string()));
+        names.extend(
+            p.minitest_fail
+                .captures_iter(output)
+                .map(|c| c[1].to_string()),
+        );
     } else if let Some(c) = p.pytest_summary.captures(output) {
         let summary = &c[1];
         let num = |word: &str| -> Option<u32> {
@@ -96,15 +102,23 @@ pub fn parse(output: &str) -> ParsedTests {
         };
         t.passed = Some(num("passed").unwrap_or(0));
         t.failed = Some(num("failed").unwrap_or(0) + num("errors?").unwrap_or(0));
-        names.extend(p.pytest_fail.captures_iter(output).map(|c| c[1].to_string()));
+        names.extend(
+            p.pytest_fail
+                .captures_iter(output)
+                .map(|c| c[1].to_string()),
+        );
     } else if let Some(c) = p.unittest_ran.captures(output) {
         let total: u32 = c[1].parse().unwrap_or(0);
         let failed = p
             .unittest_failed
             .captures(output)
             .map(|c| {
-                c.get(1).and_then(|m| m.as_str().parse::<u32>().ok()).unwrap_or(0)
-                    + c.get(2).and_then(|m| m.as_str().parse::<u32>().ok()).unwrap_or(0)
+                c.get(1)
+                    .and_then(|m| m.as_str().parse::<u32>().ok())
+                    .unwrap_or(0)
+                    + c.get(2)
+                        .and_then(|m| m.as_str().parse::<u32>().ok())
+                        .unwrap_or(0)
             })
             .unwrap_or(0);
         t.failed = Some(failed);
@@ -123,15 +137,26 @@ pub fn parse(output: &str) -> ParsedTests {
         t.passed = Some(passed);
         t.failed = Some(failed);
         names.extend(p.cargo_fail.captures_iter(output).map(|c| c[1].to_string()));
-    } else if p.go_fail.is_match(output) || p.go_pass.is_match(output) || output.contains("\nok  \t") {
-        let failed: Vec<String> = p.go_fail.captures_iter(output).map(|c| c[1].to_string()).collect();
+    } else if p.go_fail.is_match(output)
+        || p.go_pass.is_match(output)
+        || output.contains("\nok  \t")
+    {
+        let failed: Vec<String> = p
+            .go_fail
+            .captures_iter(output)
+            .map(|c| c[1].to_string())
+            .collect();
         t.failed = Some(failed.len() as u32);
         t.passed = Some(p.go_pass.find_iter(output).count() as u32);
         names.extend(failed);
     } else if let Some(c) = p.jest.captures(output) {
         t.failed = Some(c.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0));
         t.passed = Some(c.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0));
-        names.extend(p.jest_fail.captures_iter(output).map(|c| c[1].trim().to_string()));
+        names.extend(
+            p.jest_fail
+                .captures_iter(output)
+                .map(|c| c[1].trim().to_string()),
+        );
     } else if p.node_pass.is_match(output) {
         t.passed = p.node_pass.captures(output).and_then(|c| c[1].parse().ok());
         t.failed = p.node_fail.captures(output).and_then(|c| c[1].parse().ok());
@@ -164,7 +189,11 @@ pub fn parse(output: &str) -> ParsedTests {
         if c.get(1).is_some() || c.get(2).is_some() {
             t.failed = Some(c.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0));
             t.passed = Some(c.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0));
-            names.extend(p.jest_fail.captures_iter(output).map(|c| c[1].trim().to_string()));
+            names.extend(
+                p.jest_fail
+                    .captures_iter(output)
+                    .map(|c| c[1].trim().to_string()),
+            );
         }
     }
 
@@ -184,7 +213,10 @@ mod tests {
         let t = parse(out);
         assert_eq!(t.passed, Some(16));
         assert_eq!(t.failed, Some(2));
-        assert_eq!(t.failed_tests, vec!["./spec/auth_spec.rb:12", "./spec/auth_spec.rb:30"]);
+        assert_eq!(
+            t.failed_tests,
+            vec!["./spec/auth_spec.rb:12", "./spec/auth_spec.rb:30"]
+        );
     }
 
     #[test]

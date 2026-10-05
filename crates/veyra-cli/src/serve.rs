@@ -54,7 +54,10 @@ impl Peer {
     }
 
     fn log(&self, level: &str, message: impl Into<String>) {
-        self.notify(methods::LOG, json!({"level": level, "message": message.into()}));
+        self.notify(
+            methods::LOG,
+            json!({"level": level, "message": message.into()}),
+        );
     }
 }
 
@@ -155,7 +158,10 @@ impl Server {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                 std::process::exit(0);
             }
-            other => Err(RpcError::new(codes::METHOD_NOT_FOUND, format!("unknown method {other}"))),
+            other => Err(RpcError::new(
+                codes::METHOD_NOT_FOUND,
+                format!("unknown method {other}"),
+            )),
         };
         self.peer.respond(id, result);
     }
@@ -181,7 +187,10 @@ impl Server {
                 ModelRuntime::none(&format!("{e:#}"))
             }
         };
-        let session_id = app.sessions.create(&app.root, &runtime.label).map_err(internal)?;
+        let session_id = app
+            .sessions
+            .create(&app.root, &runtime.label)
+            .map_err(internal)?;
         let agent = self.build_agent(&app, &runtime, &session_id)?;
         let reply = json!({
             "protocolVersion": PROTOCOL_VERSION,
@@ -196,11 +205,21 @@ impl Server {
         if let Some(old) = guard.as_mut() {
             old.runtime.shutdown().await;
         }
-        *guard = Some(ServeSession { app, runtime, agent, session_id });
+        *guard = Some(ServeSession {
+            app,
+            runtime,
+            agent,
+            session_id,
+        });
         Ok(reply)
     }
 
-    fn build_agent(&self, app: &App, runtime: &ModelRuntime, session_id: &str) -> Result<Agent, RpcError> {
+    fn build_agent(
+        &self,
+        app: &App,
+        runtime: &ModelRuntime,
+        session_id: &str,
+    ) -> Result<Agent, RpcError> {
         let ctx = app.tool_context(session_id).map_err(internal)?;
         let provider: Arc<dyn ModelProvider> = match &runtime.provider {
             Some(p) => p.clone(),
@@ -211,20 +230,36 @@ impl Server {
             provider,
             ctx,
             PermissionPolicy::new(app.config.permissions.profile),
-            Arc::new(RpcApprover { peer: self.peer.clone() }),
-            Arc::new(move |e| peer.notify(methods::EVENT, serde_json::to_value(&e).unwrap_or_default())),
+            Arc::new(RpcApprover {
+                peer: self.peer.clone(),
+            }),
+            Arc::new(move |e| {
+                peer.notify(methods::EVENT, serde_json::to_value(&e).unwrap_or_default())
+            }),
             app.agent_settings(runtime.context),
         ))
     }
 
     async fn prompt(&self, params: Value) -> Result<Value, RpcError> {
-        let text = params.get("text").and_then(Value::as_str).unwrap_or("").trim().to_string();
-        let mode = match params.get("mode").and_then(Value::as_str).unwrap_or("execute") {
+        let text = params
+            .get("text")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        let mode = match params
+            .get("mode")
+            .and_then(Value::as_str)
+            .unwrap_or("execute")
+        {
             "plan" => AgentMode::Plan,
             "review" => AgentMode::Review,
             _ => AgentMode::Execute,
         };
-        let approve = params.get("approvePlan").and_then(Value::as_bool).unwrap_or(false);
+        let approve = params
+            .get("approvePlan")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let mut task = text.clone();
         if let Some(ctx) = params.get("context") {
             task.push_str(&format_editor_context(ctx));
@@ -236,7 +271,9 @@ impl Server {
             .session
             .try_lock()
             .map_err(|_| RpcError::new(codes::BUSY, "Veyra is already working on a task"))?;
-        let s = guard.as_mut().ok_or_else(|| invalid("call initialize first"))?;
+        let s = guard
+            .as_mut()
+            .ok_or_else(|| invalid("call initialize first"))?;
         if s.runtime.provider.is_none() {
             return Err(RpcError::new(codes::MODEL_UNAVAILABLE, no_model_message()));
         }
@@ -250,7 +287,11 @@ impl Server {
                 None => return Err(invalid("no plan is awaiting approval")),
             }
         } else {
-            let task = if task.is_empty() { "Review my current diff.".to_string() } else { task };
+            let task = if task.is_empty() {
+                "Review my current diff.".to_string()
+            } else {
+                task
+            };
             s.agent.run_turn(&task, mode).await
         };
         *self.cancel.lock().unwrap() = None;
@@ -273,8 +314,13 @@ impl Server {
     }
 
     async fn status(&self) -> Result<Value, RpcError> {
-        let guard = self.session.try_lock().map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
-        let s = guard.as_ref().ok_or_else(|| invalid("call initialize first"))?;
+        let guard = self
+            .session
+            .try_lock()
+            .map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
         let index = s.app.index.stats().ok();
         Ok(json!({
             "workspace": s.app.root,
@@ -293,15 +339,32 @@ impl Server {
     }
 
     async fn changes(&self) -> Result<Value, RpcError> {
-        let guard = self.session.try_lock().map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
-        let s = guard.as_ref().ok_or_else(|| invalid("call initialize first"))?;
+        let guard = self
+            .session
+            .try_lock()
+            .map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
         let j = s.agent.ctx.journal();
         let root = &s.app.root;
         let mut files = Vec::new();
         for path in j.veyra_changed_paths() {
-            let before = j.original_content(&path).flatten().map(|b| String::from_utf8_lossy(&b).into_owned());
-            let after = std::fs::read(root.join(&path)).ok().map(|b| String::from_utf8_lossy(&b).into_owned());
-            let diff = veyra_tools::patch::unified_diff(&path, before.as_deref().unwrap_or(""), after.as_deref().unwrap_or(""));
+            let before_bytes = j.original_content(&path).flatten();
+            let after_bytes = std::fs::read(root.join(&path)).ok();
+            let binary = before_bytes.as_deref().map(veyra_context::looks_binary).unwrap_or(false)
+                || after_bytes.as_deref().map(veyra_context::looks_binary).unwrap_or(false);
+            if binary {
+                files.push(json!({"path": path, "binary": true, "before": null, "after": null, "diff": ""}));
+                continue;
+            }
+            let before = before_bytes.map(|b| String::from_utf8_lossy(&b).into_owned());
+            let after = after_bytes.map(|b| String::from_utf8_lossy(&b).into_owned());
+            let diff = veyra_tools::patch::unified_diff(
+                &path,
+                before.as_deref().unwrap_or(""),
+                after.as_deref().unwrap_or(""),
+            );
             files.push(json!({"path": path, "before": before, "after": after, "diff": diff}));
         }
         let user: Vec<String> = veyra_context::git::dirty_paths(root)
@@ -312,16 +375,30 @@ impl Server {
     }
 
     async fn undo(&self) -> Result<Value, RpcError> {
-        let guard = self.session.try_lock().map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
-        let s = guard.as_ref().ok_or_else(|| invalid("call initialize first"))?;
+        let guard = self
+            .session
+            .try_lock()
+            .map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
         let report = s.agent.ctx.journal().undo(None).map_err(internal)?;
         serde_json::to_value(report).map_err(internal)
     }
 
     async fn new_session(&self) -> Result<Value, RpcError> {
-        let mut guard = self.session.try_lock().map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
-        let s = guard.as_mut().ok_or_else(|| invalid("call initialize first"))?;
-        let id = s.app.sessions.create(&s.app.root, &s.runtime.label).map_err(internal)?;
+        let mut guard = self
+            .session
+            .try_lock()
+            .map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
+        let s = guard
+            .as_mut()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        let id = s
+            .app
+            .sessions
+            .create(&s.app.root, &s.runtime.label)
+            .map_err(internal)?;
         let agent = self.build_agent(&s.app, &s.runtime, &id)?;
         s.agent = agent;
         s.session_id = id.clone();
@@ -329,10 +406,24 @@ impl Server {
     }
 
     async fn command(&self, params: Value) -> Result<Value, RpcError> {
-        let name = params.get("name").and_then(Value::as_str).unwrap_or("").trim_start_matches('/').to_string();
-        let arg = params.get("args").and_then(Value::as_str).unwrap_or("").to_string();
-        let mut guard = self.session.try_lock().map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
-        let s = guard.as_mut().ok_or_else(|| invalid("call initialize first"))?;
+        let name = params
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim_start_matches('/')
+            .to_string();
+        let arg = params
+            .get("args")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let mut guard = self
+            .session
+            .try_lock()
+            .map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
+        let s = guard
+            .as_mut()
+            .ok_or_else(|| invalid("call initialize first"))?;
         match name.as_str() {
             "clear" => {
                 s.agent.clear();
@@ -344,7 +435,8 @@ impl Server {
             }
             "permissions" => {
                 if !arg.is_empty() {
-                    let p = Profile::parse(&arg).ok_or_else(|| invalid("profile must be safe, balanced or autonomous"))?;
+                    let p = Profile::parse(&arg)
+                        .ok_or_else(|| invalid("profile must be safe, balanced or autonomous"))?;
                     s.agent.policy.set_profile(p);
                 }
                 let rows: Vec<Value> = s
@@ -360,7 +452,12 @@ impl Server {
                 s.agent.ctx.journal().revert_path(&arg).map_err(internal)?;
                 Ok(json!({"reverted": arg}))
             }
-            "privacy" => Ok(serde_json::to_value(veyra_core::privacy::PrivacyReport::from_config(&s.app.config)).map_err(internal)?),
+            "privacy" => Ok(
+                serde_json::to_value(veyra_core::privacy::PrivacyReport::from_config(
+                    &s.app.config,
+                ))
+                .map_err(internal)?,
+            ),
             "matrix" => {
                 let stats = s.app.index.stats().ok();
                 let tools: Vec<&str> = s.agent.tools().iter().map(|t| t.name()).collect();
@@ -376,15 +473,20 @@ impl Server {
                     "state": if s.agent.pending_plan().is_some() { "awaiting plan approval" } else { "idle" },
                 }))
             }
-            other => Err(invalid(format!("unsupported command `{other}` over RPC; send natural language via session/prompt"))),
+            other => Err(invalid(format!(
+                "unsupported command `{other}` over RPC; send natural language via session/prompt"
+            ))),
         }
     }
 
     async fn doctor(&self) -> Result<Value, RpcError> {
         let paths = veyra_core::VeyraPaths::discover().map_err(internal)?;
         let models_dir = paths.models_dir();
-        let hw = tokio::task::spawn_blocking(move || HardwareInfo::detect(&models_dir)).await.map_err(internal)?;
-        let registry = veyra_model::registry::Registry::load(&paths.user_models_file()).map_err(internal)?;
+        let hw = tokio::task::spawn_blocking(move || HardwareInfo::detect(&models_dir))
+            .await
+            .map_err(internal)?;
+        let registry =
+            veyra_model::registry::Registry::load(&paths.user_models_file()).map_err(internal)?;
         let rec = recommend(&registry, &hw);
         let mgr = veyra_runtime::llamacpp::LlamaCppManager::new(&paths.runtimes_dir());
         Ok(json!({
@@ -404,7 +506,8 @@ impl Server {
         })
         .await
         .map_err(internal)?;
-        let registry = veyra_model::registry::Registry::load(&paths.user_models_file()).map_err(internal)?;
+        let registry =
+            veyra_model::registry::Registry::load(&paths.user_models_file()).map_err(internal)?;
         let rec = recommend(&registry, &hw);
         let store = ModelStore::new(&models_dir);
         let list: Vec<Value> = registry
@@ -424,14 +527,39 @@ impl Server {
     }
 
     async fn select_model(&self, params: Value) -> Result<Value, RpcError> {
-        let id = params.get("id").and_then(Value::as_str).unwrap_or("auto").to_string();
-        let download = params.get("download").and_then(Value::as_bool).unwrap_or(false);
+        let id = params
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or("auto")
+            .to_string();
+        let download = params
+            .get("download")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let mut guard = self.session.lock().await;
-        let s = guard.as_mut().ok_or_else(|| invalid("call initialize first"))?;
+        let s = guard
+            .as_mut()
+            .ok_or_else(|| invalid("call initialize first"))?;
         s.runtime.shutdown().await;
-        self.peer.log("info", format!("starting model {id}{}", if download { " (downloading if needed)" } else { "" }));
-        let consent = if download { Consent::Granted } else { Consent::Never };
-        let runtime = models::start_runtime(&s.app, consent, Some(&id)).await.map_err(|e| RpcError::new(codes::MODEL_UNAVAILABLE, format!("{e:#}")))?;
+        self.peer.log(
+            "info",
+            format!(
+                "starting model {id}{}",
+                if download {
+                    " (downloading if needed)"
+                } else {
+                    ""
+                }
+            ),
+        );
+        let consent = if download {
+            Consent::Granted
+        } else {
+            Consent::Never
+        };
+        let runtime = models::start_runtime(&s.app, consent, Some(&id))
+            .await
+            .map_err(|e| RpcError::new(codes::MODEL_UNAVAILABLE, format!("{e:#}")))?;
         let provider: Arc<dyn ModelProvider> = match &runtime.provider {
             Some(p) => p.clone(),
             None => Arc::new(NoModel(no_model_message())),
@@ -450,11 +578,17 @@ fn format_editor_context(ctx: &Value) -> String {
         s.push_str(&format!("\n\nCurrent file in the editor: {file}"));
     }
     if let Some(sel) = ctx.get("selection") {
-        if let Some(text) = sel.get("text").and_then(Value::as_str).filter(|t| !t.trim().is_empty()) {
+        if let Some(text) = sel
+            .get("text")
+            .and_then(Value::as_str)
+            .filter(|t| !t.trim().is_empty())
+        {
             let start = sel.get("startLine").and_then(Value::as_u64).unwrap_or(0);
             let end = sel.get("endLine").and_then(Value::as_u64).unwrap_or(0);
             let clipped: String = text.chars().take(12_000).collect();
-            s.push_str(&format!("\nSelected code (lines {start}-{end}):\n```\n{clipped}\n```"));
+            s.push_str(&format!(
+                "\nSelected code (lines {start}-{end}):\n```\n{clipped}\n```"
+            ));
         }
     }
     if let Some(diags) = ctx.get("diagnostics").and_then(Value::as_array) {

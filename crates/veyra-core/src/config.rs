@@ -11,7 +11,7 @@ use crate::permissions::Profile;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub model: ModelConfig,
@@ -23,19 +23,6 @@ pub struct Config {
     pub ui: UiConfig,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            model: ModelConfig::default(),
-            runtime: RuntimeConfig::default(),
-            permissions: PermissionsConfig::default(),
-            privacy: PrivacyConfig::default(),
-            agent: AgentConfig::default(),
-            context: ContextConfig::default(),
-            ui: UiConfig::default(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -304,7 +291,10 @@ impl Config {
             ));
         }
         if !project.permissions.allow_commands.is_empty() {
-            warnings.push("ignored project permissions.allow_commands: only user config may allow commands".into());
+            warnings.push(
+                "ignored project permissions.allow_commands: only user config may allow commands"
+                    .into(),
+            );
         }
         if !project.permissions.extra_readable_paths.is_empty() {
             warnings.push(
@@ -327,7 +317,9 @@ impl Config {
             );
         }
         if project.privacy.training_data {
-            warnings.push("ignored project privacy.training_data: opt-in must come from the user".into());
+            warnings.push(
+                "ignored project privacy.training_data: opt-in must come from the user".into(),
+            );
         }
 
         // Harmless tuning knobs a project may set.
@@ -387,12 +379,12 @@ pub fn is_loopback_host(host: &str) -> bool {
 
 /// True when an endpoint URL points at this machine.
 pub fn endpoint_is_local(url: &str) -> bool {
-    let rest = url
-        .split_once("://")
-        .map(|(_, r)| r)
-        .unwrap_or(url);
+    let rest = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
     let authority = rest.split('/').next().unwrap_or("");
-    let authority = authority.rsplit_once('@').map(|(_, a)| a).unwrap_or(authority);
+    let authority = authority
+        .rsplit_once('@')
+        .map(|(_, a)| a)
+        .unwrap_or(authority);
     let host = if authority.starts_with('[') {
         authority
             .split(']')

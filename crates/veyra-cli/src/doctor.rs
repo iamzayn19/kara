@@ -25,15 +25,40 @@ fn yes_no(b: bool) -> String {
 pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
     let hw = HardwareInfo::detect(&app.paths.models_dir());
     println!("{}", style("System").bold());
-    row("OS", format!("{} ({})", if hw.os_version.is_empty() { &hw.os } else { &hw.os_version }, hw.arch));
+    row(
+        "OS",
+        format!(
+            "{} ({})",
+            if hw.os_version.is_empty() {
+                &hw.os
+            } else {
+                &hw.os_version
+            },
+            hw.arch
+        ),
+    );
     row("CPU", format!("{} ({} threads)", hw.cpu, hw.cpu_cores));
-    row("RAM", format!("{} total, {} available", format_bytes(hw.total_ram), format_bytes(hw.available_ram)));
+    row(
+        "RAM",
+        format!(
+            "{} total, {} available",
+            format_bytes(hw.total_ram),
+            format_bytes(hw.available_ram)
+        ),
+    );
     if hw.gpus.is_empty() {
         row("GPU", "none detected");
     }
     for g in &hw.gpus {
-        let vram = g.vram_bytes.map(|v| format!(", {} VRAM", format_bytes(v))).unwrap_or_default();
-        let name = if g.vendor.is_empty() || g.name.starts_with(&g.vendor) { g.name.clone() } else { format!("{} {}", g.vendor, g.name) };
+        let vram = g
+            .vram_bytes
+            .map(|v| format!(", {} VRAM", format_bytes(v)))
+            .unwrap_or_default();
+        let name = if g.vendor.is_empty() || g.name.starts_with(&g.vendor) {
+            g.name.clone()
+        } else {
+            format!("{} {}", g.vendor, g.name)
+        };
         row("GPU", format!("{name}{vram}"));
     }
     row("Unified memory", yes_no(hw.unified_memory));
@@ -41,10 +66,20 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
     row("CUDA", yes_no(hw.cuda));
     row("Vulkan", yes_no(hw.vulkan));
     row("ROCm/HIP", yes_no(hw.rocm));
-    row("Model memory budget", format!("about {} ({})", format_bytes(hw.fast_memory_budget()), hw.accelerator()));
+    row(
+        "Model memory budget",
+        format!(
+            "about {} ({})",
+            format_bytes(hw.fast_memory_budget()),
+            hw.accelerator()
+        ),
+    );
     row(
         "Disk free",
-        hw.disk_free.map(format_bytes).unwrap_or_else(|| "unknown".into()) + &format!(" at {}", display_path(&app.paths.models_dir())),
+        hw.disk_free
+            .map(format_bytes)
+            .unwrap_or_else(|| "unknown".into())
+            + &format!(" at {}", display_path(&app.paths.models_dir())),
     );
 
     println!("\n{}", style("Runtime").bold());
@@ -58,7 +93,10 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
         }
         None => row(
             "llama.cpp",
-            format!("not installed (Veyra will offer the pinned build {} on first use)", mgr.pin.tag),
+            format!(
+                "not installed (Veyra will offer the pinned build {} on first use)",
+                mgr.pin.tag
+            ),
         ),
     }
     if let Some(asset) = mgr.pin.select(&hw) {
@@ -74,7 +112,16 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
         row("installed", "none");
     }
     for m in installed {
-        row("installed", format!("{} ({}, {}, rev {})", m.name, format_bytes(m.size_bytes), m.license, &m.revision[..12.min(m.revision.len())]));
+        row(
+            "installed",
+            format!(
+                "{} ({}, {}, rev {})",
+                m.name,
+                format_bytes(m.size_bytes),
+                m.license,
+                &m.revision[..12.min(m.revision.len())]
+            ),
+        );
     }
     let rec = recommend(&app.models, &hw);
     row("recommendation", &rec.summary);
@@ -85,12 +132,32 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
     println!("\n{}", style("Repository").bold());
     row("root", app.root.display());
     row("git", yes_no(veyra_context::git::is_repo(&app.root)));
-    let langs: Vec<String> = app.profile.languages.iter().map(|(l, n)| format!("{l} ({n})")).collect();
-    row("languages", if langs.is_empty() { "none recognized (generic tools still work)".into() } else { langs.join(", ") });
-    for cat in [CommandCategory::Test, CommandCategory::Lint, CommandCategory::Typecheck, CommandCategory::Build] {
+    let langs: Vec<String> = app
+        .profile
+        .languages
+        .iter()
+        .map(|(l, n)| format!("{l} ({n})"))
+        .collect();
+    row(
+        "languages",
+        if langs.is_empty() {
+            "none recognized (generic tools still work)".into()
+        } else {
+            langs.join(", ")
+        },
+    );
+    for cat in [
+        CommandCategory::Test,
+        CommandCategory::Lint,
+        CommandCategory::Typecheck,
+        CommandCategory::Build,
+    ] {
         row(
             &format!("{} command", cat.label()),
-            app.profile.first(cat).map(|c| c.run.clone()).unwrap_or_else(|| style("not detected").dim().to_string()),
+            app.profile
+                .first(cat)
+                .map(|c| c.run.clone())
+                .unwrap_or_else(|| style("not detected").dim().to_string()),
         );
     }
 

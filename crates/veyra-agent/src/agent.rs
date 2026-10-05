@@ -26,8 +26,8 @@ use veyra_core::permissions::{PermissionPolicy, PolicyDecision};
 use veyra_core::state::TaskState;
 use veyra_model::{ChatRequest, Message, ModelProvider, Role, StreamEvent, ToolCall, ToolDef};
 use veyra_protocol::{
-    AgentEvent, AgentMode, NoticeLevel, PermissionDecision, PermissionRequest, Phase, PlanStep, StepStatus,
-    TestReport, TokenUsage, TurnOutcome,
+    AgentEvent, AgentMode, NoticeLevel, PermissionDecision, PermissionRequest, Phase, PlanStep,
+    StepStatus, TestReport, TokenUsage, TurnOutcome,
 };
 use veyra_tools::{Tool, ToolContext, ToolOutput};
 
@@ -186,7 +186,14 @@ impl Agent {
         let mut digest = String::from("Summary of earlier work in this session:\n");
         for pair in self.history.chunks(2) {
             if let [u, a] = pair {
-                let task: String = u.content.lines().next().unwrap_or("").chars().take(160).collect();
+                let task: String = u
+                    .content
+                    .lines()
+                    .next()
+                    .unwrap_or("")
+                    .chars()
+                    .take(160)
+                    .collect();
                 let ans: String = a.content.chars().take(400).collect();
                 digest.push_str(&format!("- Request: {task}\n  Result: {ans}\n"));
             }
@@ -219,7 +226,10 @@ impl Agent {
     }
 
     fn notice(&self, level: NoticeLevel, message: impl Into<String>) {
-        self.emit(AgentEvent::Notice { level, message: message.into() });
+        self.emit(AgentEvent::Notice {
+            level,
+            message: message.into(),
+        });
     }
 
     fn build_project_notes(&self) -> String {
@@ -227,7 +237,11 @@ impl Agent {
         let mut s = format!("Repository root: {}\n", root.display());
         let p = &self.ctx.profile;
         if !p.languages.is_empty() {
-            let langs: Vec<String> = p.languages.iter().map(|(l, n)| format!("{l} ({n} files)")).collect();
+            let langs: Vec<String> = p
+                .languages
+                .iter()
+                .map(|(l, n)| format!("{l} ({n} files)"))
+                .collect();
             s.push_str(&format!("Languages: {}\n", langs.join(", ")));
         }
         for cat in [
@@ -285,7 +299,11 @@ impl Agent {
     fn orientation(&self, task: &str) -> String {
         let mut s = String::new();
         let root = self.ctx.root();
-        let dirty = if git::is_repo(root) { git::dirty_paths(root) } else { Vec::new() };
+        let dirty = if git::is_repo(root) {
+            git::dirty_paths(root)
+        } else {
+            Vec::new()
+        };
         if let Some(index) = &self.ctx.index {
             let _ = index.refresh();
             match orient(index, task, &dirty, self.settings.max_orientation_files) {
@@ -326,8 +344,11 @@ impl Agent {
             .map(|e| e.path)
             .collect();
         if diff.trim().is_empty() && untracked.is_empty() {
-            let last = git::git(root, &["log", "-1", "--stat", "--patch", "--no-ext-diff"]).unwrap_or_default();
-            s.push_str("There are no uncommitted changes. Reviewing the most recent commit instead:\n");
+            let last = git::git(root, &["log", "-1", "--stat", "--patch", "--no-ext-diff"])
+                .unwrap_or_default();
+            s.push_str(
+                "There are no uncommitted changes. Reviewing the most recent commit instead:\n",
+            );
             s.push_str(&veyra_tools::output::for_model(&last, 24_000));
             return s;
         }
@@ -357,8 +378,14 @@ impl Agent {
         let started_at = chrono::Utc::now().to_rfc3339();
         self.turn_counter += 1;
         let turn_id = self.turn_counter;
-        self.emit(AgentEvent::TurnStarted { turn_id, mode, task: task.to_string() });
-        self.emit(AgentEvent::Phase { phase: Phase::Understand });
+        self.emit(AgentEvent::TurnStarted {
+            turn_id,
+            mode,
+            task: task.to_string(),
+        });
+        self.emit(AgentEvent::Phase {
+            phase: Phase::Understand,
+        });
 
         if mode == AgentMode::Execute {
             let head = git::head(self.ctx.root());
@@ -368,9 +395,12 @@ impl Agent {
         self.state = TaskState::new(task);
         self.project_notes = self.build_project_notes();
 
-        let mut user_block = format!("{task}\n\n## Repository orientation\n{}", self.orientation(task));
+        let mut user_block = format!(
+            "{task}\n\n## Repository orientation\n{}",
+            self.orientation(task)
+        );
         if mode == AgentMode::Review {
-            user_block.push_str("\n");
+            user_block.push('\n');
             user_block.push_str(&self.review_material());
         }
         let mut messages = vec![Message::system(format!(
@@ -447,7 +477,8 @@ impl Agent {
                     empty_nudges += 1;
                     if empty_nudges > 2 {
                         outcome = TurnOutcome::Stalled;
-                        final_text = "The model returned empty responses repeatedly; stopping.".into();
+                        final_text =
+                            "The model returned empty responses repeatedly; stopping.".into();
                         break;
                     }
                     messages.push(Message::assistant("", vec![]));
@@ -461,12 +492,17 @@ impl Agent {
                     && self.ctx.profile.first(CommandCategory::Test).is_some();
                 if needs_verification && !verify_nudged {
                     verify_nudged = true;
-                    self.notice(NoticeLevel::Info, "edits are not verified yet; asking the model to run tests");
+                    self.notice(
+                        NoticeLevel::Info,
+                        "edits are not verified yet; asking the model to run tests",
+                    );
                     messages.push(Message::assistant(text, vec![]));
                     messages.push(Message::user(prompts::VERIFY_NUDGE));
                     continue;
                 }
-                self.emit(AgentEvent::Phase { phase: Phase::Summarize });
+                self.emit(AgentEvent::Phase {
+                    phase: Phase::Summarize,
+                });
                 self.emit(AgentEvent::AssistantMessage { text: text.clone() });
                 final_text = text;
                 if mode == AgentMode::Plan {
@@ -477,7 +513,10 @@ impl Agent {
             }
 
             // Tool calls.
-            messages.push(Message::assistant(resp.content.clone(), resp.tool_calls.clone()));
+            messages.push(Message::assistant(
+                resp.content.clone(),
+                resp.tool_calls.clone(),
+            ));
             let mut stop_reason: Option<(TurnOutcome, String)> = None;
             for call in &resp.tool_calls {
                 if self.ctx.cancel.is_cancelled() {
@@ -514,7 +553,9 @@ impl Agent {
                         stats.tests_run += 1;
                         self.state.tests.push(rep.clone());
                         last_test = Some(rep.clone());
-                        self.emit(AgentEvent::TestFinished { report: rep.clone() });
+                        self.emit(AgentEvent::TestFinished {
+                            report: rep.clone(),
+                        });
                         if rep.succeeded() {
                             edits_since_test = false;
                         } else if !changed.is_empty() {
@@ -522,7 +563,11 @@ impl Agent {
                             self.state.failures.push(format!(
                                 "`{}` failed{}",
                                 rep.command,
-                                if rep.failed_tests.is_empty() { String::new() } else { format!(": {}", rep.failed_tests.join(", ")) }
+                                if rep.failed_tests.is_empty() {
+                                    String::new()
+                                } else {
+                                    format!(": {}", rep.failed_tests.join(", "))
+                                }
                             ));
                             if self.state.retries > self.settings.max_recovery_attempts {
                                 stop_reason = Some((
@@ -534,7 +579,9 @@ impl Agent {
                                     ),
                                 ));
                             } else {
-                                self.emit(AgentEvent::Phase { phase: Phase::Recover });
+                                self.emit(AgentEvent::Phase {
+                                    phase: Phase::Recover,
+                                });
                             }
                         } else {
                             edits_since_test = false;
@@ -564,7 +611,10 @@ impl Agent {
         // Keep cross-turn history compact: the request and the outcome.
         let mut recap = final_text.clone();
         if !changed_files.is_empty() {
-            recap.push_str(&format!("\n\n(Files changed: {})", changed_files.join(", ")));
+            recap.push_str(&format!(
+                "\n\n(Files changed: {})",
+                changed_files.join(", ")
+            ));
         }
         if let Some(t) = &last_test {
             recap.push_str(&format!(
@@ -601,12 +651,20 @@ impl Agent {
 
     /// Validate, authorize and execute one tool call. Returns the output and
     /// whether the tool actually ran.
-    async fn handle_call(&mut self, call: &ToolCall, mode: AgentMode, stats: &mut TurnStats) -> (ToolOutput, bool) {
+    async fn handle_call(
+        &mut self,
+        call: &ToolCall,
+        mode: AgentMode,
+        stats: &mut TurnStats,
+    ) -> (ToolOutput, bool) {
         let args = match call.parsed_arguments() {
             Ok(a) => a,
             Err(e) => {
                 stats.invalid_tool_calls += 1;
-                let out = ToolOutput::err(format!("{e}. Call {} again with a valid JSON object.", call.name));
+                let out = ToolOutput::err(format!(
+                    "{e}. Call {} again with a valid JSON object.",
+                    call.name
+                ));
                 self.report_tool(call, &out, 0, "invalid arguments");
                 return (out, false);
             }
@@ -622,7 +680,11 @@ impl Agent {
         let Some(tool) = self.tools.iter().find(|t| t.name() == call.name).cloned() else {
             stats.invalid_tool_calls += 1;
             let names: Vec<&str> = self.tools.iter().map(|t| t.name()).collect();
-            let out = ToolOutput::err(format!("unknown tool `{}`. Available tools: {}", call.name, names.join(", ")));
+            let out = ToolOutput::err(format!(
+                "unknown tool `{}`. Available tools: {}",
+                call.name,
+                names.join(", ")
+            ));
             self.report_tool(call, &out, 0, &call.name);
             return (out, false);
         };
@@ -631,7 +693,11 @@ impl Agent {
             let out = ToolOutput::err(format!(
                 "`{}` is not available in {} mode: this mode is read-only.",
                 call.name,
-                if mode == AgentMode::Plan { "plan" } else { "review" }
+                if mode == AgentMode::Plan {
+                    "plan"
+                } else {
+                    "review"
+                }
             ));
             self.report_tool(call, &out, 0, &call.name);
             return (out, false);
@@ -648,8 +714,14 @@ impl Agent {
         };
         if let Some(b) = &assessment.blocked {
             stats.denied += 1;
-            let out = ToolOutput::err(format!("blocked by Veyra's safety rules: {b}. {}", prompts::DENIED_NOTE));
-            self.notice(NoticeLevel::Warning, format!("blocked: {} ({b})", assessment.title));
+            let out = ToolOutput::err(format!(
+                "blocked by Veyra's safety rules: {b}. {}",
+                prompts::DENIED_NOTE
+            ));
+            self.notice(
+                NoticeLevel::Warning,
+                format!("blocked: {} ({b})", assessment.title),
+            );
             self.report_tool(call, &out, 0, &assessment.title);
             return (out, false);
         }
@@ -668,7 +740,12 @@ impl Agent {
                 let out = ToolOutput::err(format!(
                     "denied by the `{}` permission profile ({}). {}",
                     self.policy.profile.as_str(),
-                    assessment.kinds.iter().map(|k| k.label()).collect::<Vec<_>>().join(", "),
+                    assessment
+                        .kinds
+                        .iter()
+                        .map(|k| k.label())
+                        .collect::<Vec<_>>()
+                        .join(", "),
                     prompts::DENIED_NOTE
                 ));
                 self.report_tool(call, &out, 0, &assessment.title);
@@ -690,12 +767,19 @@ impl Agent {
                     PermissionDecision::AllowOnce => {}
                     PermissionDecision::AllowSession => {
                         if !self.policy.grant_session(&assessment.kinds) {
-                            self.notice(NoticeLevel::Info, "high-risk actions are approved one at a time; not remembered");
+                            self.notice(
+                                NoticeLevel::Info,
+                                "high-risk actions are approved one at a time; not remembered",
+                            );
                         }
                     }
                     PermissionDecision::Deny => {
                         stats.denied += 1;
-                        let out = ToolOutput::err(format!("the user denied: {}. {}", assessment.title, prompts::DENIED_NOTE));
+                        let out = ToolOutput::err(format!(
+                            "the user denied: {}. {}",
+                            assessment.title,
+                            prompts::DENIED_NOTE
+                        ));
                         self.report_tool(call, &out, 0, &assessment.title);
                         return (out, false);
                     }
@@ -704,7 +788,9 @@ impl Agent {
             PolicyDecision::Allow => {}
         }
 
-        self.emit(AgentEvent::Phase { phase: phase_for(&call.name) });
+        self.emit(AgentEvent::Phase {
+            phase: phase_for(&call.name),
+        });
         let call_id = call.id.clone();
         self.emit(AgentEvent::ToolStarted {
             call_id: call_id.clone(),
@@ -727,7 +813,11 @@ impl Agent {
             "{} {} -> {}",
             call.name,
             short_args(&args),
-            if out.ok { out.summary.clone() } else { format!("error: {}", out.summary) }
+            if out.ok {
+                out.summary.clone()
+            } else {
+                format!("error: {}", out.summary)
+            }
         ));
         self.emit(AgentEvent::ToolFinished {
             call_id,
@@ -759,32 +849,58 @@ impl Agent {
             self.state.plan = steps
                 .iter()
                 .filter_map(|s| {
-                    let title = s.get("title").and_then(Value::as_str).or_else(|| s.as_str())?;
-                    let status = match s.get("status").and_then(Value::as_str).unwrap_or("pending") {
+                    let title = s
+                        .get("title")
+                        .and_then(Value::as_str)
+                        .or_else(|| s.as_str())?;
+                    let status = match s.get("status").and_then(Value::as_str).unwrap_or("pending")
+                    {
                         "done" | "completed" | "complete" => StepStatus::Done,
                         "in_progress" | "active" | "doing" => StepStatus::InProgress,
                         "skipped" => StepStatus::Skipped,
                         _ => StepStatus::Pending,
                     };
-                    Some(PlanStep { title: title.to_string(), status })
+                    Some(PlanStep {
+                        title: title.to_string(),
+                        status,
+                    })
                 })
                 .collect();
         }
-        if let Some(h) = args.get("hypothesis").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+        if let Some(h) = args
+            .get("hypothesis")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+        {
             self.state.hypothesis = Some(h.to_string());
         }
-        if let Some(o) = args.get("observation").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+        if let Some(o) = args
+            .get("observation")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+        {
             self.state.observe(o);
         }
         if let Some(c) = args.get("completion_criteria").and_then(Value::as_array) {
-            self.state.completion_criteria = c.iter().filter_map(|x| x.as_str().map(str::to_string)).collect();
+            self.state.completion_criteria = c
+                .iter()
+                .filter_map(|x| x.as_str().map(str::to_string))
+                .collect();
         }
         self.emit(AgentEvent::PlanUpdated {
             steps: self.state.plan.clone(),
             hypothesis: self.state.hypothesis.clone(),
         });
-        let done = self.state.plan.iter().filter(|s| s.status == StepStatus::Done).count();
-        ToolOutput::ok("plan recorded", format!("{done}/{} steps done", self.state.plan.len()))
+        let done = self
+            .state
+            .plan
+            .iter()
+            .filter(|s| s.status == StepStatus::Done)
+            .count();
+        ToolOutput::ok(
+            "plan recorded",
+            format!("{done}/{} steps done", self.state.plan.len()),
+        )
     }
 
     /// Keep the conversation inside the context window by eliding older tool
@@ -798,24 +914,24 @@ impl Agent {
         let keep_tail = 6;
         let n = messages.len();
         let mut current = total;
-        for i in 1..n.saturating_sub(keep_tail) {
+        let end = n.saturating_sub(keep_tail);
+        for m in messages.iter_mut().take(end).skip(1) {
             if current <= budget {
                 break;
             }
-            let m = &mut messages[i];
             if m.role == Role::Tool && m.content.len() > 300 && !m.content.starts_with("[elided") {
                 let before = m.estimated_tokens();
                 let head: String = m.content.chars().take(240).collect();
-                m.content = format!("[elided older tool output to save context; first lines:]\n{head}…");
+                m.content =
+                    format!("[elided older tool output to save context; first lines:]\n{head}…");
                 current = current - before + m.estimated_tokens();
             }
         }
         if current > budget {
-            for i in 1..n.saturating_sub(keep_tail) {
+            for m in messages.iter_mut().take(end).skip(1) {
                 if current <= budget {
                     break;
                 }
-                let m = &mut messages[i];
                 if m.content.len() > 600 && !m.content.starts_with("[elided") {
                     let before = m.estimated_tokens();
                     let head: String = m.content.chars().take(400).collect();
@@ -854,7 +970,11 @@ impl Agent {
         if std::fs::create_dir_all(dir).is_ok() {
             use std::io::Write;
             let path = dir.join(format!("{}.jsonl", chrono::Utc::now().format("%Y-%m-%d")));
-            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+            {
                 let _ = writeln!(f, "{redacted}");
             }
         }
@@ -863,9 +983,12 @@ impl Agent {
 
 fn phase_for(tool: &str) -> Phase {
     match tool {
-        "grep" | "find_files" | "find_symbol" | "find_references" | "list_directory" => Phase::Search,
+        "grep" | "find_files" | "find_symbol" | "find_references" | "list_directory" => {
+            Phase::Search
+        }
         "read_file" | "read_range" | "git_show" | "git_blame" | "git_log" => Phase::Read,
-        "edit_file" | "write_file" | "create_file" | "apply_patch" | "move_file" | "delete_file" => Phase::Edit,
+        "edit_file" | "write_file" | "create_file" | "apply_patch" | "move_file"
+        | "delete_file" => Phase::Edit,
         "run_test" => Phase::Test,
         "run_lint" | "run_build" | "diagnostics" => Phase::Verify,
         "git_diff" | "git_status" => Phase::Review,
@@ -874,9 +997,13 @@ fn phase_for(tool: &str) -> Phase {
 }
 
 fn short_args(args: &Value) -> String {
-    let Some(obj) = args.as_object() else { return String::new() };
+    let Some(obj) = args.as_object() else {
+        return String::new();
+    };
     let mut parts = Vec::new();
-    for key in ["path", "pattern", "name", "command", "files", "from", "to", "rev"] {
+    for key in [
+        "path", "pattern", "name", "command", "files", "from", "to", "rev",
+    ] {
         if let Some(v) = obj.get(key) {
             let s = match v {
                 Value::String(s) => s.clone(),

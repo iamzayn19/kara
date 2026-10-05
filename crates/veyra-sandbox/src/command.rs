@@ -46,54 +46,250 @@ pub struct CommandContext<'a> {
 }
 
 const TEST_PREFIXES: &[&str] = &[
-    "cargo test", "cargo nextest", "go test", "pytest", "python -m pytest", "python3 -m pytest",
-    "python -m unittest", "python3 -m unittest", "bundle exec rspec", "rspec", "bundle exec rake test",
-    "rake test", "bin/rails test", "rails test", "npm test", "npm run test", "pnpm test", "yarn test",
-    "npx jest", "npx vitest", "jest", "vitest", "node --test", "deno test", "bun test", "mvn test",
-    "./mvnw test", "gradle test", "./gradlew test", "dotnet test", "ctest", "make test", "make check",
-    "swift test", "mix test", "phpunit", "vendor/bin/phpunit", "composer test", "tox", "nox",
-    "ruby -Itest", "bats", "zig build test",
+    "cargo test",
+    "cargo nextest",
+    "go test",
+    "pytest",
+    "python -m pytest",
+    "python3 -m pytest",
+    "python -m unittest",
+    "python3 -m unittest",
+    "bundle exec rspec",
+    "rspec",
+    "bundle exec rake test",
+    "rake test",
+    "bin/rails test",
+    "rails test",
+    "npm test",
+    "npm run test",
+    "pnpm test",
+    "yarn test",
+    "npx jest",
+    "npx vitest",
+    "jest",
+    "vitest",
+    "node --test",
+    "deno test",
+    "bun test",
+    "mvn test",
+    "./mvnw test",
+    "gradle test",
+    "./gradlew test",
+    "dotnet test",
+    "ctest",
+    "make test",
+    "make check",
+    "swift test",
+    "mix test",
+    "phpunit",
+    "vendor/bin/phpunit",
+    "composer test",
+    "tox",
+    "nox",
+    "ruby -Itest",
+    "bats",
+    "zig build test",
 ];
 
 const LINT_PREFIXES: &[&str] = &[
-    "cargo clippy", "cargo fmt --check", "cargo fmt -- --check", "cargo check", "rubocop",
-    "bundle exec rubocop", "ruff", "flake8", "pylint", "mypy", "pyright", "black --check",
-    "eslint", "npx eslint", "npm run lint", "pnpm lint", "yarn lint", "npx tsc --noEmit",
-    "tsc --noEmit", "npx prettier --check", "prettier --check", "golangci-lint", "go vet",
-    "gofmt -l", "staticcheck", "shellcheck", "swiftlint", "ktlint", "phpstan", "dotnet format --verify-no-changes",
-    "clang-tidy", "cppcheck", "sqlfluff lint", "stylelint", "htmlhint",
+    "cargo clippy",
+    "cargo fmt --check",
+    "cargo fmt -- --check",
+    "cargo check",
+    "rubocop",
+    "bundle exec rubocop",
+    "ruff",
+    "flake8",
+    "pylint",
+    "mypy",
+    "pyright",
+    "black --check",
+    "eslint",
+    "npx eslint",
+    "npm run lint",
+    "pnpm lint",
+    "yarn lint",
+    "npx tsc --noEmit",
+    "tsc --noEmit",
+    "npx prettier --check",
+    "prettier --check",
+    "golangci-lint",
+    "go vet",
+    "gofmt -l",
+    "staticcheck",
+    "shellcheck",
+    "swiftlint",
+    "ktlint",
+    "phpstan",
+    "dotnet format --verify-no-changes",
+    "clang-tidy",
+    "cppcheck",
+    "sqlfluff lint",
+    "stylelint",
+    "htmlhint",
 ];
 
 const BUILD_PREFIXES: &[&str] = &[
-    "cargo build", "go build", "npm run build", "pnpm build", "yarn build", "tsc", "npx tsc",
-    "make", "cmake --build", "mvn compile", "mvn package", "./mvnw package", "gradle build",
-    "./gradlew build", "dotnet build", "swift build", "javac", "gcc", "g++", "clang", "clang++",
-    "rustc", "zig build", "bundle exec rake build", "python -m build", "mix compile",
+    "cargo build",
+    "go build",
+    "npm run build",
+    "pnpm build",
+    "yarn build",
+    "tsc",
+    "npx tsc",
+    "make",
+    "cmake --build",
+    "mvn compile",
+    "mvn package",
+    "./mvnw package",
+    "gradle build",
+    "./gradlew build",
+    "dotnet build",
+    "swift build",
+    "javac",
+    "gcc",
+    "g++",
+    "clang",
+    "clang++",
+    "rustc",
+    "zig build",
+    "bundle exec rake build",
+    "python -m build",
+    "mix compile",
 ];
 
 /// Read-only programs (when used without mutating flags).
 const READ_ONLY: &[&str] = &[
-    "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "ag", "echo", "printf",
-    "pwd", "which", "whereis", "type", "file", "stat", "diff", "cmp", "sort", "uniq", "tree", "du",
-    "df", "basename", "dirname", "realpath", "readlink", "true", "false", "test", "[", "date",
-    "uname", "less", "more", "cut", "tr", "nl", "column", "jq", "yq", "md5sum", "sha256sum",
-    "shasum", "hexdump", "xxd", "od", "strings", "seq", "sleep", "whoami", "id", "hostname",
-    "tokei", "cloc", "fd", "find",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "wc",
+    "grep",
+    "egrep",
+    "fgrep",
+    "rg",
+    "ag",
+    "echo",
+    "printf",
+    "pwd",
+    "which",
+    "whereis",
+    "type",
+    "file",
+    "stat",
+    "diff",
+    "cmp",
+    "sort",
+    "uniq",
+    "tree",
+    "du",
+    "df",
+    "basename",
+    "dirname",
+    "realpath",
+    "readlink",
+    "true",
+    "false",
+    "test",
+    "[",
+    "date",
+    "uname",
+    "less",
+    "more",
+    "cut",
+    "tr",
+    "nl",
+    "column",
+    "jq",
+    "yq",
+    "md5sum",
+    "sha256sum",
+    "shasum",
+    "hexdump",
+    "xxd",
+    "od",
+    "strings",
+    "seq",
+    "sleep",
+    "whoami",
+    "id",
+    "hostname",
+    "tokei",
+    "cloc",
+    "fd",
+    "find",
 ];
 
 const NETWORK_PROGRAMS: &[&str] = &[
-    "curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "ftp", "telnet", "rsync",
-    "socat", "httpie", "http", "aria2c", "brew", "apt", "apt-get", "yum", "dnf", "pacman",
-    "apk", "choco", "winget", "scoop", "snap", "flatpak", "port", "invoke-webrequest",
-    "invoke-restmethod", "iwr", "irm", "gh", "hub", "aws", "gcloud", "az", "kubectl", "helm",
-    "terraform", "pulumi", "heroku", "fly", "vercel", "netlify",
+    "curl",
+    "wget",
+    "nc",
+    "ncat",
+    "netcat",
+    "ssh",
+    "scp",
+    "sftp",
+    "ftp",
+    "telnet",
+    "rsync",
+    "socat",
+    "httpie",
+    "http",
+    "aria2c",
+    "brew",
+    "apt",
+    "apt-get",
+    "yum",
+    "dnf",
+    "pacman",
+    "apk",
+    "choco",
+    "winget",
+    "scoop",
+    "snap",
+    "flatpak",
+    "port",
+    "invoke-webrequest",
+    "invoke-restmethod",
+    "iwr",
+    "irm",
+    "gh",
+    "hub",
+    "aws",
+    "gcloud",
+    "az",
+    "kubectl",
+    "helm",
+    "terraform",
+    "pulumi",
+    "heroku",
+    "fly",
+    "vercel",
+    "netlify",
 ];
 
 const PRIVILEGED: &[&str] = &["sudo", "doas", "su", "pkexec", "runas", "gsudo"];
 
 const INTERPRETERS: &[&str] = &[
-    "sh", "bash", "zsh", "dash", "fish", "ksh", "python", "python3", "node", "ruby", "perl",
-    "php", "pwsh", "powershell", "cmd", "deno", "bun", "lua",
+    "sh",
+    "bash",
+    "zsh",
+    "dash",
+    "fish",
+    "ksh",
+    "python",
+    "python3",
+    "node",
+    "ruby",
+    "perl",
+    "php",
+    "pwsh",
+    "powershell",
+    "cmd",
+    "deno",
+    "bun",
+    "lua",
 ];
 
 const SECRET_PROGRAMS: &[&str] = &["printenv", "pass", "op", "lpass", "bw", "keepassxc-cli"];
@@ -141,7 +337,10 @@ pub fn classify_command(cmd: &str, ctx: &CommandContext<'_>) -> CommandAssessmen
 
 fn classify_into(cmd: &str, ctx: &CommandContext<'_>, a: &mut CommandAssessment, depth: usize) {
     if depth > 4 {
-        a.add(ActionKind::Destructive, "deeply nested shell command cannot be analyzed");
+        a.add(
+            ActionKind::Destructive,
+            "deeply nested shell command cannot be analyzed",
+        );
         return;
     }
 
@@ -194,7 +393,10 @@ fn classify_segment(seg: &str, ctx: &CommandContext<'_>, a: &mut CommandAssessme
     }
 
     if PRIVILEGED.contains(&prog.as_str()) {
-        a.add(ActionKind::Privileged, format!("uses `{prog}` (privilege escalation)"));
+        a.add(
+            ActionKind::Privileged,
+            format!("uses `{prog}` (privilege escalation)"),
+        );
         // Classify the elevated command too.
         if words.len() > 1 {
             classify_segment(&words[1..].join(" "), ctx, a, depth);
@@ -203,13 +405,19 @@ fn classify_segment(seg: &str, ctx: &CommandContext<'_>, a: &mut CommandAssessme
     }
 
     if prog == "eval" || prog == "exec" || prog == "source" || prog == "." {
-        a.add(ActionKind::Destructive, format!("`{prog}` runs code that cannot be analyzed"));
+        a.add(
+            ActionKind::Destructive,
+            format!("`{prog}` runs code that cannot be analyzed"),
+        );
         return;
     }
 
     if INTERPRETERS.contains(&prog.as_str()) {
         if let Some(code) = inline_code(&prog, &args) {
-            if matches!(prog.as_str(), "sh" | "bash" | "zsh" | "dash" | "fish" | "ksh" | "cmd") {
+            if matches!(
+                prog.as_str(),
+                "sh" | "bash" | "zsh" | "dash" | "fish" | "ksh" | "cmd"
+            ) {
                 classify_into(&code, ctx, a, depth + 1);
             } else {
                 a.add(ActionKind::Shell, format!("runs inline {prog} code"));
@@ -248,23 +456,35 @@ fn classify_segment(seg: &str, ctx: &CommandContext<'_>, a: &mut CommandAssessme
             });
             let globbing = args.iter().any(|x| x.contains('*'));
             if recursive || globbing || prog == "shred" {
-                a.add(ActionKind::Destructive, format!("`{}` deletes recursively or by glob", words.join(" ")));
+                a.add(
+                    ActionKind::Destructive,
+                    format!("`{}` deletes recursively or by glob", words.join(" ")),
+                );
             } else {
                 a.add(ActionKind::Delete, "deletes files");
             }
             check_path_args(&args, ctx, a, true);
         }
         "dd" | "mkfs" | "fdisk" | "parted" | "diskutil" | "format" | "wipefs" | "mkswap" => {
-            a.add(ActionKind::Destructive, format!("`{prog}` operates on disks"));
+            a.add(
+                ActionKind::Destructive,
+                format!("`{prog}` operates on disks"),
+            );
         }
         "shutdown" | "reboot" | "halt" | "poweroff" | "launchctl" | "systemctl" | "crontab" => {
-            a.add(ActionKind::Privileged, format!("`{prog}` changes system state"));
+            a.add(
+                ActionKind::Privileged,
+                format!("`{prog}` changes system state"),
+            );
         }
         "kill" | "killall" | "pkill" | "taskkill" => {
             a.add(ActionKind::Shell, format!("`{prog}` stops processes"));
         }
         "chmod" | "chown" | "chgrp" => {
-            a.add(ActionKind::Write, format!("`{prog}` changes file permissions"));
+            a.add(
+                ActionKind::Write,
+                format!("`{prog}` changes file permissions"),
+            );
             if args.iter().any(|x| *x == "-R" || *x == "--recursive") {
                 a.add(ActionKind::Destructive, format!("recursive `{prog}`"));
             }
@@ -274,12 +494,19 @@ fn classify_segment(seg: &str, ctx: &CommandContext<'_>, a: &mut CommandAssessme
             a.add(ActionKind::Write, format!("`{prog}` writes files"));
             check_path_args(&args, ctx, a, true);
         }
-        "sed" | "perl" if args.iter().any(|x| x.starts_with("-i") || *x == "--in-place") => {
+        "sed" | "perl"
+            if args
+                .iter()
+                .any(|x| x.starts_with("-i") || *x == "--in-place") =>
+        {
             a.add(ActionKind::Write, "edits files in place");
             check_path_args(&args, ctx, a, true);
         }
         "find" => {
-            if args.iter().any(|x| matches!(*x, "-delete" | "-exec" | "-execdir" | "-ok")) {
+            if args
+                .iter()
+                .any(|x| matches!(*x, "-delete" | "-exec" | "-execdir" | "-ok"))
+            {
                 a.add(ActionKind::Destructive, "`find` with -delete/-exec");
             } else {
                 a.add(ActionKind::Read, "");
@@ -288,21 +515,48 @@ fn classify_segment(seg: &str, ctx: &CommandContext<'_>, a: &mut CommandAssessme
         }
         "npm" | "pnpm" | "yarn" | "bun" => classify_js_pm(&prog, &args, a),
         "pip" | "pip3" | "pipx" | "uv" | "poetry" | "conda" => {
-            if args.iter().any(|x| matches!(*x, "install" | "add" | "sync" | "update" | "upgrade" | "download" | "lock" | "publish" | "upload")) {
-                a.add(ActionKind::Network, format!("`{prog}` downloads or publishes packages"));
+            if args.iter().any(|x| {
+                matches!(
+                    *x,
+                    "install"
+                        | "add"
+                        | "sync"
+                        | "update"
+                        | "upgrade"
+                        | "download"
+                        | "lock"
+                        | "publish"
+                        | "upload"
+                )
+            }) {
+                a.add(
+                    ActionKind::Network,
+                    format!("`{prog}` downloads or publishes packages"),
+                );
             } else {
                 a.add(ActionKind::Shell, "");
             }
         }
         "gem" | "bundle" | "bundler" => {
-            if args.iter().any(|x| matches!(*x, "install" | "update" | "push" | "add" | "fetch")) {
-                a.add(ActionKind::Network, format!("`{prog}` downloads or publishes gems"));
+            if args
+                .iter()
+                .any(|x| matches!(*x, "install" | "update" | "push" | "add" | "fetch"))
+            {
+                a.add(
+                    ActionKind::Network,
+                    format!("`{prog}` downloads or publishes gems"),
+                );
             } else {
                 a.add(ActionKind::Shell, "");
             }
         }
         "cargo" => {
-            if args.iter().any(|x| matches!(*x, "install" | "publish" | "add" | "update" | "fetch" | "login" | "yank" | "owner")) {
+            if args.iter().any(|x| {
+                matches!(
+                    *x,
+                    "install" | "publish" | "add" | "update" | "fetch" | "login" | "yank" | "owner"
+                )
+            }) {
                 a.add(ActionKind::Network, "`cargo` downloads or publishes crates");
             } else if args.first() == Some(&"clean") {
                 a.add(ActionKind::Delete, "`cargo clean` deletes build output");
@@ -318,17 +572,29 @@ fn classify_segment(seg: &str, ctx: &CommandContext<'_>, a: &mut CommandAssessme
             }
         }
         "docker" | "podman" => {
-            if args.iter().any(|x| matches!(*x, "push" | "pull" | "login" | "run" | "build")) {
+            if args
+                .iter()
+                .any(|x| matches!(*x, "push" | "pull" | "login" | "run" | "build"))
+            {
                 a.add(ActionKind::Network, format!("`{prog}` may use the network"));
             }
-            if args.iter().any(|x| matches!(*x, "rm" | "rmi" | "prune" | "system")) {
-                a.add(ActionKind::Destructive, format!("`{prog}` removes containers or images"));
+            if args
+                .iter()
+                .any(|x| matches!(*x, "rm" | "rmi" | "prune" | "system"))
+            {
+                a.add(
+                    ActionKind::Destructive,
+                    format!("`{prog}` removes containers or images"),
+                );
             }
             a.add(ActionKind::Shell, "");
         }
         "twine" => a.add(ActionKind::Network, "`twine` publishes packages"),
         "npx" | "pnpx" | "bunx" => {
-            a.add(ActionKind::Network, format!("`{prog}` may download and run packages"));
+            a.add(
+                ActionKind::Network,
+                format!("`{prog}` may download and run packages"),
+            );
         }
         p if READ_ONLY.contains(&p) => {
             a.add(ActionKind::Read, "");
@@ -359,58 +625,95 @@ fn classify_git(args: &[&str], a: &mut CommandAssessment) {
     match sub {
         "push" => {
             a.add(ActionKind::GitPush, "pushes to a remote");
-            if rest.iter().any(|x| *x == "-f" || x.starts_with("--force") || x.starts_with('+')) {
-                a.add(ActionKind::Destructive, "force push rewrites remote history");
+            if rest
+                .iter()
+                .any(|x| *x == "-f" || x.starts_with("--force") || x.starts_with('+'))
+            {
+                a.add(
+                    ActionKind::Destructive,
+                    "force push rewrites remote history",
+                );
             }
             a.add(ActionKind::Network, "");
         }
         "commit" => a.add(ActionKind::GitCommit, "creates a commit"),
-        "reset" if has("--hard") || has("--merge") || has("--keep") => {
-            a.add(ActionKind::Destructive, "`git reset --hard` discards uncommitted work")
+        "reset" if has("--hard") || has("--merge") || has("--keep") => a.add(
+            ActionKind::Destructive,
+            "`git reset --hard` discards uncommitted work",
+        ),
+        "clean" => a.add(
+            ActionKind::Destructive,
+            "`git clean` deletes untracked files",
+        ),
+        "checkout"
+            if rest.contains(&"--") || rest.contains(&".") || has("-f") || has("--force") =>
+        {
+            a.add(
+                ActionKind::Destructive,
+                "`git checkout` over files discards uncommitted changes",
+            )
         }
-        "clean" => a.add(ActionKind::Destructive, "`git clean` deletes untracked files"),
-        "checkout" if rest.contains(&"--") || rest.contains(&".") || has("-f") || has("--force") => {
-            a.add(ActionKind::Destructive, "`git checkout` over files discards uncommitted changes")
-        }
-        "restore" if !has("--staged") || has("--worktree") => {
-            a.add(ActionKind::Destructive, "`git restore` discards uncommitted changes")
-        }
-        "stash" if rest.first().map(|s| matches!(*s, "drop" | "clear")).unwrap_or(false) => {
+        "restore" if !has("--staged") || has("--worktree") => a.add(
+            ActionKind::Destructive,
+            "`git restore` discards uncommitted changes",
+        ),
+        "stash"
+            if rest
+                .first()
+                .map(|s| matches!(*s, "drop" | "clear"))
+                .unwrap_or(false) =>
+        {
             a.add(ActionKind::Destructive, "drops stashed work")
         }
         "branch" if has("-D") || has("--delete") || has("-d") => {
             a.add(ActionKind::Destructive, "deletes a branch")
         }
-        "rebase" | "filter-branch" | "filter-repo" | "replace" | "update-ref" | "reflog" | "gc" | "prune" => {
-            a.add(ActionKind::Destructive, format!("`git {sub}` can rewrite or drop history"))
-        }
-        "fetch" | "pull" | "clone" | "ls-remote" | "submodule" | "remote" if sub != "remote" || rest.first() == Some(&"update") => {
+        "rebase" | "filter-branch" | "filter-repo" | "replace" | "update-ref" | "reflog" | "gc"
+        | "prune" => a.add(
+            ActionKind::Destructive,
+            format!("`git {sub}` can rewrite or drop history"),
+        ),
+        "fetch" | "pull" | "clone" | "ls-remote" | "submodule" | "remote"
+            if sub != "remote" || rest.first() == Some(&"update") =>
+        {
             a.add(ActionKind::Network, format!("`git {sub}` uses the network"))
         }
         "status" | "diff" | "log" | "show" | "blame" | "rev-parse" | "ls-files" | "grep"
         | "describe" | "shortlog" | "rev-list" | "cat-file" | "ls-tree" | "remote" | "config"
-            if sub != "config" || rest.iter().all(|x| x.starts_with("--get") || *x == "-l" || *x == "--list") =>
+            if sub != "config"
+                || rest
+                    .iter()
+                    .all(|x| x.starts_with("--get") || *x == "-l" || *x == "--list") =>
         {
             a.add(ActionKind::GitRead, "")
         }
-        "branch" | "tag" if rest.is_empty() || has("--list") || has("-l") || has("-a") || has("-v") => {
+        "branch" | "tag"
+            if rest.is_empty() || has("--list") || has("-l") || has("-a") || has("-v") =>
+        {
             a.add(ActionKind::GitRead, "")
         }
-        _ => a.add(ActionKind::Shell, format!("`git {sub}` modifies the repository")),
+        _ => a.add(
+            ActionKind::Shell,
+            format!("`git {sub}` modifies the repository"),
+        ),
     }
 }
 
 fn classify_js_pm(prog: &str, args: &[&str], a: &mut CommandAssessment) {
     let sub = args.first().copied().unwrap_or("");
     match sub {
-        "install" | "i" | "ci" | "add" | "update" | "upgrade" | "up" | "dlx" | "create" | "init"
-        | "exec" | "x" => a.add(ActionKind::Network, format!("`{prog} {sub}` downloads packages")),
+        "install" | "i" | "ci" | "add" | "update" | "upgrade" | "up" | "dlx" | "create"
+        | "init" | "exec" | "x" => a.add(
+            ActionKind::Network,
+            format!("`{prog} {sub}` downloads packages"),
+        ),
         "" if prog == "yarn" || prog == "bun" => {
             a.add(ActionKind::Network, format!("`{prog}` installs packages"))
         }
-        "publish" | "unpublish" | "deprecate" | "login" | "adduser" | "token" => {
-            a.add(ActionKind::Network, format!("`{prog} {sub}` talks to the registry"))
-        }
+        "publish" | "unpublish" | "deprecate" | "login" | "adduser" | "token" => a.add(
+            ActionKind::Network,
+            format!("`{prog} {sub}` talks to the registry"),
+        ),
         _ => a.add(ActionKind::Shell, ""),
     }
 }
@@ -441,7 +744,12 @@ fn known_kind(line: &str, ctx: &CommandContext<'_>) -> Option<ActionKind> {
 }
 
 /// Flag path-like arguments that leave the workspace.
-fn check_path_args(args: &[&str], ctx: &CommandContext<'_>, a: &mut CommandAssessment, writes: bool) {
+fn check_path_args(
+    args: &[&str],
+    ctx: &CommandContext<'_>,
+    a: &mut CommandAssessment,
+    writes: bool,
+) {
     for arg in args {
         let candidate = arg
             .split_once('=')
@@ -455,13 +763,18 @@ fn check_path_args(args: &[&str], ctx: &CommandContext<'_>, a: &mut CommandAsses
             continue;
         }
         if crate::secrets::is_secret_path(std::path::Path::new(candidate)) {
-            a.add(ActionKind::Secrets, format!("touches secret file {candidate}"));
+            a.add(
+                ActionKind::Secrets,
+                format!("touches secret file {candidate}"),
+            );
         }
         let looks_like_path = candidate.starts_with('/')
             || candidate.starts_with('~')
             || candidate.contains("..")
             || candidate.starts_with('\\')
-            || (candidate.len() > 2 && candidate.as_bytes()[1] == b':' && candidate.as_bytes()[0].is_ascii_alphabetic());
+            || (candidate.len() > 2
+                && candidate.as_bytes()[1] == b':'
+                && candidate.as_bytes()[0].is_ascii_alphabetic());
         if !looks_like_path {
             continue;
         }
@@ -474,35 +787,56 @@ fn check_path_args(args: &[&str], ctx: &CommandContext<'_>, a: &mut CommandAsses
         match ctx.workspace.resolve(candidate) {
             Ok(r) => {
                 if r.secret {
-                    a.add(ActionKind::Secrets, format!("touches secret path {}", r.abs.display()));
+                    a.add(
+                        ActionKind::Secrets,
+                        format!("touches secret path {}", r.abs.display()),
+                    );
                 }
                 if !r.inside && !ctx.workspace.is_extra_readable(&r) {
-                    a.add(ActionKind::OutsideWorkspace, format!("path outside workspace: {}", r.abs.display()));
+                    a.add(
+                        ActionKind::OutsideWorkspace,
+                        format!("path outside workspace: {}", r.abs.display()),
+                    );
                 }
                 if writes && r.git_internal {
                     a.add(ActionKind::Destructive, "writes inside .git");
                 }
             }
-            Err(_) => a.add(ActionKind::OutsideWorkspace, format!("unresolvable path {candidate}")),
+            Err(_) => a.add(
+                ActionKind::OutsideWorkspace,
+                format!("unresolvable path {candidate}"),
+            ),
         }
     }
 }
 
 fn classify_write_target(target: &str, ctx: &CommandContext<'_>, a: &mut CommandAssessment) {
-    if target == "/dev/null" || target.starts_with('&') || target.chars().all(|c| c.is_ascii_digit()) {
+    if target == "/dev/null"
+        || target.starts_with('&')
+        || target.chars().all(|c| c.is_ascii_digit())
+    {
         return;
     }
     if target.starts_with("/dev/") {
-        a.add(ActionKind::Destructive, format!("writes to device {target}"));
+        a.add(
+            ActionKind::Destructive,
+            format!("writes to device {target}"),
+        );
         return;
     }
     a.add(ActionKind::Write, "redirects output to a file");
     if let Ok(r) = ctx.workspace.resolve(target) {
         if !r.inside {
-            a.add(ActionKind::OutsideWorkspace, format!("writes outside workspace: {}", r.abs.display()));
+            a.add(
+                ActionKind::OutsideWorkspace,
+                format!("writes outside workspace: {}", r.abs.display()),
+            );
         }
         if r.secret {
-            a.add(ActionKind::Secrets, format!("writes secret path {}", r.abs.display()));
+            a.add(
+                ActionKind::Secrets,
+                format!("writes secret path {}", r.abs.display()),
+            );
         }
         if r.git_internal {
             a.add(ActionKind::Destructive, "writes inside .git");
@@ -511,9 +845,17 @@ fn classify_write_target(target: &str, ctx: &CommandContext<'_>, a: &mut Command
 }
 
 fn is_harmless_system_path(p: &str) -> bool {
-    ["/usr/bin/", "/usr/local/bin/", "/bin/", "/opt/homebrew/bin/", "/dev/null", "/dev/stdout", "/dev/stderr"]
-        .iter()
-        .any(|pre| p.starts_with(pre))
+    [
+        "/usr/bin/",
+        "/usr/local/bin/",
+        "/bin/",
+        "/opt/homebrew/bin/",
+        "/dev/null",
+        "/dev/stdout",
+        "/dev/stderr",
+    ]
+    .iter()
+    .any(|pre| p.starts_with(pre))
 }
 
 /// Commands that are never run, even with consent from a model-driven flow.
@@ -529,10 +871,15 @@ fn catastrophic(cmd: &str) -> Option<String> {
         if !is_rm {
             continue;
         }
-        let has_rf = w.iter().any(|x| x.starts_with('-') && x.contains('r') && x.contains('f'))
+        let has_rf = w
+            .iter()
+            .any(|x| x.starts_with('-') && x.contains('r') && x.contains('f'))
             || (w.contains(&"-r") && w.contains(&"-f"));
         let target_root = w.iter().any(|x| {
-            matches!(*x, "/" | "/*" | "~" | "~/" | "~/*" | "$home" | "\"$home\"" | "/." | "c:\\" | "c:/")
+            matches!(
+                *x,
+                "/" | "/*" | "~" | "~/" | "~/*" | "$home" | "\"$home\"" | "/." | "c:\\" | "c:/"
+            )
         });
         if has_rf && target_root {
             return Some("recursive delete of / or the home directory".into());
@@ -544,7 +891,11 @@ fn catastrophic(cmd: &str) -> Option<String> {
     if words.first() == Some(&"dd") && words.iter().any(|w| w.starts_with("of=/dev/")) {
         return Some("writes raw data to a disk device".into());
     }
-    if lower.contains("> /dev/sd") || lower.contains(">/dev/sd") || lower.contains("> /dev/nvme") || lower.contains("> /dev/disk") {
+    if lower.contains("> /dev/sd")
+        || lower.contains(">/dev/sd")
+        || lower.contains("> /dev/nvme")
+        || lower.contains("> /dev/disk")
+    {
         return Some("overwrites a disk device".into());
     }
     if compact.contains("chmod-r777/") && (compact.ends_with("777/") || compact.contains("777/ ")) {
@@ -570,7 +921,10 @@ fn split_segments(cmd: &str) -> Vec<Segment> {
     let chars: Vec<char> = cmd.chars().collect();
     let mut i = 0;
     let mut quote: Option<char> = None;
-    let push = |segs: &mut Vec<Segment>, cur: &mut String, redirects: &mut Vec<String>, after_pipe: bool| {
+    let push = |segs: &mut Vec<Segment>,
+                cur: &mut String,
+                redirects: &mut Vec<String>,
+                after_pipe: bool| {
         if !cur.trim().is_empty() {
             segs.push(Segment {
                 text: cur.trim().to_string(),
@@ -714,7 +1068,8 @@ fn extract_substitutions(cmd: &str) -> Vec<String> {
             }
             out.push(chars[start..j.min(chars.len())].iter().collect());
             i = j;
-        } else if !in_single && (c == '<' || c == '>') && i + 1 < chars.len() && chars[i + 1] == '(' {
+        } else if !in_single && (c == '<' || c == '>') && i + 1 < chars.len() && chars[i + 1] == '('
+        {
             // process substitution <(...) — treat like $(...)
             let start = i + 2;
             let mut j = start;
@@ -727,7 +1082,11 @@ fn extract_substitutions(cmd: &str) -> Vec<String> {
                 }
                 j += 1;
             }
-            out.push(chars[start..j.saturating_sub(1).max(start)].iter().collect());
+            out.push(
+                chars[start..j.saturating_sub(1).max(start)]
+                    .iter()
+                    .collect(),
+            );
             i = j;
         }
         i += 1;
@@ -742,7 +1101,11 @@ fn strip_wrappers(mut words: Vec<String>) -> Vec<String> {
         }
         let first = normalize_program(&words[0]);
         // VAR=value prefixes
-        if words[0].contains('=') && !words[0].starts_with('-') && !words[0].starts_with('=') && first != "env" {
+        if words[0].contains('=')
+            && !words[0].starts_with('-')
+            && !words[0].starts_with('=')
+            && first != "env"
+        {
             let name = words[0].split('=').next().unwrap_or("");
             if name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && !name.is_empty() {
                 words.remove(0);
@@ -783,7 +1146,11 @@ fn strip_wrappers(mut words: Vec<String>) -> Vec<String> {
 }
 
 fn normalize_program(p: &str) -> String {
-    let base = p.rsplit(['/', '\\']).next().unwrap_or(p).to_ascii_lowercase();
+    let base = p
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(p)
+        .to_ascii_lowercase();
     base.strip_suffix(".exe")
         .or_else(|| base.strip_suffix(".cmd"))
         .or_else(|| base.strip_suffix(".bat"))
@@ -792,14 +1159,19 @@ fn normalize_program(p: &str) -> String {
 }
 
 fn program_of(seg: &str) -> Option<String> {
-    let words = shell_words::split(seg).unwrap_or_else(|_| seg.split_whitespace().map(str::to_string).collect());
+    let words = shell_words::split(seg)
+        .unwrap_or_else(|_| seg.split_whitespace().map(str::to_string).collect());
     strip_wrappers(words).first().map(|w| normalize_program(w))
 }
 
 fn interpreter_reads_stdin(seg: &str) -> bool {
     let words: Vec<&str> = seg.split_whitespace().collect();
     // `python script.py` reads a file, `sh` / `sh -` / `python -` read stdin.
-    words.len() == 1 || words.get(1).map(|w| *w == "-" || *w == "-s" || *w == "-i").unwrap_or(false)
+    words.len() == 1
+        || words
+            .get(1)
+            .map(|w| *w == "-" || *w == "-s" || *w == "-i")
+            .unwrap_or(false)
 }
 
 fn inline_code(prog: &str, args: &[&str]) -> Option<String> {
@@ -812,20 +1184,50 @@ fn inline_code(prog: &str, args: &[&str]) -> Option<String> {
     };
     let pos = args.iter().position(|a| {
         let l = a.to_ascii_lowercase();
-        l == flag || (flag == "-e" && (l == "--eval" || l == "-p" || l == "--print")) || (flag == "-command" && l == "-c")
+        l == flag
+            || (flag == "-e" && (l == "--eval" || l == "-p" || l == "--print"))
+            || (flag == "-command" && l == "-c")
     })?;
     args.get(pos + 1).map(|s| s.to_string())
 }
 
 fn scan_inline_code(code: &str, a: &mut CommandAssessment) {
     let l = code.to_ascii_lowercase();
-    let net = ["socket", "urllib", "requests", "http.client", "http://", "https://", "fetch(", "net/http", "xmlhttprequest", "open-uri", "net::http"];
+    let net = [
+        "socket",
+        "urllib",
+        "requests",
+        "http.client",
+        "http://",
+        "https://",
+        "fetch(",
+        "net/http",
+        "xmlhttprequest",
+        "open-uri",
+        "net::http",
+    ];
     if net.iter().any(|n| l.contains(n)) {
         a.add(ActionKind::Network, "inline code uses the network");
     }
-    let destructive = ["rmtree", "os.remove", "unlink", "rm_rf", "fs.rm", "rmsync", "shutil.rmtree", "file.delete", "os.system", "subprocess", "child_process", "exec("];
+    let destructive = [
+        "rmtree",
+        "os.remove",
+        "unlink",
+        "rm_rf",
+        "fs.rm",
+        "rmsync",
+        "shutil.rmtree",
+        "file.delete",
+        "os.system",
+        "subprocess",
+        "child_process",
+        "exec(",
+    ];
     if destructive.iter().any(|n| l.contains(n)) {
-        a.add(ActionKind::Destructive, "inline code deletes files or spawns processes");
+        a.add(
+            ActionKind::Destructive,
+            "inline code deletes files or spawns processes",
+        );
     }
 }
 
@@ -858,7 +1260,10 @@ mod tests {
     #[test]
     fn project_commands() {
         assert_eq!(kinds("cargo test -p foo"), vec![Test]);
-        assert_eq!(kinds("bundle exec rspec spec/models/user_spec.rb"), vec![Test]);
+        assert_eq!(
+            kinds("bundle exec rspec spec/models/user_spec.rb"),
+            vec![Test]
+        );
         assert_eq!(kinds("pytest -x tests/test_auth.py"), vec![Test]);
         assert_eq!(kinds("cargo clippy --all-targets"), vec![Lint]);
         assert_eq!(kinds("npm run build"), vec![Build]);
@@ -899,7 +1304,15 @@ mod tests {
         assert!(kinds("rm -rf build").contains(&Destructive));
         assert!(kinds("rm *.log").contains(&Destructive));
         assert_eq!(kinds("rm notes.txt"), vec![Delete]);
-        for c in ["rm -rf /", "rm -rf ~", "sudo rm -rf / --no-preserve-root", "mkfs.ext4 /dev/sda1", "dd if=/dev/zero of=/dev/sda", ":(){ :|:& };:", "echo x > /dev/sda"] {
+        for c in [
+            "rm -rf /",
+            "rm -rf ~",
+            "sudo rm -rf / --no-preserve-root",
+            "mkfs.ext4 /dev/sda1",
+            "dd if=/dev/zero of=/dev/sda",
+            ":(){ :|:& };:",
+            "echo x > /dev/sda",
+        ] {
             assert!(classify(c).blocked.is_some(), "{c} should be blocked");
         }
         assert!(classify("make deploy production").blocked.is_some());
@@ -920,7 +1333,17 @@ mod tests {
 
     #[test]
     fn network() {
-        for c in ["curl https://example.com", "wget http://x", "npm install left-pad", "pip install requests", "bundle install", "ssh host", "cargo install ripgrep", "npx create-react-app x", "git clone https://x"] {
+        for c in [
+            "curl https://example.com",
+            "wget http://x",
+            "npm install left-pad",
+            "pip install requests",
+            "bundle install",
+            "ssh host",
+            "cargo install ripgrep",
+            "npx create-react-app x",
+            "git clone https://x",
+        ] {
             assert!(kinds(c).contains(&Network), "{c}");
         }
     }

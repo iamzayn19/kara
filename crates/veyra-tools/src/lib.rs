@@ -189,7 +189,9 @@ pub(crate) fn arg_str<'a>(args: &'a Value, key: &str) -> Result<&'a str, String>
 }
 
 pub(crate) fn opt_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
-    args.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
+    args.get(key)
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
 }
 
 pub(crate) fn opt_u64(args: &Value, key: &str) -> Option<u64> {
@@ -209,10 +211,15 @@ pub(crate) fn opt_bool(args: &Value, key: &str) -> Option<bool> {
 
 pub(crate) fn opt_str_list(args: &Value, key: &str) -> Vec<String> {
     match args.get(key) {
-        Some(Value::Array(a)) => a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
-        Some(Value::String(s)) if !s.trim().is_empty() => {
-            s.split([',', ' ']).filter(|x| !x.is_empty()).map(str::to_string).collect()
-        }
+        Some(Value::Array(a)) => a
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect(),
+        Some(Value::String(s)) if !s.trim().is_empty() => s
+            .split([',', ' '])
+            .filter(|x| !x.is_empty())
+            .map(str::to_string)
+            .collect(),
         _ => Vec::new(),
     }
 }
@@ -225,7 +232,10 @@ pub(crate) fn path_kinds(
     a: &mut Assessment,
 ) {
     if p.secret {
-        a.push(ActionKind::Secrets, format!("{} looks like a credentials file", p.display()));
+        a.push(
+            ActionKind::Secrets,
+            format!("{} looks like a credentials file", p.display()),
+        );
     }
     if !p.inside && !(!write && ctx.workspace.is_extra_readable(p)) {
         a.push(
@@ -234,7 +244,10 @@ pub(crate) fn path_kinds(
         );
     }
     if write && p.git_internal {
-        a.push(ActionKind::Destructive, "writes inside .git (could install hooks)");
+        a.push(
+            ActionKind::Destructive,
+            "writes inside .git (could install hooks)",
+        );
     }
 }
 
@@ -258,7 +271,8 @@ pub(crate) mod testutil {
         let state = tempfile::tempdir().unwrap();
         let ws = Workspace::new(dir.path()).unwrap();
         let journal = Journal::open(ws.root(), state.path()).unwrap();
-        let profile = ProjectProfile::detect(ws.root(), &veyra_context::LanguageRegistry::builtin());
+        let profile =
+            ProjectProfile::detect(ws.root(), &veyra_context::LanguageRegistry::builtin());
         let ctx = ToolContext {
             workspace: ws,
             profile,

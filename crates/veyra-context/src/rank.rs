@@ -27,14 +27,94 @@ pub struct Orientation {
 }
 
 const STOPWORDS: &[&str] = &[
-    "the", "and", "for", "with", "that", "this", "from", "into", "when", "what", "why", "how",
-    "are", "was", "were", "will", "can", "could", "should", "would", "fix", "add", "make",
-    "find", "explain", "please", "failing", "fails", "fail", "test", "tests", "spec", "specs",
-    "code", "repository", "repo", "file", "files", "function", "method", "class", "bug", "issue",
-    "work", "works", "does", "not", "all", "any", "use", "using", "implement", "support", "change",
-    "update", "new", "get", "set", "there", "here", "about", "some", "them", "they", "its", "our",
-    "your", "you", "have", "has", "had", "but", "out", "run", "check", "current", "slow", "feature",
-    "described", "convert", "review", "build", "also", "just", "only", "then", "than", "which",
+    "the",
+    "and",
+    "for",
+    "with",
+    "that",
+    "this",
+    "from",
+    "into",
+    "when",
+    "what",
+    "why",
+    "how",
+    "are",
+    "was",
+    "were",
+    "will",
+    "can",
+    "could",
+    "should",
+    "would",
+    "fix",
+    "add",
+    "make",
+    "find",
+    "explain",
+    "please",
+    "failing",
+    "fails",
+    "fail",
+    "test",
+    "tests",
+    "spec",
+    "specs",
+    "code",
+    "repository",
+    "repo",
+    "file",
+    "files",
+    "function",
+    "method",
+    "class",
+    "bug",
+    "issue",
+    "work",
+    "works",
+    "does",
+    "not",
+    "all",
+    "any",
+    "use",
+    "using",
+    "implement",
+    "support",
+    "change",
+    "update",
+    "new",
+    "get",
+    "set",
+    "there",
+    "here",
+    "about",
+    "some",
+    "them",
+    "they",
+    "its",
+    "our",
+    "your",
+    "you",
+    "have",
+    "has",
+    "had",
+    "but",
+    "out",
+    "run",
+    "check",
+    "current",
+    "slow",
+    "feature",
+    "described",
+    "convert",
+    "review",
+    "build",
+    "also",
+    "just",
+    "only",
+    "then",
+    "than",
+    "which",
 ];
 
 /// Extract search terms from a natural-language task.
@@ -45,7 +125,9 @@ pub fn terms(task: &str) -> Vec<String> {
             out.push(t);
         }
     };
-    for raw in task.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == ':' || c == '.' || c == '/')) {
+    for raw in
+        task.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == ':' || c == '.' || c == '/'))
+    {
         let raw = raw.trim_matches(|c: char| c == '.' || c == ':' || c == '/');
         if raw.is_empty() || raw.chars().all(|c| c.is_ascii_digit()) {
             continue;
@@ -80,7 +162,8 @@ fn split_identifier(s: &str) -> Vec<String> {
         let boundary = c.is_uppercase()
             && !cur.is_empty()
             && (chars[i - 1].is_lowercase()
-                || chars.get(i + 1).map(|n| n.is_lowercase()).unwrap_or(false) && chars[i - 1].is_uppercase());
+                || chars.get(i + 1).map(|n| n.is_lowercase()).unwrap_or(false)
+                    && chars[i - 1].is_uppercase());
         if boundary {
             parts.push(std::mem::take(&mut cur));
         }
@@ -146,16 +229,39 @@ pub fn orient(
                 continue;
             }
             let weight = if s >= 3.0 { 6.0 } else { 2.0 * s };
-            bump(&mut scores, &hit.path, weight.min(8.0), format!("defines `{}`", hit.name));
-            symbol_sites
-                .entry(hit.path.clone())
-                .or_default()
-                .push((hit.name.clone(), hit.kind.clone(), hit.line));
+            bump(
+                &mut scores,
+                &hit.path,
+                weight.min(8.0),
+                format!("defines `{}`", hit.name),
+            );
+            symbol_sites.entry(hit.path.clone()).or_default().push((
+                hit.name.clone(),
+                hit.kind.clone(),
+                hit.line,
+            ));
         }
     }
 
-    // 2. Paths.
+    // 2. Paths. A path can only score if it shares a 4-character window
+    // with a term (every branch of `term_score` implies that), so filter
+    // cheaply before the full comparison. Keeps ranking fast on 100k files.
+    let grams: Vec<String> = terms
+        .iter()
+        .flat_map(|t| {
+            let chars: Vec<char> = t.to_lowercase().chars().collect();
+            if chars.len() < 4 {
+                vec![chars.iter().collect::<String>()]
+            } else {
+                chars.windows(4).map(|w| w.iter().collect::<String>()).collect()
+            }
+        })
+        .collect();
     for (path, _, _) in &files {
+        let lower = path.to_lowercase();
+        if !grams.iter().any(|g| lower.contains(g.as_str())) {
+            continue;
+        }
         let segs: Vec<&str> = path
             .split(['/', '.', '_', '-'])
             .filter(|s| s.len() >= 3)
@@ -177,7 +283,12 @@ pub fn orient(
             }
         }
         if best >= 1.0 {
-            bump(&mut scores, path, best * 1.5, format!("path matches `{best_term}`"));
+            bump(
+                &mut scores,
+                path,
+                best * 1.5,
+                format!("path matches `{best_term}`"),
+            );
         }
     }
 
@@ -188,22 +299,42 @@ pub fn orient(
         }
     }
 
-    // 4. Lexical fallback when the index found little.
+    // 4. Lexical fallback when the index found little: one combined pass,
+    // stopping early on huge trees.
     if scores.len() < 3 {
-        for term in terms.iter().filter(|t| t.len() >= 4).take(3) {
+        let lexical: Vec<&String> = terms.iter().filter(|t| t.len() >= 4).take(3).collect();
+        if !lexical.is_empty() {
+            let pattern = lexical
+                .iter()
+                .map(|t| regex::escape(t))
+                .collect::<Vec<_>>()
+                .join("|");
             let opts = GrepOptions {
-                regex: false,
+                regex: true,
                 case_insensitive: true,
-                max_matches: 60,
+                max_matches: 120,
+                stop_early: true,
                 ..Default::default()
             };
-            if let Ok(r) = grep(index.root(), term, &opts) {
-                let mut counts: HashMap<&str, usize> = HashMap::new();
+            if let Ok(r) = grep(index.root(), &pattern, &opts) {
+                let mut counts: HashMap<&str, (usize, &str)> = HashMap::new();
                 for m in &r.matches {
-                    *counts.entry(m.path.as_str()).or_default() += 1;
+                    let lower = m.text.to_lowercase();
+                    let term = lexical
+                        .iter()
+                        .find(|t| lower.contains(&t.to_lowercase()))
+                        .map(|t| t.as_str())
+                        .unwrap_or("");
+                    let e = counts.entry(m.path.as_str()).or_insert((0, term));
+                    e.0 += 1;
                 }
-                for (p, n) in counts {
-                    bump(&mut scores, p, (n as f32).sqrt().min(3.0), format!("mentions `{term}`"));
+                for (p, (n, term)) in counts {
+                    bump(
+                        &mut scores,
+                        p,
+                        (n as f32).sqrt().min(3.0),
+                        format!("mentions `{term}`"),
+                    );
                 }
             }
         }
@@ -211,7 +342,11 @@ pub fn orient(
 
     // 5. Tests and importers of the strongest candidates.
     let mut top: Vec<(String, f32)> = scores.iter().map(|(p, v)| (p.clone(), v.0)).collect();
-    top.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then(a.0.cmp(&b.0)));
+    top.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.0.cmp(&b.0))
+    });
     for (path, score) in top.iter().take(5) {
         if test_files.contains(&path) {
             continue;
@@ -223,7 +358,12 @@ pub fn orient(
         for t in &test_files {
             let tstem = file_stem(t);
             if tstem.contains(&stem) {
-                bump(&mut scores, t, (score * 0.6).max(2.0), format!("tests {path}"));
+                bump(
+                    &mut scores,
+                    t,
+                    (score * 0.6).max(2.0),
+                    format!("tests {path}"),
+                );
             }
         }
         for imp in index.importers_of(&stem, 8)? {
@@ -278,7 +418,8 @@ impl Orientation {
         if self.files.is_empty() {
             return "No strongly related files found by the index; use grep/find_files to explore.\n".into();
         }
-        let mut s = String::from("Likely relevant files (ranked by Veyra's index; read before editing):\n");
+        let mut s =
+            String::from("Likely relevant files (ranked by Veyra's index; read before editing):\n");
         for f in &self.files {
             s.push_str(&format!("- {} ({})\n", f.path, f.reasons.join("; ")));
             for (name, kind, line) in &f.symbols {
@@ -296,7 +437,9 @@ mod tests {
 
     #[test]
     fn term_extraction() {
-        let t = terms("Fix the failing authentication specs in SessionStore#valid? and api/v2/users.rb");
+        let t = terms(
+            "Fix the failing authentication specs in SessionStore#valid? and api/v2/users.rb",
+        );
         assert!(t.contains(&"authentication".to_string()));
         assert!(t.contains(&"SessionStore".to_string()));
         assert!(t.contains(&"session".to_string()));
@@ -304,8 +447,14 @@ mod tests {
         assert!(t.contains(&"api/v2/users.rb".to_string()));
         assert!(!t.contains(&"the".to_string()));
         assert!(!t.contains(&"failing".to_string()));
-        assert_eq!(split_identifier("HTTPServerError"), vec!["HTTP", "Server", "Error"]);
-        assert_eq!(split_identifier("apply_discount"), vec!["apply", "discount"]);
+        assert_eq!(
+            split_identifier("HTTPServerError"),
+            vec!["HTTP", "Server", "Error"]
+        );
+        assert_eq!(
+            split_identifier("apply_discount"),
+            vec!["apply", "discount"]
+        );
     }
 
     #[test]
@@ -317,20 +466,47 @@ mod tests {
             std::fs::create_dir_all(p.parent().unwrap()).unwrap();
             std::fs::write(p, t).unwrap();
         };
-        w("app/payments/charge.py", "def create_charge(amount):\n    pass\n");
-        w("app/auth/session.py", "class SessionStore:\n    def authenticate(self, token):\n        pass\n");
-        w("tests/test_session.py", "from app.auth.session import SessionStore\n");
-        w("app/views.py", "from app.auth.session import SessionStore\n");
+        w(
+            "app/payments/charge.py",
+            "def create_charge(amount):\n    pass\n",
+        );
+        w(
+            "app/auth/session.py",
+            "class SessionStore:\n    def authenticate(self, token):\n        pass\n",
+        );
+        w(
+            "tests/test_session.py",
+            "from app.auth.session import SessionStore\n",
+        );
+        w(
+            "app/views.py",
+            "from app.auth.session import SessionStore\n",
+        );
         w("README.md", "docs\n");
-        let idx = RepoIndex::open(repo.path(), cache.path(), LanguageRegistry::builtin(), 1_000_000).unwrap();
+        let idx = RepoIndex::open(
+            repo.path(),
+            cache.path(),
+            LanguageRegistry::builtin(),
+            1_000_000,
+        )
+        .unwrap();
         idx.refresh().unwrap();
-        let o = orient(&idx, "Fix why authenticate rejects valid session tokens", &[], 5).unwrap();
+        let o = orient(
+            &idx,
+            "Fix why authenticate rejects valid session tokens",
+            &[],
+            5,
+        )
+        .unwrap();
         let paths: Vec<&str> = o.files.iter().map(|f| f.path.as_str()).collect();
         assert_eq!(paths[0], "app/auth/session.py", "{o:#?}");
         assert!(paths.contains(&"tests/test_session.py"), "{paths:?}");
         assert!(!paths.contains(&"app/payments/charge.py"), "{paths:?}");
         let top = &o.files[0];
-        assert!(top.symbols.iter().any(|s| s.0 == "authenticate" && s.2 == 2));
+        assert!(top
+            .symbols
+            .iter()
+            .any(|s| s.0 == "authenticate" && s.2 == 2));
         assert!(o.render().contains("app/auth/session.py"));
     }
 }

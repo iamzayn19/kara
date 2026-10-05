@@ -31,13 +31,13 @@ pub fn truncate_smart(text: &str, max_chars: usize) -> String {
 
     let mut head_end = 0;
     let mut used = 0;
-    while head_end < lines.len() && used + lines[head_end].len() + 1 <= head_budget {
+    while head_end < lines.len() && used + lines[head_end].len() < head_budget {
         used += lines[head_end].len() + 1;
         head_end += 1;
     }
     let mut tail_start = lines.len();
     used = 0;
-    while tail_start > head_end && used + lines[tail_start - 1].len() + 1 <= tail_budget {
+    while tail_start > head_end && used + lines[tail_start - 1].len() < tail_budget {
         used += lines[tail_start - 1].len() + 1;
         tail_start -= 1;
     }
@@ -104,7 +104,9 @@ pub fn clip_chars(s: &str, max: usize) -> String {
 /// Strip ANSI escape sequences (colour codes from test runners).
 pub fn strip_ansi(s: &str) -> String {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07").expect("valid regex"));
+    let re = RE.get_or_init(|| {
+        Regex::new(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07").expect("valid regex")
+    });
     re.replace_all(s, "").into_owned()
 }
 
@@ -131,7 +133,10 @@ mod tests {
         for i in 0..2000 {
             log.push_str(&format!("compiling crate number {i}\n"));
         }
-        log.insert_str(log.len() / 2, "error[E0308]: mismatched types at src/lib.rs:10:5\n");
+        log.insert_str(
+            log.len() / 2,
+            "error[E0308]: mismatched types at src/lib.rs:10:5\n",
+        );
         let out = truncate_smart(&log, 2000);
         assert!(out.len() < 2600, "{}", out.len());
         assert!(out.contains("error[E0308]"));
@@ -148,7 +153,10 @@ mod tests {
 
     #[test]
     fn ansi_and_secrets_are_removed() {
-        let out = for_model("\x1b[31mFAIL\x1b[0m token=\"ghp_abcdefghijklmnopqrstuvwxyz0123456789\"", 1000);
+        let out = for_model(
+            "\x1b[31mFAIL\x1b[0m token=\"ghp_abcdefghijklmnopqrstuvwxyz0123456789\"",
+            1000,
+        );
         assert!(out.starts_with("FAIL"));
         assert!(!out.contains("ghp_"));
     }

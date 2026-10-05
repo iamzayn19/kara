@@ -197,7 +197,9 @@ mod tests {
             codes::PARSE_ERROR
         );
         assert_eq!(
-            Message::decode(r#"{"id":1,"method":"x"}"#).unwrap_err().code,
+            Message::decode(r#"{"id":1,"method":"x"}"#)
+                .unwrap_err()
+                .code,
             codes::INVALID_REQUEST
         );
         assert_eq!(

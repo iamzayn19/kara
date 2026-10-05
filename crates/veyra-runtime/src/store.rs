@@ -34,7 +34,9 @@ pub struct ModelStore {
 
 impl ModelStore {
     pub fn new(dir: &Path) -> Self {
-        Self { dir: dir.to_path_buf() }
+        Self {
+            dir: dir.to_path_buf(),
+        }
     }
 
     fn model_dir(&self, spec: &ModelSpec) -> PathBuf {
@@ -55,7 +57,9 @@ impl ModelStore {
     /// written after successful checksum verification.
     pub fn is_installed(&self, spec: &ModelSpec) -> bool {
         let p = self.path_for(spec);
-        let size_ok = std::fs::metadata(&p).map(|m| m.len() == spec.size_bytes).unwrap_or(false);
+        let size_ok = std::fs::metadata(&p)
+            .map(|m| m.len() == spec.size_bytes)
+            .unwrap_or(false);
         size_ok && self.record(spec).is_some()
     }
 
@@ -74,9 +78,16 @@ impl ModelStore {
     ) -> anyhow::Result<PathBuf> {
         let dest = self.path_for(spec);
         let client = reqwest::Client::builder().build()?;
-        download_verified(&client, &spec.download_url(), &dest, spec.sha256.as_deref(), on_progress, cancel)
-            .await
-            .map_err(|e| anyhow::anyhow!("{}: {e}", spec.name))?;
+        download_verified(
+            &client,
+            &spec.download_url(),
+            &dest,
+            spec.sha256.as_deref(),
+            on_progress,
+            cancel,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("{}: {e}", spec.name))?;
         let rec = ModelRecord {
             id: spec.id.clone(),
             name: spec.name.clone(),
@@ -107,9 +118,13 @@ impl ModelStore {
     /// Installed model records.
     pub fn installed(&self) -> Vec<ModelRecord> {
         let mut out = Vec::new();
-        let Ok(repos) = std::fs::read_dir(&self.dir) else { return out };
+        let Ok(repos) = std::fs::read_dir(&self.dir) else {
+            return out;
+        };
         for repo in repos.flatten() {
-            let Ok(revs) = std::fs::read_dir(repo.path()) else { continue };
+            let Ok(revs) = std::fs::read_dir(repo.path()) else {
+                continue;
+            };
             for rev in revs.flatten() {
                 if let Ok(bytes) = std::fs::read(rev.path().join("veyra-model.json")) {
                     if let Ok(r) = serde_json::from_slice::<ModelRecord>(&bytes) {

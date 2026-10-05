@@ -86,8 +86,20 @@ impl SymbolExtractor for PatternExtractor {
 fn is_keyword(name: &str) -> bool {
     matches!(
         name,
-        "if" | "for" | "while" | "switch" | "catch" | "return" | "else" | "new" | "function"
-            | "do" | "try" | "match" | "loop" | "sizeof" | "defined"
+        "if" | "for"
+            | "while"
+            | "switch"
+            | "catch"
+            | "return"
+            | "else"
+            | "new"
+            | "function"
+            | "do"
+            | "try"
+            | "match"
+            | "loop"
+            | "sizeof"
+            | "defined"
     )
 }
 
@@ -102,7 +114,10 @@ mod tests {
     }
 
     fn names(e: &Extracted) -> Vec<(&str, &str)> {
-        e.symbols.iter().map(|s| (s.name.as_str(), s.kind.as_str())).collect()
+        e.symbols
+            .iter()
+            .map(|s| (s.name.as_str(), s.kind.as_str()))
+            .collect()
     }
 
     #[test]
@@ -118,7 +133,10 @@ mod tests {
         assert!(n.contains(&("valid?", "method")));
         assert!(n.contains(&("TTL", "constant")));
         assert_eq!(e.imports, vec!["json"]);
-        assert_eq!(e.symbols.iter().find(|s| s.name == "valid?").unwrap().line, 7);
+        assert_eq!(
+            e.symbols.iter().find(|s| s.name == "valid?").unwrap().line,
+            7
+        );
     }
 
     #[test]

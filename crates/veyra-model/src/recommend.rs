@@ -7,6 +7,7 @@
 //!   * it supports tool calling,
 //!   * weights + KV cache for at least `min_context` fit in fast memory, or a
 //!     MoE model fits with expert layers offloaded to system RAM.
+//!
 //! The context length is reduced (down to `min_context`) before rejecting a
 //! model. Disk space is checked separately and reported.
 
@@ -52,7 +53,13 @@ fn plan_for(m: &ModelSpec, hw: &HardwareInfo) -> (Option<(u32, Placement)>, Stri
     loop {
         let need = m.memory_needed(ctx);
         if need <= fast {
-            return (Some((ctx, Placement::Full)), format!("fits in {} with {ctx} tokens of context", format_bytes(fast)));
+            return (
+                Some((ctx, Placement::Full)),
+                format!(
+                    "fits in {} with {ctx} tokens of context",
+                    format_bytes(fast)
+                ),
+            );
         }
         if ctx <= m.min_context {
             break;
@@ -68,7 +75,11 @@ fn plan_for(m: &ModelSpec, hw: &HardwareInfo) -> (Option<(u32, Placement)>, Stri
         if kv + 2_000_000_000 <= fast && m.size_bytes <= ram + fast - kv {
             return (
                 Some((ctx, Placement::PartialOffload)),
-                format!("MoE: experts offloaded to RAM ({} RAM + {} VRAM)", format_bytes(ram), format_bytes(fast)),
+                format!(
+                    "MoE: experts offloaded to RAM ({} RAM + {} VRAM)",
+                    format_bytes(ram),
+                    format_bytes(fast)
+                ),
             );
         }
     }
@@ -89,7 +100,10 @@ pub fn recommend(registry: &Registry, hw: &HardwareInfo) -> Recommendation {
     let mut eligible: Vec<(&ModelSpec, u32, Placement, bool)> = Vec::new();
 
     for m in &registry.models {
-        let disk_ok = hw.disk_free.map(|f| f > m.size_bytes + 1_000_000_000).unwrap_or(true);
+        let disk_ok = hw
+            .disk_free
+            .map(|f| f > m.size_bytes + 1_000_000_000)
+            .unwrap_or(true);
         let mut c = Candidate {
             id: m.id.clone(),
             name: m.name.clone(),
@@ -113,7 +127,8 @@ pub fn recommend(registry: &Registry, hw: &HardwareInfo) -> Recommendation {
                 c.memory_needed = m.memory_needed(ctx);
                 c.placement = Some(placement.clone());
                 if !m.auto_select {
-                    c.reason.push_str("; not auto-selected (pending evaluation or too small)");
+                    c.reason
+                        .push_str("; not auto-selected (pending evaluation or too small)");
                 } else {
                     eligible.push((m, ctx, placement, disk_ok));
                 }
@@ -124,8 +139,18 @@ pub fn recommend(registry: &Registry, hw: &HardwareInfo) -> Recommendation {
 
     // Best score first; full placement beats partial offload at equal score.
     eligible.sort_by(|a, b| {
-        let sa = a.0.selection_score() - if a.2 == Placement::PartialOffload { 15.0 } else { 0.0 };
-        let sb = b.0.selection_score() - if b.2 == Placement::PartialOffload { 15.0 } else { 0.0 };
+        let sa = a.0.selection_score()
+            - if a.2 == Placement::PartialOffload {
+                15.0
+            } else {
+                0.0
+            };
+        let sb = b.0.selection_score()
+            - if b.2 == Placement::PartialOffload {
+                15.0
+            } else {
+                0.0
+            };
         sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -201,7 +226,10 @@ mod tests {
         let r = recommend(&Registry::builtin(), &mac(16));
         let m = r.model.unwrap();
         assert!(m.size_bytes < 10_000_000_000, "{}", m.id);
-        assert!(r.candidates.iter().any(|c| c.id == "qwen3.6-35b-a3b-q4_k_m" && !c.fits));
+        assert!(r
+            .candidates
+            .iter()
+            .any(|c| c.id == "qwen3.6-35b-a3b-q4_k_m" && !c.fits));
     }
 
     #[test]
@@ -221,10 +249,20 @@ mod tests {
             ..Default::default()
         };
         let r = recommend(&Registry::builtin(), &hw);
-        let c = r.candidates.iter().find(|c| c.id == "qwen3.6-35b-a3b-q4_k_m").unwrap();
+        let c = r
+            .candidates
+            .iter()
+            .find(|c| c.id == "qwen3.6-35b-a3b-q4_k_m")
+            .unwrap();
         assert_eq!(c.placement, Some(Placement::PartialOffload));
         // A dense 27B does not fit in 12 GB and cannot be partially offloaded usefully.
-        assert!(!r.candidates.iter().find(|c| c.id == "qwen3.6-27b-q4_k_m").unwrap().fits);
+        assert!(
+            !r.candidates
+                .iter()
+                .find(|c| c.id == "qwen3.6-27b-q4_k_m")
+                .unwrap()
+                .fits
+        );
     }
 
     #[test]
@@ -244,7 +282,14 @@ mod tests {
 
     #[test]
     fn tiny_machine_gets_nothing_honestly() {
-        let r = recommend(&Registry::builtin(), &HardwareInfo { total_ram: 4 << 30, available_ram: 2 << 30, ..Default::default() });
+        let r = recommend(
+            &Registry::builtin(),
+            &HardwareInfo {
+                total_ram: 4 << 30,
+                available_ram: 2 << 30,
+                ..Default::default()
+            },
+        );
         assert!(r.model.is_none());
         assert!(r.summary.contains("No registry model fits"));
     }

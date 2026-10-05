@@ -60,7 +60,8 @@ pub fn system_prompt(mode: AgentMode) -> String {
 
 pub const VERIFY_NUDGE: &str = "You changed files but have not run tests since your last edit. Run the most relevant tests with run_test now. If tests cannot run in this project, say why in your final answer.";
 
-pub const EMPTY_NUDGE: &str = "Your last reply was empty. Continue: call a tool, or give your final answer.";
+pub const EMPTY_NUDGE: &str =
+    "Your last reply was empty. Continue: call a tool, or give your final answer.";
 
 pub const REPEAT_NOTE: &str = "[veyra: you have made this exact call several times with the same result. Change your approach: re-read the relevant code, try a different search, or explain what is blocking you.]";
 

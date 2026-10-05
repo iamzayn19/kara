@@ -69,7 +69,10 @@ pub fn parse_unified(text: &str) -> Result<Vec<FilePatch>, String> {
                     i += 1;
                     while i < lines.len() {
                         let hl = lines[i];
-                        if hl.starts_with("@@") || hl.starts_with("--- ") || hl.starts_with("diff --git") {
+                        if hl.starts_with("@@")
+                            || hl.starts_with("--- ")
+                            || hl.starts_with("diff --git")
+                        {
                             break;
                         }
                         if hl.starts_with("\\ No newline") {
@@ -140,7 +143,12 @@ fn eq(a: &str, b: &str, f: Fuzz) -> bool {
     }
 }
 
-fn find_block(hay: &[String], needle: &[String], near: usize, fuzz: Fuzz) -> Result<Option<usize>, String> {
+fn find_block(
+    hay: &[String],
+    needle: &[String],
+    near: usize,
+    fuzz: Fuzz,
+) -> Result<Option<usize>, String> {
     if needle.is_empty() {
         return Ok(Some(near.min(hay.len())));
     }
@@ -149,7 +157,11 @@ fn find_block(hay: &[String], needle: &[String], near: usize, fuzz: Fuzz) -> Res
     }
     let mut hits = Vec::new();
     for start in 0..=hay.len() - needle.len() {
-        if needle.iter().enumerate().all(|(k, n)| eq(&hay[start + k], n, fuzz)) {
+        if needle
+            .iter()
+            .enumerate()
+            .all(|(k, n)| eq(&hay[start + k], n, fuzz))
+        {
             hits.push(start);
         }
     }
@@ -203,7 +215,9 @@ pub fn apply_hunks(original: &str, hunks: &[Hunk]) -> Result<String, String> {
         let near = ((h.old_start as i64 - 1) + offset).max(0) as usize;
         let mut found = None;
         for fuzz in [Fuzz::Exact, Fuzz::TrailingWs, Fuzz::AllWs] {
-            if let Some(pos) = find_block(&lines, &h.old, near, fuzz).map_err(|e| format!("hunk {}: {e}", n + 1))? {
+            if let Some(pos) = find_block(&lines, &h.old, near, fuzz)
+                .map_err(|e| format!("hunk {}: {e}", n + 1))?
+            {
                 found = Some(pos);
                 break;
             }
@@ -225,9 +239,16 @@ pub fn apply_hunks(original: &str, hunks: &[Hunk]) -> Result<String, String> {
 /// Exact search/replace. With `replace_all = false`, `old` must occur
 /// exactly once. Falls back to a whitespace-insensitive line match when the
 /// exact text is absent and the fuzzy match is unique.
-pub fn edit_replace(original: &str, old: &str, new: &str, replace_all: bool) -> Result<(String, usize), String> {
+pub fn edit_replace(
+    original: &str,
+    old: &str,
+    new: &str,
+    replace_all: bool,
+) -> Result<(String, usize), String> {
     if old.is_empty() {
-        return Err("old_string must not be empty (use write_file/create_file to create content)".into());
+        return Err(
+            "old_string must not be empty (use write_file/create_file to create content)".into(),
+        );
     }
     if old == new {
         return Err("old_string and new_string are identical; nothing to change".into());
@@ -262,7 +283,11 @@ pub fn edit_replace(original: &str, old: &str, new: &str, replace_all: bool) -> 
         let mut hits = Vec::new();
         if old_lines.len() <= lines.len() && !old_lines.is_empty() {
             for s in 0..=lines.len() - old_lines.len() {
-                if old_lines.iter().enumerate().all(|(k, o)| eq(&lines[s + k], o, fuzz)) {
+                if old_lines
+                    .iter()
+                    .enumerate()
+                    .all(|(k, o)| eq(&lines[s + k], o, fuzz))
+                {
                     hits.push(s);
                 }
             }
@@ -343,7 +368,8 @@ mod tests {
 
     #[test]
     fn exact_replace() {
-        let (out, n) = edit_replace(FILE, "return total * 0.9", "return total * 0.8", false).unwrap();
+        let (out, n) =
+            edit_replace(FILE, "return total * 0.9", "return total * 0.8", false).unwrap();
         assert_eq!(n, 1);
         assert!(out.contains("0.8") && !out.contains("0.9"));
     }
@@ -351,14 +377,28 @@ mod tests {
     #[test]
     fn ambiguous_replace_is_refused() {
         let src = "a = 1\na = 1\n";
-        assert!(edit_replace(src, "a = 1", "a = 2", false).unwrap_err().contains("2 times"));
-        assert_eq!(edit_replace(src, "a = 1", "a = 2", true).unwrap().0, "a = 2\na = 2\n");
+        assert!(edit_replace(src, "a = 1", "a = 2", false)
+            .unwrap_err()
+            .contains("2 times"));
+        assert_eq!(
+            edit_replace(src, "a = 1", "a = 2", true).unwrap().0,
+            "a = 2\na = 2\n"
+        );
     }
 
     #[test]
     fn whitespace_tolerant_replace_reindents() {
-        let (out, _) = edit_replace(FILE, "for i in items:\n    s += i.price", "for i in items:\n    s += i.price * i.qty", false).unwrap();
-        assert!(out.contains("    for i in items:\n        s += i.price * i.qty\n"), "{out}");
+        let (out, _) = edit_replace(
+            FILE,
+            "for i in items:\n    s += i.price",
+            "for i in items:\n    s += i.price * i.qty",
+            false,
+        )
+        .unwrap();
+        assert!(
+            out.contains("    for i in items:\n        s += i.price * i.qty\n"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -401,9 +441,12 @@ mod tests {
 
     #[test]
     fn missing_context_fails_cleanly() {
-        let patch = "--- a/cart.py\n+++ b/cart.py\n@@ -1,1 +1,1 @@\n-def nothing_here():\n+def x():\n";
+        let patch =
+            "--- a/cart.py\n+++ b/cart.py\n@@ -1,1 +1,1 @@\n-def nothing_here():\n+def x():\n";
         let fps = parse_unified(patch).unwrap();
-        assert!(apply_hunks(FILE, &fps[0].hunks).unwrap_err().contains("does not apply"));
+        assert!(apply_hunks(FILE, &fps[0].hunks)
+            .unwrap_err()
+            .contains("does not apply"));
     }
 
     #[test]

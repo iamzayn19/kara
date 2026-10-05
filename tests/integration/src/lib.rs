@@ -58,7 +58,7 @@ fn copy_dir(src: &Path, dst: &Path) {
     for e in std::fs::read_dir(src).unwrap() {
         let e = e.unwrap();
         let name = e.file_name();
-        if name == "solutions" || name == "target" || name == "veyra-tasks.toml" {
+        if name == "solutions" || name == "target" || name == "veyra-tasks.toml" || name == "__pycache__" {
             continue;
         }
         let to = dst.join(&name);
@@ -71,8 +71,17 @@ fn copy_dir(src: &Path, dst: &Path) {
 }
 
 pub fn git(dir: &Path, args: &[&str]) -> String {
-    let out = Command::new("git").arg("-C").arg(dir).args(args).output().unwrap();
-    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "git {args:?}: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     String::from_utf8_lossy(&out.stdout).into_owned()
 }
 
@@ -109,13 +118,25 @@ impl Repo {
     /// Run a shell command in the repo; returns (success, combined output).
     pub fn run(&self, cmd: &str) -> (bool, String) {
         let out = if cfg!(windows) {
-            Command::new("cmd").args(["/C", cmd]).current_dir(self.path()).output().unwrap()
+            Command::new("cmd")
+                .args(["/C", cmd])
+                .current_dir(self.path())
+                .output()
+                .unwrap()
         } else {
-            Command::new("sh").args(["-c", cmd]).current_dir(self.path()).output().unwrap()
+            Command::new("sh")
+                .args(["-c", cmd])
+                .current_dir(self.path())
+                .output()
+                .unwrap()
         };
         (
             out.status.success(),
-            format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr)),
+            format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            ),
         )
     }
 }
@@ -127,7 +148,12 @@ pub struct Harness {
 }
 
 impl Harness {
-    pub fn new(repo: &Repo, provider: Arc<dyn ModelProvider>, profile: Profile, approver: Arc<dyn Approver>) -> Harness {
+    pub fn new(
+        repo: &Repo,
+        provider: Arc<dyn ModelProvider>,
+        profile: Profile,
+        approver: Arc<dyn Approver>,
+    ) -> Harness {
         Self::with_settings(repo, provider, profile, approver, AgentSettings::default())
     }
 
@@ -141,7 +167,13 @@ impl Harness {
         let state = tempfile::tempdir().unwrap();
         let ws = Workspace::new(repo.path()).unwrap();
         let registry = LanguageRegistry::builtin();
-        let index = RepoIndex::open(ws.root(), &state.path().join("cache"), registry.clone(), 1_000_000).unwrap();
+        let index = RepoIndex::open(
+            ws.root(),
+            &state.path().join("cache"),
+            registry.clone(),
+            1_000_000,
+        )
+        .unwrap();
         index.refresh().unwrap();
         let profile_detected = ProjectProfile::detect(ws.root(), &registry);
         let mut journal = Journal::open(ws.root(), &state.path().join("session")).unwrap();
@@ -181,7 +213,11 @@ impl Harness {
 /// Whether a toolchain command is available (fixtures for missing
 /// toolchains are skipped, not failed).
 pub fn have(cmd: &str, arg: &str) -> bool {
-    Command::new(cmd).arg(arg).output().map(|o| o.status.success()).unwrap_or(false)
+    Command::new(cmd)
+        .arg(arg)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 pub fn python() -> &'static str {

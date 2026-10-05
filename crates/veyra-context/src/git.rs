@@ -52,7 +52,9 @@ pub fn toplevel(dir: &Path) -> Option<std::path::PathBuf> {
 }
 
 pub fn head(root: &Path) -> Option<String> {
-    git(root, &["rev-parse", "HEAD"]).ok().map(|s| s.trim().to_string())
+    git(root, &["rev-parse", "HEAD"])
+        .ok()
+        .map(|s| s.trim().to_string())
 }
 
 pub fn branch(root: &Path) -> Option<String> {
@@ -63,7 +65,10 @@ pub fn branch(root: &Path) -> Option<String> {
 
 /// `git status --porcelain=v1 -z`, parsed.
 pub fn status(root: &Path) -> anyhow::Result<Vec<StatusEntry>> {
-    let raw = git(root, &["status", "--porcelain=v1", "-z", "--untracked-files=all"])?;
+    let raw = git(
+        root,
+        &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+    )?;
     Ok(parse_porcelain_z(&raw))
 }
 

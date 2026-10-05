@@ -291,12 +291,12 @@ mod tests {
         std::os::unix::fs::symlink("/etc/passwd", d.path().join("pw")).unwrap();
         assert!(!w.resolve("pw").unwrap().inside);
 
-        std::os::unix::fs::symlink(
-            outside.path().join("dangling"),
-            d.path().join("dangle"),
-        )
-        .unwrap();
-        assert!(!w.resolve("dangle").unwrap().inside, "dangling escaping link");
+        std::os::unix::fs::symlink(outside.path().join("dangling"), d.path().join("dangle"))
+            .unwrap();
+        assert!(
+            !w.resolve("dangle").unwrap().inside,
+            "dangling escaping link"
+        );
     }
 
     #[cfg(unix)]

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/iamzayn19/veyra/training/dataset_schema.json",
+  "title": "Veyra agent training example",
+  "description": "One successful agent trajectory: the task, the tool calls that solved it, and provenance proving it may be used for training.",
+  "type": "object",
+  "required": ["id", "source", "license", "consent", "task", "steps", "outcome"],
+  "properties": {
+    "id": {"type": "string"},
+    "source": {
+      "type": "string",
+      "enum": ["opt_in_trace", "fixture_eval", "synthetic", "public_dataset", "owner_created"]
+    },
+    "license": {"type": "string", "description": "License of the underlying code/data, e.g. Apache-2.0."},
+    "consent": {
+      "type": "object",
+      "required": ["explicit"],
+      "properties": {
+        "explicit": {"type": "boolean", "const": true},
+        "how": {"type": "string", "description": "e.g. privacy.training_data = true in user config"}
+      }
+    },
+    "task": {"type": "string"},
+    "language": {"type": "string"},
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tool", "arguments", "ok"],
+        "properties": {
+          "tool": {"type": "string"},
+          "arguments": {"type": "string", "description": "JSON-encoded arguments"},
+          "ok": {"type": "boolean"},
+          "summary": {"type": "string"}
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["status", "tests_passed"],
+      "properties": {
+        "status": {"type": "string", "enum": ["completed"]},
+        "tests_passed": {"type": "boolean"},
+        "files_changed": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "model": {"type": "string", "description": "Model that produced the trajectory (must permit training on its outputs)."}
+  }
+}

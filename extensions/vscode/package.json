@@ -56,23 +56,79 @@
       ]
     },
     "commands": [
-      { "command": "veyra.open", "title": "Veyra: Open", "category": "Veyra" },
-      { "command": "veyra.newSession", "title": "Veyra: New Session", "category": "Veyra" },
-      { "command": "veyra.askAboutSelection", "title": "Veyra: Ask About Selection", "category": "Veyra" },
-      { "command": "veyra.fixSelection", "title": "Veyra: Fix Selection", "category": "Veyra" },
-      { "command": "veyra.reviewDiff", "title": "Veyra: Review Current Diff", "category": "Veyra" },
-      { "command": "veyra.runTests", "title": "Veyra: Run Tests", "category": "Veyra" },
-      { "command": "veyra.chooseModel", "title": "Veyra: Choose Model", "category": "Veyra" },
-      { "command": "veyra.doctor", "title": "Veyra: Doctor", "category": "Veyra" },
-      { "command": "veyra.showChanges", "title": "Veyra: Show Changes", "category": "Veyra" },
-      { "command": "veyra.undo", "title": "Veyra: Undo Last Change Batch", "category": "Veyra" },
-      { "command": "veyra.stop", "title": "Veyra: Stop Current Task", "category": "Veyra" },
-      { "command": "veyra.restart", "title": "Veyra: Restart Agent", "category": "Veyra" }
+      {
+        "command": "veyra.open",
+        "title": "Veyra: Open",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.newSession",
+        "title": "Veyra: New Session",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.askAboutSelection",
+        "title": "Veyra: Ask About Selection",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.fixSelection",
+        "title": "Veyra: Fix Selection",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.reviewDiff",
+        "title": "Veyra: Review Current Diff",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.runTests",
+        "title": "Veyra: Run Tests",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.chooseModel",
+        "title": "Veyra: Choose Model",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.doctor",
+        "title": "Veyra: Doctor",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.showChanges",
+        "title": "Veyra: Show Changes",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.undo",
+        "title": "Veyra: Undo Last Change Batch",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.stop",
+        "title": "Veyra: Stop Current Task",
+        "category": "Veyra"
+      },
+      {
+        "command": "veyra.restart",
+        "title": "Veyra: Restart Agent",
+        "category": "Veyra"
+      }
     ],
     "menus": {
       "editor/context": [
-        { "command": "veyra.askAboutSelection", "when": "editorHasSelection", "group": "veyra@1" },
-        { "command": "veyra.fixSelection", "when": "editorHasSelection", "group": "veyra@2" }
+        {
+          "command": "veyra.askAboutSelection",
+          "when": "editorHasSelection",
+          "group": "veyra@1"
+        },
+        {
+          "command": "veyra.fixSelection",
+          "when": "editorHasSelection",
+          "group": "veyra@2"
+        }
       ]
     },
     "configuration": {
@@ -85,7 +141,12 @@
         },
         "veyra.permissionProfile": {
           "type": "string",
-          "enum": ["", "safe", "balanced", "autonomous"],
+          "enum": [
+            "",
+            "safe",
+            "balanced",
+            "autonomous"
+          ],
           "default": "",
           "description": "Permission profile for editor sessions. Empty uses ~/.veyra/config.toml."
         },
@@ -100,14 +161,16 @@
   "scripts": {
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
-    "test": "npm run compile && node --test out/test/",
+    "test": "npm run compile && node --test \"out/test/*.test.js\"",
     "package": "vsce package --no-dependencies",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run compile",
+    "test:host": "npm run compile && node out/test/runHost.js"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.2.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "@vscode/test-electron": "^2.4.1"
   }
 }

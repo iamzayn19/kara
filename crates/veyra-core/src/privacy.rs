@@ -68,7 +68,10 @@ impl PrivacyReport {
             ("Repository uploads".into(), yn(self.repository_uploads)),
             ("Model runtime".into(), self.model_runtime.clone()),
             ("Model endpoint".into(), self.model_endpoint.clone()),
-            ("Training collection".into(), self.training_collection.clone()),
+            (
+                "Training collection".into(),
+                self.training_collection.clone(),
+            ),
         ]
     }
 }

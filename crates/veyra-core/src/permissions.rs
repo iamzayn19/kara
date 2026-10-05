@@ -190,7 +190,11 @@ mod tests {
     #[test]
     fn no_profile_silently_allows_hard_boundaries() {
         for p in [Profile::Safe, Profile::Balanced, Profile::Autonomous] {
-            for k in ActionKind::ALL.iter().copied().filter(|k| k.is_hard_boundary()) {
+            for k in ActionKind::ALL
+                .iter()
+                .copied()
+                .filter(|k| k.is_hard_boundary())
+            {
                 assert_ne!(profile_decision(p, k), Allow, "{p:?} {k:?}");
             }
         }

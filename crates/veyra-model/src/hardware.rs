@@ -51,7 +51,10 @@ impl HardwareInfo {
             .unwrap_or_default();
         let mut info = HardwareInfo {
             os: std::env::consts::OS.to_string(),
-            os_version: System::long_os_version().unwrap_or_default().trim().to_string(),
+            os_version: System::long_os_version()
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
             arch: std::env::consts::ARCH.to_string(),
             cpu,
             cpu_cores: sys.cpus().len(),
@@ -105,11 +108,17 @@ impl HardwareInfo {
     pub fn cpu_memory_budget(&self) -> u64 {
         let by_total = (self.total_ram as f64 * 0.60) as u64;
         let by_avail = (self.available_ram as f64 * 0.85) as u64;
-        by_total.max(by_avail).min(self.total_ram.saturating_sub(2_000_000_000))
+        by_total
+            .max(by_avail)
+            .min(self.total_ram.saturating_sub(2_000_000_000))
     }
 
     pub fn has_discrete_gpu(&self) -> bool {
-        !self.unified_memory && self.gpus.iter().any(|g| g.vram_bytes.unwrap_or(0) > 2_000_000_000)
+        !self.unified_memory
+            && self
+                .gpus
+                .iter()
+                .any(|g| g.vram_bytes.unwrap_or(0) > 2_000_000_000)
     }
 
     pub fn accelerator(&self) -> &'static str {
@@ -170,7 +179,11 @@ fn detect_macos(info: &mut HardwareInfo) {
     let apple_silicon = info.arch == "aarch64";
     info.unified_memory = apple_silicon;
     info.metal = apple_silicon;
-    if let Some(json) = probe("system_profiler", &["SPDisplaysDataType", "-json"], Duration::from_secs(8)) {
+    if let Some(json) = probe(
+        "system_profiler",
+        &["SPDisplaysDataType", "-json"],
+        Duration::from_secs(8),
+    ) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&json) {
             if let Some(arr) = v.get("SPDisplaysDataType").and_then(|a| a.as_array()) {
                 for g in arr {
@@ -217,12 +230,20 @@ fn detect_linux(info: &mut HardwareInfo) {
         ]
         .iter()
         .any(|p| std::path::Path::new(p).exists());
-    if let Some(out) = probe("rocm-smi", &["--showproductname", "--showmeminfo", "vram", "--json"], Duration::from_secs(5)) {
+    if let Some(out) = probe(
+        "rocm-smi",
+        &["--showproductname", "--showmeminfo", "vram", "--json"],
+        Duration::from_secs(5),
+    ) {
         info.rocm = true;
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&out) {
             if let Some(obj) = v.as_object() {
                 for (_, card) in obj {
-                    let name = card.get("Card series").or_else(|| card.get("Card model")).and_then(|x| x.as_str()).unwrap_or("AMD GPU");
+                    let name = card
+                        .get("Card series")
+                        .or_else(|| card.get("Card model"))
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("AMD GPU");
                     let vram = card
                         .get("VRAM Total Memory (B)")
                         .and_then(|x| x.as_str())
@@ -243,7 +264,10 @@ fn detect_linux(info: &mut HardwareInfo) {
         if let Some(out) = probe("lspci", &[], Duration::from_secs(5)) {
             for line in out.lines() {
                 let l = line.to_ascii_lowercase();
-                if l.contains("vga") || l.contains("3d controller") || l.contains("display controller") {
+                if l.contains("vga")
+                    || l.contains("3d controller")
+                    || l.contains("display controller")
+                {
                     let vendor = if l.contains("nvidia") {
                         "NVIDIA"
                     } else if l.contains("amd") || l.contains("ati") {
@@ -253,7 +277,11 @@ fn detect_linux(info: &mut HardwareInfo) {
                     } else {
                         "unknown"
                     };
-                    let name = line.split_once(": ").map(|x| x.1).unwrap_or(line).to_string();
+                    let name = line
+                        .split_once(": ")
+                        .map(|x| x.1)
+                        .unwrap_or(line)
+                        .to_string();
                     info.gpus.push(Gpu {
                         vendor: vendor.into(),
                         name,
@@ -268,7 +296,11 @@ fn detect_linux(info: &mut HardwareInfo) {
 fn detect_windows(info: &mut HardwareInfo) {
     info.vulkan = std::path::Path::new(r"C:\Windows\System32\vulkan-1.dll").exists();
     let ps = "Get-CimInstance Win32_VideoController | Select-Object Name,AdapterCompatibility,AdapterRAM,DriverVersion | ConvertTo-Json -Compress";
-    if let Some(out) = probe("powershell", &["-NoProfile", "-NonInteractive", "-Command", ps], Duration::from_secs(10)) {
+    if let Some(out) = probe(
+        "powershell",
+        &["-NoProfile", "-NonInteractive", "-Command", ps],
+        Duration::from_secs(10),
+    ) {
         let v: serde_json::Value = serde_json::from_str(out.trim()).unwrap_or_default();
         let items = match v {
             serde_json::Value::Array(a) => a,
@@ -276,18 +308,32 @@ fn detect_windows(info: &mut HardwareInfo) {
             _ => vec![],
         };
         for g in items {
-            let name = g.get("Name").and_then(|x| x.as_str()).unwrap_or("GPU").to_string();
+            let name = g
+                .get("Name")
+                .and_then(|x| x.as_str())
+                .unwrap_or("GPU")
+                .to_string();
             if name.contains("Basic Display") || name.contains("Remote") {
                 continue;
             }
             // AdapterRAM is a 32-bit field and wraps above 4 GB; trust it only
             // when nvidia-smi is unavailable and treat it as a lower bound.
-            let vram = g.get("AdapterRAM").and_then(|x| x.as_u64()).filter(|v| *v > 0);
+            let vram = g
+                .get("AdapterRAM")
+                .and_then(|x| x.as_u64())
+                .filter(|v| *v > 0);
             info.gpus.push(Gpu {
-                vendor: g.get("AdapterCompatibility").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                vendor: g
+                    .get("AdapterCompatibility")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 name,
                 vram_bytes: vram,
-                driver: g.get("DriverVersion").and_then(|x| x.as_str()).map(str::to_string),
+                driver: g
+                    .get("DriverVersion")
+                    .and_then(|x| x.as_str())
+                    .map(str::to_string),
                 ..Default::default()
             });
         }
@@ -297,7 +343,10 @@ fn detect_windows(info: &mut HardwareInfo) {
 fn detect_nvidia(info: &mut HardwareInfo) {
     let Some(out) = probe(
         "nvidia-smi",
-        &["--query-gpu=name,memory.total,memory.free,driver_version", "--format=csv,noheader,nounits"],
+        &[
+            "--query-gpu=name,memory.total,memory.free,driver_version",
+            "--format=csv,noheader,nounits",
+        ],
         Duration::from_secs(8),
     ) else {
         return;
@@ -317,7 +366,8 @@ fn detect_nvidia(info: &mut HardwareInfo) {
     }
     if !found.is_empty() {
         info.cuda = true;
-        info.gpus.retain(|g| !g.vendor.to_ascii_lowercase().contains("nvidia"));
+        info.gpus
+            .retain(|g| !g.vendor.to_ascii_lowercase().contains("nvidia"));
         info.gpus.extend(found);
     }
 }
@@ -365,7 +415,10 @@ mod tests {
             available_ram: 8 << 30,
             ..Default::default()
         };
-        assert_eq!(mac.fast_memory_budget(), ((16u64 << 30) as f64 * 0.70) as u64);
+        assert_eq!(
+            mac.fast_memory_budget(),
+            ((16u64 << 30) as f64 * 0.70) as u64
+        );
         let pc = HardwareInfo {
             total_ram: 32 << 30,
             available_ram: 20 << 30,

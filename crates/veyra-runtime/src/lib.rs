@@ -15,4 +15,8 @@ pub mod llamacpp;
 pub mod server;
 pub mod store;
 
-pub const USER_AGENT: &str = concat!("veyra/", env!("CARGO_PKG_VERSION"), " (+https://github.com/iamzayn19/veyra)");
+pub const USER_AGENT: &str = concat!(
+    "veyra/",
+    env!("CARGO_PKG_VERSION"),
+    " (+https://github.com/iamzayn19/veyra)"
+);

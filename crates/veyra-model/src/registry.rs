@@ -142,7 +142,12 @@ mod tests {
         let r = Registry::builtin();
         assert!(r.models.len() >= 5);
         for m in &r.models {
-            assert_eq!(m.revision.len(), 40, "{} revision must be a commit sha", m.id);
+            assert_eq!(
+                m.revision.len(),
+                40,
+                "{} revision must be a commit sha",
+                m.id
+            );
             let sha = m.sha256.as_deref().expect("sha256 recorded");
             assert_eq!(sha.len(), 64, "{}", m.id);
             assert!(m.size_bytes > 0);
@@ -163,7 +168,10 @@ mod tests {
         let f = dir.join("models.toml");
         let mut m = Registry::builtin().models[0].clone();
         m.quality_rank = 1;
-        let text = toml::to_string(&RegistryFile { model: vec![m.clone()] }).unwrap();
+        let text = toml::to_string(&RegistryFile {
+            model: vec![m.clone()],
+        })
+        .unwrap();
         std::fs::write(&f, text).unwrap();
         let r = Registry::load(&f).unwrap();
         assert_eq!(r.get(&m.id).unwrap().quality_rank, 1);

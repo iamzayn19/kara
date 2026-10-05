@@ -7,7 +7,11 @@ use veyra_context::search::{find_files, grep, GrepOptions};
 use veyra_protocol::ActionKind;
 use veyra_sandbox::injection;
 
-fn search_assess(title: String, path: Option<&str>, ctx: &ToolContext) -> Result<Assessment, String> {
+fn search_assess(
+    title: String,
+    path: Option<&str>,
+    ctx: &ToolContext,
+) -> Result<Assessment, String> {
     let mut a = Assessment::new(title, vec![ActionKind::Search]);
     if let Some(p) = path {
         let r = ctx.workspace.resolve(p).map_err(|e| e.to_string())?;
@@ -36,7 +40,11 @@ impl Tool for FindFiles {
         true
     }
     fn assess(&self, args: &Value, ctx: &ToolContext) -> Result<Assessment, String> {
-        search_assess(format!("find files `{}`", arg_str(args, "pattern")?), None, ctx)
+        search_assess(
+            format!("find files `{}`", arg_str(args, "pattern")?),
+            None,
+            ctx,
+        )
     }
     async fn run(&self, args: &Value, ctx: &ToolContext) -> ToolOutput {
         let Ok(pattern) = arg_str(args, "pattern") else {
@@ -45,17 +53,21 @@ impl Tool for FindFiles {
         let limit = opt_u64(args, "limit").unwrap_or(100).clamp(1, 1000) as usize;
         let root = ctx.root().to_path_buf();
         let pat = pattern.to_string();
-        let (files, truncated) = tokio::task::spawn_blocking(move || find_files(&root, &pat, limit))
-            .await
-            .unwrap_or_default();
+        let (files, truncated) =
+            tokio::task::spawn_blocking(move || find_files(&root, &pat, limit))
+                .await
+                .unwrap_or_default();
         let mut content = files.join("\n");
         if files.is_empty() {
             content = format!("no files match `{pattern}`");
         }
         if truncated {
-            content.push_str(&format!("\n… more than {limit} matches; refine the pattern"));
+            content.push_str(&format!(
+                "\n… more than {limit} matches; refine the pattern"
+            ));
         }
-        ToolOutput::ok(content, format!("{} files", files.len())).with_data(json!({"files": files, "truncated": truncated}))
+        ToolOutput::ok(content, format!("{} files", files.len()))
+            .with_data(json!({"files": files, "truncated": truncated}))
     }
 }
 
@@ -84,7 +96,11 @@ impl Tool for Grep {
         true
     }
     fn assess(&self, args: &Value, ctx: &ToolContext) -> Result<Assessment, String> {
-        search_assess(format!("grep `{}`", arg_str(args, "pattern")?), opt_str(args, "path"), ctx)
+        search_assess(
+            format!("grep `{}`", arg_str(args, "pattern")?),
+            opt_str(args, "path"),
+            ctx,
+        )
     }
     async fn run(&self, args: &Value, ctx: &ToolContext) -> ToolOutput {
         let Ok(pattern) = arg_str(args, "pattern") else {
@@ -110,7 +126,9 @@ impl Tool for Grep {
         let pat = pattern.to_string();
         let mut note = String::new();
         let o = opts.clone();
-        let mut result = tokio::task::spawn_blocking(move || grep(&root, &pat, &o)).await.unwrap();
+        let mut result = tokio::task::spawn_blocking(move || grep(&root, &pat, &o))
+            .await
+            .unwrap();
         if result.is_err() && opts.regex {
             // Models often pass code with unescaped parentheses; retry literally.
             opts.regex = false;
@@ -118,7 +136,9 @@ impl Tool for Grep {
             let root = ctx.root().to_path_buf();
             let pat = pattern.to_string();
             let o = opts.clone();
-            result = tokio::task::spawn_blocking(move || grep(&root, &pat, &o)).await.unwrap();
+            result = tokio::task::spawn_blocking(move || grep(&root, &pat, &o))
+                .await
+                .unwrap();
         }
         let r = match result {
             Ok(r) => r,
@@ -129,7 +149,10 @@ impl Tool for Grep {
             content.push_str(&format!("{}:{}: {}\n", m.path, m.line, m.text));
         }
         if r.matches.is_empty() {
-            content.push_str(&format!("no matches for `{pattern}` in {} files", r.files_searched));
+            content.push_str(&format!(
+                "no matches for `{pattern}` in {} files",
+                r.files_searched
+            ));
         }
         if r.truncated {
             content.push_str("… results truncated; narrow with path/glob\n");
@@ -168,7 +191,11 @@ impl Tool for FindSymbol {
         true
     }
     fn assess(&self, args: &Value, ctx: &ToolContext) -> Result<Assessment, String> {
-        search_assess(format!("find symbol `{}`", arg_str(args, "name")?), None, ctx)
+        search_assess(
+            format!("find symbol `{}`", arg_str(args, "name")?),
+            None,
+            ctx,
+        )
     }
     async fn run(&self, args: &Value, ctx: &ToolContext) -> ToolOutput {
         let Ok(name) = arg_str(args, "name") else {
@@ -224,7 +251,11 @@ impl Tool for FindReferences {
         true
     }
     fn assess(&self, args: &Value, ctx: &ToolContext) -> Result<Assessment, String> {
-        search_assess(format!("references to `{}`", arg_str(args, "name")?), opt_str(args, "path"), ctx)
+        search_assess(
+            format!("references to `{}`", arg_str(args, "name")?),
+            opt_str(args, "path"),
+            ctx,
+        )
     }
     async fn run(&self, args: &Value, ctx: &ToolContext) -> ToolOutput {
         let Ok(name) = arg_str(args, "name") else {
@@ -240,7 +271,10 @@ impl Tool for FindReferences {
         };
         let root = ctx.root().to_path_buf();
         let n = name.to_string();
-        let r = match tokio::task::spawn_blocking(move || grep(&root, &n, &opts)).await.unwrap() {
+        let r = match tokio::task::spawn_blocking(move || grep(&root, &n, &opts))
+            .await
+            .unwrap()
+        {
             Ok(r) => r,
             Err(e) => return ToolOutput::err(e.to_string()),
         };
@@ -255,8 +289,18 @@ impl Tool for FindReferences {
             .collect();
         let mut content = String::new();
         for m in &r.matches {
-            let tag = if defs.contains(&(m.path.clone(), m.line)) { " [definition]" } else { "" };
-            content.push_str(&format!("{}:{}:{} {}\n", m.path, m.line, tag, m.text.trim()));
+            let tag = if defs.contains(&(m.path.clone(), m.line)) {
+                " [definition]"
+            } else {
+                ""
+            };
+            content.push_str(&format!(
+                "{}:{}:{} {}\n",
+                m.path,
+                m.line,
+                tag,
+                m.text.trim()
+            ));
         }
         if r.matches.is_empty() {
             content = format!("no references to `{name}`");
@@ -266,7 +310,11 @@ impl Tool for FindReferences {
         }
         ToolOutput::ok(
             for_model(&content, ctx.output_chars),
-            format!("{} references in {} files", r.matches.len(), r.files_with_matches),
+            format!(
+                "{} references in {} files",
+                r.matches.len(),
+                r.files_with_matches
+            ),
         )
     }
 }
@@ -293,13 +341,27 @@ mod tests {
             ("lib/order.rb", "Cart.new.total\ncart_total = 1\n"),
         ]);
         let cache = tempfile::tempdir().unwrap();
-        let idx = veyra_context::RepoIndex::open(f.dir.path(), cache.path(), veyra_context::LanguageRegistry::builtin(), 1_000_000).unwrap();
+        let idx = veyra_context::RepoIndex::open(
+            f.dir.path(),
+            cache.path(),
+            veyra_context::LanguageRegistry::builtin(),
+            1_000_000,
+        )
+        .unwrap();
         idx.refresh().unwrap();
         f.ctx.index = Some(Arc::new(idx));
         let out = FindSymbol.run(&json!({"name": "total"}), &f.ctx).await;
-        assert!(out.content.contains("lib/cart.rb:2: method total"), "{}", out.content);
+        assert!(
+            out.content.contains("lib/cart.rb:2: method total"),
+            "{}",
+            out.content
+        );
         let out = FindReferences.run(&json!({"name": "total"}), &f.ctx).await;
-        assert!(out.content.contains("lib/cart.rb:2: [definition]"), "{}", out.content);
+        assert!(
+            out.content.contains("lib/cart.rb:2: [definition]"),
+            "{}",
+            out.content
+        );
         assert!(out.content.contains("lib/order.rb:1:"));
         assert!(!out.content.contains("lib/order.rb:2:"), "whole word only");
     }

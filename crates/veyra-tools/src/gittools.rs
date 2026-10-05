@@ -27,7 +27,11 @@ fn run_git(ctx: &ToolContext, args: &[&str]) -> ToolOutput {
     match git::git(ctx.root(), args) {
         Ok(out) => {
             let lines = out.lines().count();
-            let text = if out.trim().is_empty() { "(no output)".to_string() } else { out };
+            let text = if out.trim().is_empty() {
+                "(no output)".to_string()
+            } else {
+                out
+            };
             ToolOutput::ok(for_model(&text, ctx.output_chars), format!("{lines} lines"))
         }
         Err(e) => ToolOutput::err(e.to_string()),
@@ -141,9 +145,16 @@ impl Tool for GitDiff {
         // Untracked files do not appear in `git diff`; list them.
         if out.ok && opt_str(args, "base").is_none() && !opt_bool(args, "staged").unwrap_or(false) {
             if let Ok(entries) = git::status(ctx.root()) {
-                let untracked: Vec<&str> = entries.iter().filter(|e| e.untracked()).map(|e| e.path.as_str()).collect();
+                let untracked: Vec<&str> = entries
+                    .iter()
+                    .filter(|e| e.untracked())
+                    .map(|e| e.path.as_str())
+                    .collect();
                 if !untracked.is_empty() {
-                    out.content.push_str(&format!("\nuntracked files (not shown above): {}\n", untracked.join(", ")));
+                    out.content.push_str(&format!(
+                        "\nuntracked files (not shown above): {}\n",
+                        untracked.join(", ")
+                    ));
                 }
             }
         }
@@ -175,7 +186,12 @@ impl Tool for GitLog {
     }
     async fn run(&self, args: &Value, ctx: &ToolContext) -> ToolOutput {
         let n = format!("-n{}", opt_u64(args, "limit").unwrap_or(20).clamp(1, 500));
-        let mut a = vec!["log".to_string(), n, "--date=short".into(), "--pretty=format:%h %ad %an %s".into()];
+        let mut a = vec![
+            "log".to_string(),
+            n,
+            "--date=short".into(),
+            "--pretty=format:%h %ad %an %s".into(),
+        ];
         if let Some(p) = opt_str(args, "path") {
             match rel_path(ctx, p) {
                 Ok(r) => {
@@ -281,7 +297,13 @@ mod tests {
             vec!["add", "."],
             vec!["commit", "-qm", "init"],
         ] {
-            assert!(Command::new("git").arg("-C").arg(dir).args(&args).status().unwrap().success());
+            assert!(Command::new("git")
+                .arg("-C")
+                .arg(dir)
+                .args(&args)
+                .status()
+                .unwrap()
+                .success());
         }
     }
 
@@ -298,9 +320,16 @@ mod tests {
         init_repo(f.dir.path());
         std::fs::write(f.dir.path().join("a.txt"), "user change\n").unwrap();
         f.ctx.journal().set_baseline_dirty(["a.txt".to_string()]);
-        let out = crate::fs::ReadFile.run(&json!({"path": "b.txt"}), &f.ctx).await;
+        let out = crate::fs::ReadFile
+            .run(&json!({"path": "b.txt"}), &f.ctx)
+            .await;
         assert!(out.ok);
-        let out = crate::fs::EditFile.run(&json!({"path": "b.txt", "old_string": "b", "new_string": "B"}), &f.ctx).await;
+        let out = crate::fs::EditFile
+            .run(
+                &json!({"path": "b.txt", "old_string": "b", "new_string": "B"}),
+                &f.ctx,
+            )
+            .await;
         assert!(out.ok, "{}", out.content);
         let out = GitStatus.run(&json!({}), &f.ctx).await;
         assert!(out.content.contains("a.txt [user]"), "{}", out.content);

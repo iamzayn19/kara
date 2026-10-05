@@ -86,7 +86,10 @@ impl TaskState {
         }
         if !self.observations.is_empty() {
             out.push_str("Observations:\n");
-            let skip = self.observations.len().saturating_sub(MAX_OBSERVATIONS_SHOWN);
+            let skip = self
+                .observations
+                .len()
+                .saturating_sub(MAX_OBSERVATIONS_SHOWN);
             for o in &self.observations[skip..] {
                 out.push_str(&format!("  - {o}\n"));
             }

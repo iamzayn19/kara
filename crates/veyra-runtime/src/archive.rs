@@ -44,7 +44,11 @@ fn extract_tar_gz(archive: &Path, dest: &Path) -> anyhow::Result<()> {
             // Resolve relative to the link's directory and require it to stay inside.
             let base = path.parent().unwrap_or(Path::new(""));
             let resolved = if link.is_absolute() {
-                anyhow::bail!("archive link {} -> {} is absolute", path.display(), link.display());
+                anyhow::bail!(
+                    "archive link {} -> {} is absolute",
+                    path.display(),
+                    link.display()
+                );
             } else {
                 base.join(&link)
             };
@@ -101,7 +105,10 @@ mod tests {
     use std::io::Write;
 
     fn tar_gz(entries: &[(&str, &[u8])]) -> tempfile::NamedTempFile {
-        let f = tempfile::Builder::new().suffix(".tar.gz").tempfile().unwrap();
+        let f = tempfile::Builder::new()
+            .suffix(".tar.gz")
+            .tempfile()
+            .unwrap();
         let enc = flate2::write::GzEncoder::new(f.reopen().unwrap(), flate2::Compression::fast());
         let mut b = tar::Builder::new(enc);
         for (name, data) in entries {
@@ -120,10 +127,16 @@ mod tests {
 
     #[test]
     fn extracts_normal_archive() {
-        let ar = tar_gz(&[("llama-b1/llama-server", b"bin"), ("llama-b1/lib.dylib", b"lib")]);
+        let ar = tar_gz(&[
+            ("llama-b1/llama-server", b"bin"),
+            ("llama-b1/lib.dylib", b"lib"),
+        ]);
         let dest = tempfile::tempdir().unwrap();
         extract(ar.path(), dest.path()).unwrap();
-        assert_eq!(std::fs::read(dest.path().join("llama-b1/llama-server")).unwrap(), b"bin");
+        assert_eq!(
+            std::fs::read(dest.path().join("llama-b1/llama-server")).unwrap(),
+            b"bin"
+        );
     }
 
     #[test]
@@ -146,12 +159,16 @@ mod tests {
         }
         let dest = tempfile::tempdir().unwrap();
         extract(f.path(), dest.path()).unwrap();
-        assert_eq!(std::fs::read(dest.path().join("bin/llama-server.exe")).unwrap(), b"exe");
+        assert_eq!(
+            std::fs::read(dest.path().join("bin/llama-server.exe")).unwrap(),
+            b"exe"
+        );
 
         let g = tempfile::Builder::new().suffix(".zip").tempfile().unwrap();
         {
             let mut z = zip::ZipWriter::new(g.reopen().unwrap());
-            z.start_file("../escape.txt", zip::write::SimpleFileOptions::default()).unwrap();
+            z.start_file("../escape.txt", zip::write::SimpleFileOptions::default())
+                .unwrap();
             z.write_all(b"x").unwrap();
             z.finish().unwrap();
         }

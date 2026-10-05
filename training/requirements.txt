@@ -1,0 +1,7 @@
+# Only needed for lora_train.py / merge_adapter.py. Veyra itself needs none of this.
+torch>=2.4
+transformers>=4.46
+peft>=0.13
+datasets>=3.0
+accelerate>=1.0
+bitsandbytes>=0.44; platform_system == "Linux"

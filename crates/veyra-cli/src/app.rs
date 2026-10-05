@@ -25,8 +25,8 @@ pub fn workspace_root(opts: &Options) -> anyhow::Result<PathBuf> {
         Some(d) => d.clone(),
         None => std::env::current_dir()?,
     };
-    let start = std::fs::canonicalize(&start)
-        .map_err(|e| anyhow::anyhow!("{}: {e}", start.display()))?;
+    let start =
+        std::fs::canonicalize(&start).map_err(|e| anyhow::anyhow!("{}: {e}", start.display()))?;
     Ok(git::toplevel(&start).unwrap_or(start))
 }
 
@@ -58,10 +58,17 @@ impl App {
         let mut config = loaded.config;
         let mut warnings = loaded.warnings;
         if let Some(p) = &opts.profile {
-            config.permissions.profile = Profile::parse(p)
-                .ok_or_else(|| anyhow::anyhow!("unknown profile `{p}` (safe, balanced, autonomous)"))?;
+            config.permissions.profile = Profile::parse(p).ok_or_else(|| {
+                anyhow::anyhow!("unknown profile `{p}` (safe, balanced, autonomous)")
+            })?;
         }
-        let (registry, pack_warnings) = LanguageRegistry::with_user_dir(&paths.home.join("languages"));
+        match config.ui.color.as_str() {
+            "never" => console::set_colors_enabled(false),
+            "always" => console::set_colors_enabled(true),
+            _ => {}
+        }
+        let (registry, pack_warnings) =
+            LanguageRegistry::with_user_dir(&paths.home.join("languages"));
         warnings.extend(pack_warnings);
         let index = Arc::new(RepoIndex::open(
             &root,
@@ -86,7 +93,9 @@ impl App {
 
     /// Refresh the index on a background thread so startup never blocks on
     /// large repositories.
-    pub fn refresh_index_in_background(&self) -> std::thread::JoinHandle<Option<veyra_context::IndexStats>> {
+    pub fn refresh_index_in_background(
+        &self,
+    ) -> std::thread::JoinHandle<Option<veyra_context::IndexStats>> {
         let index = self.index.clone();
         std::thread::spawn(move || index.refresh().ok())
     }
@@ -96,7 +105,8 @@ impl App {
     }
 
     pub fn tool_context(&self, session: &str) -> anyhow::Result<ToolContext> {
-        let ws = Workspace::new(&self.root)?.with_extra_readable(&self.config.permissions.extra_readable_paths);
+        let ws = Workspace::new(&self.root)?
+            .with_extra_readable(&self.config.permissions.extra_readable_paths);
         let mut journal = Journal::open(ws.root(), &self.session_dir(session))?;
         if journal.batches().is_empty() {
             journal.set_baseline_dirty(git::dirty_paths(ws.root()));
@@ -121,7 +131,11 @@ impl App {
             temperature: self.config.model.temperature,
             max_orientation_files: self.config.context.max_orientation_files,
             context_window: context_window.unwrap_or(32768),
-            trace_dir: self.config.privacy.training_data.then(|| self.paths.traces_dir()),
+            trace_dir: self
+                .config
+                .privacy
+                .training_data
+                .then(|| self.paths.traces_dir()),
         }
     }
 

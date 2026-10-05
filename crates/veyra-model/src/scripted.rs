@@ -4,7 +4,9 @@
 //! from the request with a closure. It records every request so tests can
 //! assert on what the agent sent (tool results, working memory, warnings).
 
-use crate::{ChatRequest, ChatResponse, EventSink, ModelProvider, ProviderInfo, StreamEvent, ToolCall};
+use crate::{
+    ChatRequest, ChatResponse, EventSink, ModelProvider, ProviderInfo, StreamEvent, ToolCall,
+};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::VecDeque;
@@ -73,7 +75,9 @@ impl ScriptedProvider {
         }
     }
 
-    pub fn from_fn(f: impl Fn(&ChatRequest, usize) -> ChatResponse + Send + Sync + 'static) -> Self {
+    pub fn from_fn(
+        f: impl Fn(&ChatRequest, usize) -> ChatResponse + Send + Sync + 'static,
+    ) -> Self {
         Self {
             queue: Mutex::new(VecDeque::new()),
             responder: Some(Box::new(f)),
@@ -124,7 +128,12 @@ impl ModelProvider for ScriptedProvider {
         }
     }
 
-    async fn chat(&self, req: ChatRequest, on_event: EventSink<'_>, cancel: &CancellationToken) -> anyhow::Result<ChatResponse> {
+    async fn chat(
+        &self,
+        req: ChatRequest,
+        on_event: EventSink<'_>,
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<ChatResponse> {
         if cancel.is_cancelled() {
             anyhow::bail!("cancelled");
         }
@@ -164,21 +173,33 @@ mod tests {
 
     #[tokio::test]
     async fn replays_and_records() {
-        let p = ScriptedProvider::new(vec![call("grep", serde_json::json!({"pattern": "x"})), text("done")]);
+        let p = ScriptedProvider::new(vec![
+            call("grep", serde_json::json!({"pattern": "x"})),
+            text("done"),
+        ]);
         let req = ChatRequest {
             messages: vec![Message::user("go")],
             ..Default::default()
         };
-        let a = p.chat(req.clone(), &|_| {}, &CancellationToken::new()).await.unwrap();
+        let a = p
+            .chat(req.clone(), &|_| {}, &CancellationToken::new())
+            .await
+            .unwrap();
         assert_eq!(a.tool_calls[0].name, "grep");
-        let b = p.chat(req.clone(), &|_| {}, &CancellationToken::new()).await.unwrap();
+        let b = p
+            .chat(req.clone(), &|_| {}, &CancellationToken::new())
+            .await
+            .unwrap();
         assert_eq!(b.content, "done");
         assert_eq!(p.requests().lock().unwrap().len(), 2);
     }
 
     #[test]
     fn json_scripts() {
-        let p = ScriptedProvider::from_script_json(r#"[{"tool_calls":[{"name":"read_file","arguments":{"path":"a"}}]},{"content":"ok"}]"#).unwrap();
+        let p = ScriptedProvider::from_script_json(
+            r#"[{"tool_calls":[{"name":"read_file","arguments":{"path":"a"}}]},{"content":"ok"}]"#,
+        )
+        .unwrap();
         assert_eq!(p.queue.lock().unwrap().len(), 2);
     }
 }

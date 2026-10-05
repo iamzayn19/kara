@@ -70,7 +70,10 @@ pub fn is_secret_path(p: &Path) -> bool {
     if name == ".env" || (name.starts_with(".env.") && !is_env_template(&name)) {
         return true;
     }
-    if let Some(ext) = p.extension().map(|e| e.to_string_lossy().to_ascii_lowercase()) {
+    if let Some(ext) = p
+        .extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase())
+    {
         if SECRET_EXTENSIONS.contains(&ext.as_str()) {
             return true;
         }

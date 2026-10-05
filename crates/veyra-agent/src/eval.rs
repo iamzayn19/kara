@@ -51,7 +51,10 @@ impl EvalTask {
     }
 
     pub fn fixture_name(&self) -> String {
-        self.fixture.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+        self.fixture
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
     }
 
     pub fn solution_path(&self, id: &str) -> PathBuf {
@@ -113,7 +116,12 @@ fn copy_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
     for e in std::fs::read_dir(src)? {
         let e = e?;
         let name = e.file_name();
-        if name == "solutions" || name == "veyra-tasks.toml" || name == "target" || name == "node_modules" {
+        if name == "solutions"
+            || name == "veyra-tasks.toml"
+            || name == "target"
+            || name == "node_modules"
+            || name == "__pycache__"
+        {
             continue;
         }
         let to = dst.join(&name);
@@ -129,21 +137,35 @@ fn copy_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
 fn git(dir: &Path, args: &[&str]) -> anyhow::Result<()> {
     let out = Command::new("git").arg("-C").arg(dir).args(args).output()?;
     if !out.status.success() {
-        anyhow::bail!("git {}: {}", args.join(" "), String::from_utf8_lossy(&out.stderr));
+        anyhow::bail!(
+            "git {}: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&out.stderr)
+        );
     }
     Ok(())
 }
 
 fn shell(dir: &Path, cmd: &str) -> (bool, String) {
     let out = if cfg!(windows) {
-        Command::new("cmd").args(["/C", cmd]).current_dir(dir).output()
+        Command::new("cmd")
+            .args(["/C", cmd])
+            .current_dir(dir)
+            .output()
     } else {
-        Command::new("sh").args(["-c", cmd]).current_dir(dir).output()
+        Command::new("sh")
+            .args(["-c", cmd])
+            .current_dir(dir)
+            .output()
     };
     match out {
         Ok(o) => (
             o.status.success(),
-            format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)),
+            format!(
+                "{}{}",
+                String::from_utf8_lossy(&o.stdout),
+                String::from_utf8_lossy(&o.stderr)
+            ),
         ),
         Err(e) => (false, e.to_string()),
     }
@@ -152,7 +174,9 @@ fn shell(dir: &Path, cmd: &str) -> (bool, String) {
 async fn apply_patch_file(ctx: &ToolContext, patch: &Path) -> anyhow::Result<()> {
     use veyra_tools::Tool;
     let text = std::fs::read_to_string(patch)?;
-    let out = veyra_tools::fs::ApplyPatch.run(&json!({"patch": text}), ctx).await;
+    let out = veyra_tools::fs::ApplyPatch
+        .run(&json!({"patch": text}), ctx)
+        .await;
     if !out.ok {
         anyhow::bail!("{}: {}", patch.display(), out.content);
     }
@@ -324,18 +348,29 @@ pub async fn run_task(
 pub fn missing_toolchain(check: &str) -> Option<String> {
     let prog = check.split_whitespace().next()?.to_string();
     let candidates: Vec<String> = if cfg!(windows) {
-        vec![format!("{prog}.exe"), format!("{prog}.cmd"), format!("{prog}.bat"), prog.clone()]
+        vec![
+            format!("{prog}.exe"),
+            format!("{prog}.cmd"),
+            format!("{prog}.bat"),
+            prog.clone(),
+        ]
     } else {
         vec![prog.clone()]
     };
     let path = std::env::var_os("PATH")?;
-    let found = std::env::split_paths(&path).any(|d| candidates.iter().any(|c| d.join(c).is_file()));
+    let found =
+        std::env::split_paths(&path).any(|d| candidates.iter().any(|c| d.join(c).is_file()));
     (!found).then_some(prog)
 }
 
 fn looks_like_test(path: &str) -> bool {
     let p = path.to_ascii_lowercase();
-    p.starts_with("test/") || p.starts_with("tests/") || p.starts_with("spec/") || p.contains("_test.") || p.contains(".test.") || p.contains("_spec.")
+    p.starts_with("test/")
+        || p.starts_with("tests/")
+        || p.starts_with("spec/")
+        || p.contains("_test.")
+        || p.contains(".test.")
+        || p.contains("_spec.")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -366,11 +401,19 @@ impl EvalReport {
             self.provider,
             self.solved(),
             n,
-            if n == 0 { 0.0 } else { self.solved() as f64 * 100.0 / n as f64 },
+            if n == 0 {
+                0.0
+            } else {
+                self.solved() as f64 * 100.0 / n as f64
+            },
             self.started.get(..10).unwrap_or(&self.started),
             self.veyra_version,
             self.host,
-            if skipped > 0 { format!(" {skipped} task(s) skipped (toolchain not installed).") } else { String::new() }
+            if skipped > 0 {
+                format!(" {skipped} task(s) skipped (toolchain not installed).")
+            } else {
+                String::new()
+            }
         );
         s.push_str("| Task | Category | Solved | Outcome | Model calls | Tool calls | Tool errors | Invalid calls | Unneeded edits | Time (s) | Tokens in/out | Peak mem |\n");
         s.push_str("|---|---|---|---|---|---|---|---|---|---|---|---|\n");
@@ -411,13 +454,21 @@ mod tests {
         let tasks = load_suite(&suite()).unwrap();
         assert!(tasks.len() >= 10, "{}", tasks.len());
         for t in &tasks {
-            assert!(t.solution_path(&t.id).exists(), "{} has a reference solution", t.id);
+            assert!(
+                t.solution_path(&t.id).exists(),
+                "{} has a reference solution",
+                t.id
+            );
         }
     }
 
     #[tokio::test]
     async fn oracle_solves_python_tasks_through_the_real_harness() {
-        if Command::new(if cfg!(windows) { "python" } else { "python3" }).arg("--version").output().is_err() {
+        if Command::new(if cfg!(windows) { "python" } else { "python3" })
+            .arg("--version")
+            .output()
+            .is_err()
+        {
             return;
         }
         let tasks = load_suite(&suite()).unwrap();

@@ -28,7 +28,9 @@ pub enum DownloadError {
 impl std::fmt::Display for DownloadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DownloadError::Cancelled => write!(f, "download cancelled (partial file kept for resume)"),
+            DownloadError::Cancelled => {
+                write!(f, "download cancelled (partial file kept for resume)")
+            }
             DownloadError::Checksum { expected, actual } => write!(
                 f,
                 "checksum mismatch: expected sha256 {expected}, got {actual}. The file was deleted."
@@ -98,11 +100,16 @@ pub async fn download_verified(
         }
     }
 
-    let mut req = client.get(url).header(reqwest::header::USER_AGENT, crate::USER_AGENT);
+    let mut req = client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, crate::USER_AGENT);
     if have > 0 {
         req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
     }
-    let resp = req.send().await.map_err(|e| DownloadError::Http(e.to_string()))?;
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| DownloadError::Http(e.to_string()))?;
     let status = resp.status();
     if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE && have > 0 {
         // Already complete; fall through to verification.
@@ -120,7 +127,10 @@ pub async fn download_verified(
 
     if status.is_success() {
         let mut file = if resumed {
-            tokio::fs::OpenOptions::new().append(true).open(&part).await?
+            tokio::fs::OpenOptions::new()
+                .append(true)
+                .open(&part)
+                .await?
         } else {
             tokio::fs::File::create(&part).await?
         };
@@ -140,7 +150,10 @@ pub async fn download_verified(
             file.write_all(&chunk).await?;
             have += chunk.len() as u64;
             if have - last_report >= 1 << 20 || Some(have) == total {
-                on_progress(Progress { downloaded: have, total });
+                on_progress(Progress {
+                    downloaded: have,
+                    total,
+                });
                 last_report = have;
             }
         }
@@ -159,7 +172,10 @@ pub async fn download_verified(
         }
     }
     std::fs::rename(&part, dest)?;
-    on_progress(Progress { downloaded: have, total: Some(have) });
+    on_progress(Progress {
+        downloaded: have,
+        total: Some(have),
+    });
     Ok(())
 }
 
@@ -181,11 +197,20 @@ mod tests {
                 let start: usize = req
                     .lines()
                     .find_map(|l| l.strip_prefix("range: bytes="))
-                    .and_then(|r| r.trim_end_matches('-').trim().trim_end_matches('-').parse().ok())
+                    .and_then(|r| {
+                        r.trim_end_matches('-')
+                            .trim()
+                            .trim_end_matches('-')
+                            .parse()
+                            .ok()
+                    })
                     .unwrap_or(0);
                 let slice = &body[start.min(body.len())..];
                 let head = if start > 0 {
-                    format!("HTTP/1.1 206 Partial Content\r\ncontent-length: {}\r\n\r\n", slice.len())
+                    format!(
+                        "HTTP/1.1 206 Partial Content\r\ncontent-length: {}\r\n\r\n",
+                        slice.len()
+                    )
                 } else {
                     format!("HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n", slice.len())
                 };
@@ -207,9 +232,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let dest = dir.path().join("m.gguf");
         let client = reqwest::Client::new();
-        download_verified(&client, &url, &dest, Some(&sha(&body)), &|_| {}, &CancellationToken::new())
-            .await
-            .unwrap();
+        download_verified(
+            &client,
+            &url,
+            &dest,
+            Some(&sha(&body)),
+            &|_| {},
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
         assert_eq!(std::fs::read(&dest).unwrap(), body);
         assert!(!part_path(&dest).exists());
     }
@@ -219,9 +251,16 @@ mod tests {
         let url = serve(b"tampered".to_vec(), 1).await;
         let dir = tempfile::tempdir().unwrap();
         let dest = dir.path().join("m.gguf");
-        let err = download_verified(&reqwest::Client::new(), &url, &dest, Some(&sha(b"original")), &|_| {}, &CancellationToken::new())
-            .await
-            .unwrap_err();
+        let err = download_verified(
+            &reqwest::Client::new(),
+            &url,
+            &dest,
+            Some(&sha(b"original")),
+            &|_| {},
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap_err();
         assert!(matches!(err, DownloadError::Checksum { .. }));
         assert!(!dest.exists());
         assert!(!part_path(&dest).exists());
@@ -234,9 +273,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let dest = dir.path().join("m.gguf");
         std::fs::write(part_path(&dest), &body[..40_000]).unwrap();
-        download_verified(&reqwest::Client::new(), &url, &dest, Some(&sha(&body)), &|_| {}, &CancellationToken::new())
-            .await
-            .unwrap();
+        download_verified(
+            &reqwest::Client::new(),
+            &url,
+            &dest,
+            Some(&sha(&body)),
+            &|_| {},
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
         assert_eq!(std::fs::read(&dest).unwrap(), body);
     }
 }

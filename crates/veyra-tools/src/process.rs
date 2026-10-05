@@ -156,9 +156,18 @@ mod tests {
     #[tokio::test]
     async fn captures_exit_code_and_streams() {
         let d = tempfile::tempdir().unwrap();
-        let r = run_shell("echo out; echo err 1>&2; exit 3", d.path(), Duration::from_secs(10), &CancellationToken::new())
-            .await
-            .unwrap();
+        #[cfg(unix)]
+        let cmd = "echo out; echo err 1>&2; exit 3";
+        #[cfg(windows)]
+        let cmd = "echo out& echo err 1>&2& exit 3";
+        let r = run_shell(
+            cmd,
+            d.path(),
+            Duration::from_secs(10),
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
         assert_eq!(r.exit_code, Some(3));
         assert_eq!(r.stdout.trim(), "out");
         assert_eq!(r.stderr.trim(), "err");
@@ -168,9 +177,14 @@ mod tests {
     #[tokio::test]
     async fn timeout_kills_process_group() {
         let d = tempfile::tempdir().unwrap();
-        let r = run_shell("sleep 30 & sleep 30; echo never", d.path(), Duration::from_millis(300), &CancellationToken::new())
-            .await
-            .unwrap();
+        let r = run_shell(
+            "sleep 30 & sleep 30; echo never",
+            d.path(),
+            Duration::from_millis(300),
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
         assert!(r.timed_out);
         assert_eq!(r.exit_code, None);
         assert!(r.duration_ms < 5000);
@@ -189,7 +203,9 @@ mod tests {
         let cmd = "sleep 30";
         #[cfg(windows)]
         let cmd = "ping -n 30 127.0.0.1";
-        let r = run_shell(cmd, d.path(), Duration::from_secs(60), &token).await.unwrap();
+        let r = run_shell(cmd, d.path(), Duration::from_secs(60), &token)
+            .await
+            .unwrap();
         assert!(r.cancelled);
     }
 }

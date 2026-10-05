@@ -117,7 +117,13 @@ fn run(cli: Cli, rt: &tokio::runtime::Runtime) -> anyhow::Result<i32> {
     };
     match cli.command {
         None => tui::interactive(rt, &opts, cli.resume),
-        Some(Command::Run { prompt, yes, json, plan, review }) => {
+        Some(Command::Run {
+            prompt,
+            yes,
+            json,
+            plan,
+            review,
+        }) => {
             let mode = if plan {
                 veyra_protocol::AgentMode::Plan
             } else if review {

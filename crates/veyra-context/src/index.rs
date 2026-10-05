@@ -112,7 +112,9 @@ impl RepoIndex {
         // Rebuild when the schema or the language packs change.
         let fingerprint = format!("{SCHEMA_VERSION}:{}", self.packs_fingerprint());
         let stored: Option<String> = c
-            .query_row("SELECT value FROM meta WHERE key='fingerprint'", [], |r| r.get(0))
+            .query_row("SELECT value FROM meta WHERE key='fingerprint'", [], |r| {
+                r.get(0)
+            })
             .optional()?;
         if stored.as_deref() != Some(&fingerprint) {
             c.execute_batch("DELETE FROM files; DELETE FROM symbols; DELETE FROM imports;")?;
@@ -151,7 +153,10 @@ impl RepoIndex {
             .git_exclude(true)
             .filter_entry(|e| {
                 let n = e.file_name().to_string_lossy();
-                !(n == ".git" || n == "node_modules" || n == ".veyra" || n == "target" && e.depth() == 1)
+                !(n == ".git"
+                    || n == "node_modules"
+                    || n == ".veyra"
+                    || n == "target" && e.depth() == 1)
             })
             .build_parallel()
             .run(|| {
@@ -200,7 +205,11 @@ impl RepoIndex {
         {
             let mut st = c.prepare("SELECT path, size, mtime FROM files")?;
             let rows = st.query_map([], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u64, r.get::<_, i64>(2)?))
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)? as u64,
+                    r.get::<_, i64>(2)?,
+                ))
             })?;
             for row in rows {
                 let (p, s, m) = row?;
@@ -354,9 +363,7 @@ impl RepoIndex {
     pub fn files(&self) -> anyhow::Result<Vec<(String, Option<String>, bool)>> {
         let c = self.conn()?;
         let mut st = c.prepare("SELECT path, lang, is_test FROM files ORDER BY path")?;
-        let rows = st.query_map([], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? != 0))
-        })?;
+        let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? != 0)))?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
@@ -372,7 +379,8 @@ impl RepoIndex {
         s.lines = lines as u64;
         s.bytes = bytes as u64;
         s.test_files = tests as usize;
-        s.symbols = c.query_row("SELECT COUNT(*) FROM symbols", [], |r| r.get::<_, i64>(0))? as usize;
+        s.symbols =
+            c.query_row("SELECT COUNT(*) FROM symbols", [], |r| r.get::<_, i64>(0))? as usize;
         let mut st = c.prepare(
             "SELECT lang, COUNT(*) FROM files WHERE lang IS NOT NULL GROUP BY lang ORDER BY COUNT(*) DESC",
         )?;
@@ -385,7 +393,9 @@ impl RepoIndex {
 }
 
 fn escape_like(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
+    s.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 #[cfg(test)]
@@ -402,14 +412,28 @@ mod tests {
     fn incremental_refresh() {
         let repo = tempfile::tempdir().unwrap();
         let cache = tempfile::tempdir().unwrap();
-        write(repo.path(), "lib/auth.rb", "class Auth\n  def login(u)\n  end\nend\n");
-        write(repo.path(), "spec/auth_spec.rb", "require 'auth'\ndescribe Auth do\nend\n");
+        write(
+            repo.path(),
+            "lib/auth.rb",
+            "class Auth\n  def login(u)\n  end\nend\n",
+        );
+        write(
+            repo.path(),
+            "spec/auth_spec.rb",
+            "require 'auth'\ndescribe Auth do\nend\n",
+        );
         write(repo.path(), "README.md", "# hi\n");
         write(repo.path(), ".gitignore", "tmp/\n");
         write(repo.path(), "tmp/ignored.rb", "class Ignored; end\n");
         std::fs::create_dir_all(repo.path().join(".git")).unwrap();
 
-        let idx = RepoIndex::open(repo.path(), cache.path(), LanguageRegistry::builtin(), 1_000_000).unwrap();
+        let idx = RepoIndex::open(
+            repo.path(),
+            cache.path(),
+            LanguageRegistry::builtin(),
+            1_000_000,
+        )
+        .unwrap();
         let s1 = idx.refresh().unwrap();
         assert_eq!(s1.files, 4, "{s1:?}");
         assert_eq!(s1.parsed, 4);
@@ -418,7 +442,11 @@ mod tests {
         assert_eq!(s2.parsed, 0, "unchanged files are not reparsed");
 
         std::thread::sleep(std::time::Duration::from_millis(20));
-        write(repo.path(), "lib/auth.rb", "class Auth\n  def login(u)\n  end\n  def logout\n  end\nend\n");
+        write(
+            repo.path(),
+            "lib/auth.rb",
+            "class Auth\n  def login(u)\n  end\n  def logout\n  end\nend\n",
+        );
         std::fs::remove_file(repo.path().join("README.md")).unwrap();
         let s3 = idx.refresh().unwrap();
         assert_eq!(s3.parsed, 1);
@@ -433,7 +461,10 @@ mod tests {
         let stats = idx.stats().unwrap();
         assert_eq!(stats.test_files, 1);
         assert_eq!(stats.by_language.get("ruby"), Some(&2));
-        assert_eq!(idx.importers_of("auth", 10).unwrap(), vec!["spec/auth_spec.rb"]);
+        assert_eq!(
+            idx.importers_of("auth", 10).unwrap(),
+            vec!["spec/auth_spec.rb"]
+        );
     }
 
     #[test]
@@ -445,21 +476,51 @@ mod tests {
             "a.py",
             "def paginate():\n    pass\ndef paginate_users():\n    pass\ndef do_paginate():\n    pass\ndef a_b():\n    pass\ndef axb():\n    pass\n",
         );
-        let idx = RepoIndex::open(repo.path(), cache.path(), LanguageRegistry::builtin(), 1_000_000).unwrap();
+        let idx = RepoIndex::open(
+            repo.path(),
+            cache.path(),
+            LanguageRegistry::builtin(),
+            1_000_000,
+        )
+        .unwrap();
         idx.refresh().unwrap();
-        let names: Vec<String> = idx.find_symbol("paginate", 10).unwrap().into_iter().map(|h| h.name).collect();
+        let names: Vec<String> = idx
+            .find_symbol("paginate", 10)
+            .unwrap()
+            .into_iter()
+            .map(|h| h.name)
+            .collect();
         assert_eq!(names, vec!["paginate", "paginate_users", "do_paginate"]);
-        let names: Vec<String> = idx.find_symbol("a_b", 10).unwrap().into_iter().map(|h| h.name).collect();
-        assert_eq!(names, vec!["a_b"], "underscore is literal, not a LIKE wildcard");
+        let names: Vec<String> = idx
+            .find_symbol("a_b", 10)
+            .unwrap()
+            .into_iter()
+            .map(|h| h.name)
+            .collect();
+        assert_eq!(
+            names,
+            vec!["a_b"],
+            "underscore is literal, not a LIKE wildcard"
+        );
     }
 
     #[test]
     fn huge_and_binary_files_are_metadata_only() {
         let repo = tempfile::tempdir().unwrap();
         let cache = tempfile::tempdir().unwrap();
-        std::fs::write(repo.path().join("big.py"), "def f():\n    pass\n".repeat(1000)).unwrap();
+        std::fs::write(
+            repo.path().join("big.py"),
+            "def f():\n    pass\n".repeat(1000),
+        )
+        .unwrap();
         std::fs::write(repo.path().join("bin.py"), b"def g():\0\0\0").unwrap();
-        let idx = RepoIndex::open(repo.path(), cache.path(), LanguageRegistry::builtin(), 1_000).unwrap();
+        let idx = RepoIndex::open(
+            repo.path(),
+            cache.path(),
+            LanguageRegistry::builtin(),
+            1_000,
+        )
+        .unwrap();
         let s = idx.refresh().unwrap();
         assert_eq!(s.files, 2);
         assert!(idx.find_symbol("f", 10).unwrap().is_empty());

@@ -61,7 +61,10 @@ impl Renderer {
 
     pub fn handle(&self, e: &AgentEvent) {
         if self.json {
-            self.out(&format!("{}\n", serde_json::to_string(e).unwrap_or_default()));
+            self.out(&format!(
+                "{}\n",
+                serde_json::to_string(e).unwrap_or_default()
+            ));
             return;
         }
         let mut st = self.state.lock().unwrap();
@@ -72,7 +75,10 @@ impl Renderer {
             AgentEvent::Phase { phase } => {
                 if *phase == Phase::Recover && st.last_phase != Some(Phase::Recover) {
                     self.newline_if_mid(&mut st);
-                    self.out(&format!("{}\n", style("→ tests failed; investigating and retrying").yellow()));
+                    self.out(&format!(
+                        "{}\n",
+                        style("→ tests failed; investigating and retrying").yellow()
+                    ));
                 }
                 st.last_phase = Some(*phase);
             }
@@ -106,12 +112,23 @@ impl Renderer {
                     return;
                 }
                 // Hold back a possible partial "<tool_call>" prefix.
-                let keep = ["<", "<t", "<to", "<too", "<tool", "<tool_", "<tool_c", "<tool_ca", "<tool_cal", "<tool_call"]
-                    .iter()
-                    .filter(|p| st.pending.ends_with(*p))
-                    .map(|p| p.len())
-                    .max()
-                    .unwrap_or(0);
+                let keep = [
+                    "<",
+                    "<t",
+                    "<to",
+                    "<too",
+                    "<tool",
+                    "<tool_",
+                    "<tool_c",
+                    "<tool_ca",
+                    "<tool_cal",
+                    "<tool_call",
+                ]
+                .iter()
+                .filter(|p| st.pending.ends_with(*p))
+                .map(|p| p.len())
+                .max()
+                .unwrap_or(0);
                 let emit_len = st.pending.len() - keep;
                 let emit = st.pending[..emit_len].to_string();
                 st.pending.drain(..emit_len);
@@ -136,15 +153,28 @@ impl Renderer {
                 self.out(&format!("{} {}", style("→").cyan(), summary));
                 st.tool_open = true;
             }
-            AgentEvent::ToolFinished { ok, summary, duration_ms, .. } => {
-                let mark = if *ok { style("✓").green() } else { style("✗").red() };
+            AgentEvent::ToolFinished {
+                ok,
+                summary,
+                duration_ms,
+                ..
+            } => {
+                let mark = if *ok {
+                    style("✓").green()
+                } else {
+                    style("✗").red()
+                };
                 let time = if *duration_ms >= 1000 {
                     format!(" ({:.1}s)", *duration_ms as f64 / 1000.0)
                 } else {
                     String::new()
                 };
                 if st.tool_open {
-                    self.out(&format!("  {mark} {}{}\n", style(summary).dim(), style(time).dim()));
+                    self.out(&format!(
+                        "  {mark} {}{}\n",
+                        style(summary).dim(),
+                        style(time).dim()
+                    ));
                 } else {
                     self.out(&format!("  {mark} {}\n", style(summary).dim()));
                 }
@@ -165,19 +195,36 @@ impl Renderer {
                     style(format!("(+{add} −{del})")).dim()
                 ));
                 if add + del <= 24 && change.kind != ChangeKind::Deleted {
-                    self.out(&indent(&colorize_diff(&strip_headers(&change.diff)), "      "));
+                    self.out(&indent(
+                        &colorize_diff(&strip_headers(&change.diff)),
+                        "      ",
+                    ));
                 }
             }
             AgentEvent::TestFinished { report } => {
                 self.newline_if_mid(&mut st);
                 let counts = match (report.passed, report.failed) {
                     (Some(p), Some(f)) => format!("{p} passed, {f} failed"),
-                    _ => format!("exit {}", report.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "?".into())),
+                    _ => format!(
+                        "exit {}",
+                        report
+                            .exit_code
+                            .map(|c| c.to_string())
+                            .unwrap_or_else(|| "?".into())
+                    ),
                 };
                 if report.succeeded() {
-                    self.out(&format!("  {} {}\n", style("tests passed:").green().bold(), counts));
+                    self.out(&format!(
+                        "  {} {}\n",
+                        style("tests passed:").green().bold(),
+                        counts
+                    ));
                 } else {
-                    self.out(&format!("  {} {}\n", style("tests failed:").red().bold(), counts));
+                    self.out(&format!(
+                        "  {} {}\n",
+                        style("tests failed:").red().bold(),
+                        counts
+                    ));
                     for t in report.failed_tests.iter().take(8) {
                         self.out(&format!("    {} {}\n", style("✗").red(), t));
                     }
@@ -207,7 +254,12 @@ impl Renderer {
                 };
                 self.out(&format!("{s}\n"));
             }
-            AgentEvent::TurnFinished { outcome, changed_files, usage, .. } => {
+            AgentEvent::TurnFinished {
+                outcome,
+                changed_files,
+                usage,
+                ..
+            } => {
                 if !st.pending.is_empty() && !st.suppress {
                     let p = std::mem::take(&mut st.pending);
                     self.out(&p);
@@ -232,7 +284,11 @@ impl Renderer {
                 if usage.prompt_tokens + usage.completion_tokens > 0 {
                     self.out(&format!(
                         "{}\n",
-                        style(format!("{} tokens in, {} out", usage.prompt_tokens, usage.completion_tokens)).dim()
+                        style(format!(
+                            "{} tokens in, {} out",
+                            usage.prompt_tokens, usage.completion_tokens
+                        ))
+                        .dim()
                     ));
                 }
             }

@@ -5,7 +5,10 @@
 //! (thinking), incremental tool-call deltas, and text-embedded tool calls.
 
 use crate::toolparse::{extract_text_tool_calls, split_thinking};
-use crate::{ChatRequest, ChatResponse, EventSink, Message, ModelProvider, ProviderInfo, Role, StreamEvent, ToolCall};
+use crate::{
+    ChatRequest, ChatResponse, EventSink, Message, ModelProvider, ProviderInfo, Role, StreamEvent,
+    ToolCall,
+};
 use futures_util::StreamExt;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -153,14 +156,22 @@ impl ModelProvider for OpenAiCompatProvider {
         }
     }
 
-    async fn chat(&self, req: ChatRequest, on_event: EventSink<'_>, cancel: &CancellationToken) -> anyhow::Result<ChatResponse> {
+    async fn chat(
+        &self,
+        req: ChatRequest,
+        on_event: EventSink<'_>,
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<ChatResponse> {
         let known: Vec<String> = req.tools.iter().map(|t| t.name.clone()).collect();
         let body = self.body(&req);
 
         // Retry connection failures briefly (runtime may still be loading).
         let mut attempt = 0;
         let resp = loop {
-            let mut r = self.client.post(format!("{}/chat/completions", self.base_url)).json(&body);
+            let mut r = self
+                .client
+                .post(format!("{}/chat/completions", self.base_url))
+                .json(&body);
             if let Some(k) = &self.api_key {
                 r = r.bearer_auth(k);
             }
@@ -170,13 +181,21 @@ impl ModelProvider for OpenAiCompatProvider {
                     attempt += 1;
                     tokio::time::sleep(Duration::from_millis(500 * attempt)).await;
                 }
-                Err(e) => return Err(anyhow::anyhow!("model endpoint {} unreachable: {e}", self.base_url)),
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "model endpoint {} unreachable: {e}",
+                        self.base_url
+                    ))
+                }
             }
         };
         let status = resp.status();
         if !status.is_success() {
             let text = resp.text().await.unwrap_or_default();
-            anyhow::bail!("model endpoint returned {status}: {}", text.chars().take(600).collect::<String>());
+            anyhow::bail!(
+                "model endpoint returned {status}: {}",
+                text.chars().take(600).collect::<String>()
+            );
         }
 
         let mut stream = resp.bytes_stream();
@@ -196,26 +215,37 @@ impl ModelProvider for OpenAiCompatProvider {
             while let Some(pos) = buf.find('\n') {
                 let line = buf[..pos].trim_end_matches('\r').to_string();
                 buf.drain(..=pos);
-                let Some(data) = line.strip_prefix("data:") else { continue };
+                let Some(data) = line.strip_prefix("data:") else {
+                    continue;
+                };
                 let data = data.trim();
                 if data == "[DONE]" {
                     break 'outer;
                 }
-                let Ok(v) = serde_json::from_str::<Value>(data) else { continue };
+                let Ok(v) = serde_json::from_str::<Value>(data) else {
+                    continue;
+                };
                 if let Some(err) = v.get("error") {
                     anyhow::bail!("model error: {err}");
                 }
                 if let Some(u) = v.get("usage").filter(|u| !u.is_null()) {
                     out.usage = Some(TokenUsage {
                         prompt_tokens: u.get("prompt_tokens").and_then(Value::as_u64).unwrap_or(0),
-                        completion_tokens: u.get("completion_tokens").and_then(Value::as_u64).unwrap_or(0),
+                        completion_tokens: u
+                            .get("completion_tokens")
+                            .and_then(Value::as_u64)
+                            .unwrap_or(0),
                     });
                 }
-                let Some(choice) = v.get("choices").and_then(|c| c.get(0)) else { continue };
+                let Some(choice) = v.get("choices").and_then(|c| c.get(0)) else {
+                    continue;
+                };
                 if let Some(fr) = choice.get("finish_reason").and_then(Value::as_str) {
                     out.finish_reason = Some(fr.to_string());
                 }
-                let Some(delta) = choice.get("delta").or_else(|| choice.get("message")) else { continue };
+                let Some(delta) = choice.get("delta").or_else(|| choice.get("message")) else {
+                    continue;
+                };
                 for key in ["reasoning_content", "reasoning"] {
                     if let Some(r) = delta.get(key).and_then(Value::as_str) {
                         if !r.is_empty() {
@@ -262,7 +292,10 @@ impl ModelProvider for OpenAiCompatProvider {
                 }
                 if let Some(tcs) = delta.get("tool_calls").and_then(Value::as_array) {
                     for tc in tcs {
-                        let idx = tc.get("index").and_then(Value::as_u64).unwrap_or(calls.len() as u64);
+                        let idx = tc
+                            .get("index")
+                            .and_then(Value::as_u64)
+                            .unwrap_or(calls.len() as u64);
                         let entry = calls.entry(idx).or_default();
                         if let Some(id) = tc.get("id").and_then(Value::as_str) {
                             entry.id = id.to_string();
@@ -290,7 +323,11 @@ impl ModelProvider for OpenAiCompatProvider {
             .enumerate()
             .filter(|(_, c)| !c.name.is_empty())
             .map(|(i, c)| ToolCall {
-                id: if c.id.is_empty() { format!("call_{i}") } else { c.id },
+                id: if c.id.is_empty() {
+                    format!("call_{i}")
+                } else {
+                    c.id
+                },
                 name: c.name,
                 arguments: c.arguments,
             })
@@ -319,11 +356,20 @@ fn veyra_endpoint_is_local(url: &str) -> bool {
     let rest = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
     let authority = rest.split('/').next().unwrap_or("");
     let host = if authority.starts_with('[') {
-        authority.split(']').next().unwrap_or("").trim_start_matches('[').to_string()
+        authority
+            .split(']')
+            .next()
+            .unwrap_or("")
+            .trim_start_matches('[')
+            .to_string()
     } else {
         authority.split(':').next().unwrap_or("").to_string()
     };
-    host.eq_ignore_ascii_case("localhost") || host.parse::<std::net::IpAddr>().map(|ip| ip.is_loopback()).unwrap_or(false)
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<std::net::IpAddr>()
+            .map(|ip| ip.is_loopback())
+            .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -348,7 +394,11 @@ mod tests {
                 if let Some(hdr_end) = s.find("\r\n\r\n") {
                     let len: usize = s
                         .lines()
-                        .find_map(|l| l.to_ascii_lowercase().strip_prefix("content-length:").map(|v| v.trim().parse().unwrap()))
+                        .find_map(|l| {
+                            l.to_ascii_lowercase()
+                                .strip_prefix("content-length:")
+                                .map(|v| v.trim().parse().unwrap())
+                        })
                         .unwrap_or(0);
                     if total >= hdr_end + 4 + len {
                         break;
@@ -397,8 +447,7 @@ mod tests {
         assert_eq!(r.reasoning, "thinking...");
         assert_eq!(r.usage.unwrap().prompt_tokens, 12);
         assert_eq!(r.finish_reason.as_deref(), Some("stop"));
-        let evs = events.lock().unwrap();
-        assert!(evs.contains(&StreamEvent::Text("Hel".into())));
+        assert!(events.lock().unwrap().contains(&StreamEvent::Text("Hel".into())));
         let sent = server.await.unwrap();
         assert!(sent.contains("\"stream\":true"));
         assert!(sent.starts_with("POST /v1/chat/completions"));
@@ -416,13 +465,23 @@ mod tests {
         let p = OpenAiCompatProvider::new(&url, "m");
         let req = ChatRequest {
             messages: vec![Message::user("hi")],
-            tools: vec![ToolDef { name: "grep".into(), description: "d".into(), parameters: json!({"type":"object"}) }],
+            tools: vec![ToolDef {
+                name: "grep".into(),
+                description: "d".into(),
+                parameters: json!({"type":"object"}),
+            }],
             ..Default::default()
         };
-        let r = p.chat(req, &|_| {}, &CancellationToken::new()).await.unwrap();
+        let r = p
+            .chat(req, &|_| {}, &CancellationToken::new())
+            .await
+            .unwrap();
         assert_eq!(r.tool_calls.len(), 2);
         assert_eq!(r.tool_calls[0].name, "grep");
-        assert_eq!(r.tool_calls[0].parsed_arguments().unwrap()["pattern"], "auth");
+        assert_eq!(
+            r.tool_calls[0].parsed_arguments().unwrap()["pattern"],
+            "auth"
+        );
         assert_eq!(r.tool_calls[1].id, "c2");
         let sent = server.await.unwrap();
         assert!(sent.contains("\"tools\""));
@@ -438,10 +497,17 @@ mod tests {
         let p = OpenAiCompatProvider::new(&url, "m");
         let req = ChatRequest {
             messages: vec![Message::user("hi")],
-            tools: vec![ToolDef { name: "grep".into(), description: "d".into(), parameters: json!({}) }],
+            tools: vec![ToolDef {
+                name: "grep".into(),
+                description: "d".into(),
+                parameters: json!({}),
+            }],
             ..Default::default()
         };
-        let r = p.chat(req, &|_| {}, &CancellationToken::new()).await.unwrap();
+        let r = p
+            .chat(req, &|_| {}, &CancellationToken::new())
+            .await
+            .unwrap();
         assert_eq!(r.reasoning, "need to search");
         assert_eq!(r.tool_calls.len(), 1);
         assert!(r.content.is_empty());
@@ -449,7 +515,15 @@ mod tests {
 
     #[test]
     fn locality() {
-        assert!(OpenAiCompatProvider::new("http://127.0.0.1:8080/v1", "m").info().local);
-        assert!(!OpenAiCompatProvider::new("https://api.example.com/v1", "m").info().local);
+        assert!(
+            OpenAiCompatProvider::new("http://127.0.0.1:8080/v1", "m")
+                .info()
+                .local
+        );
+        assert!(
+            !OpenAiCompatProvider::new("https://api.example.com/v1", "m")
+                .info()
+                .local
+        );
     }
 }

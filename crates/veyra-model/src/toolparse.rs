@@ -76,7 +76,9 @@ pub fn extract_text_tool_calls(content: &str, known_tools: &[&str]) -> (String, 
 
     // Fenced or bare JSON objects naming a known tool.
     static FENCE: OnceLock<Regex> = OnceLock::new();
-    let fence = FENCE.get_or_init(|| Regex::new(r"(?s)```(?:json|tool_call)?\s*(\{.*?\})\s*```").expect("regex"));
+    let fence = FENCE.get_or_init(|| {
+        Regex::new(r"(?s)```(?:json|tool_call)?\s*(\{.*?\})\s*```").expect("regex")
+    });
     for c in fence.captures_iter(content) {
         if let Some(call) = call_from_json(&c[1], known_tools, calls.len()) {
             calls.push(call);
@@ -156,7 +158,8 @@ mod tests {
         let text = "```json\n{\"name\": \"grep\", \"arguments\": {\"pattern\": \"x\"}}\n```";
         let (_, calls) = extract_text_tool_calls(text, &["grep"]);
         assert_eq!(calls[0].name, "grep");
-        let (rest, calls) = extract_text_tool_calls("```json\n{\"name\": \"rm_rf\"}\n```", &["grep"]);
+        let (rest, calls) =
+            extract_text_tool_calls("```json\n{\"name\": \"rm_rf\"}\n```", &["grep"]);
         assert!(calls.is_empty());
         assert!(rest.contains("rm_rf"));
         let (_, calls) = extract_text_tool_calls("plain answer", &["grep"]);

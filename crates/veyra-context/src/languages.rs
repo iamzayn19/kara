@@ -21,8 +21,22 @@ macro_rules! builtin_packs {
 
 /// Packs compiled into the binary.
 pub const BUILTIN_PACKS: &[(&str, &str)] = builtin_packs!(
-    "ruby", "python", "javascript", "typescript", "rust", "go", "java", "c", "cpp",
-    "csharp", "php", "swift", "kotlin", "shell", "web", "sql",
+    "ruby",
+    "python",
+    "javascript",
+    "typescript",
+    "rust",
+    "go",
+    "java",
+    "c",
+    "cpp",
+    "csharp",
+    "php",
+    "swift",
+    "kotlin",
+    "shell",
+    "web",
+    "sql",
 );
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -121,10 +135,10 @@ impl LanguagePack {
         }
         let mut import_res = Vec::new();
         for p in &def.imports.patterns {
-            import_res.push(
-                Regex::new(&format!("(?m){p}"))
-                    .map_err(|e| anyhow::anyhow!("pack {}: bad import pattern {p}: {e}", def.id))?,
-            );
+            import_res
+                .push(Regex::new(&format!("(?m){p}")).map_err(|e| {
+                    anyhow::anyhow!("pack {}: bad import pattern {p}: {e}", def.id)
+                })?);
         }
         let mut gb = globset::GlobSetBuilder::new();
         for p in &def.test_patterns {
@@ -152,7 +166,9 @@ impl LanguagePack {
             || name.contains(".test.")
             || name.contains(".spec.")
             || name.starts_with("test_")
-            || (name.ends_with("test.java") || name.ends_with("tests.cs") || name.ends_with("test.kt"))
+            || (name.ends_with("test.java")
+                || name.ends_with("tests.cs")
+                || name.ends_with("test.kt"))
     }
 }
 
@@ -248,8 +264,22 @@ mod tests {
         let reg = LanguageRegistry::builtin();
         assert_eq!(reg.packs().len(), 16);
         for id in [
-            "ruby", "python", "javascript", "typescript", "rust", "go", "java", "c", "cpp",
-            "csharp", "php", "swift", "kotlin", "shell", "web", "sql",
+            "ruby",
+            "python",
+            "javascript",
+            "typescript",
+            "rust",
+            "go",
+            "java",
+            "c",
+            "cpp",
+            "csharp",
+            "php",
+            "swift",
+            "kotlin",
+            "shell",
+            "web",
+            "sql",
         ] {
             assert!(reg.get(id).is_some(), "{id}");
         }
@@ -270,10 +300,22 @@ mod tests {
     #[test]
     fn test_file_detection() {
         let reg = LanguageRegistry::builtin();
-        assert!(reg.get("ruby").unwrap().is_test_file("spec/models/user_spec.rb"));
-        assert!(reg.get("python").unwrap().is_test_file("tests/test_auth.py"));
-        assert!(reg.get("go").unwrap().is_test_file("pkg/auth/session_test.go"));
-        assert!(reg.get("typescript").unwrap().is_test_file("src/auth.test.ts"));
+        assert!(reg
+            .get("ruby")
+            .unwrap()
+            .is_test_file("spec/models/user_spec.rb"));
+        assert!(reg
+            .get("python")
+            .unwrap()
+            .is_test_file("tests/test_auth.py"));
+        assert!(reg
+            .get("go")
+            .unwrap()
+            .is_test_file("pkg/auth/session_test.go"));
+        assert!(reg
+            .get("typescript")
+            .unwrap()
+            .is_test_file("src/auth.test.ts"));
         assert!(!reg.get("python").unwrap().is_test_file("app/auth.py"));
     }
 

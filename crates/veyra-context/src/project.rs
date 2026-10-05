@@ -102,7 +102,9 @@ impl ProjectProfile {
         };
 
         for lang in &order {
-            let Some(pack) = registry.get(lang) else { continue };
+            let Some(pack) = registry.get(lang) else {
+                continue;
+            };
             let cats: [(CommandCategory, &Vec<CommandSpec>); 5] = [
                 (CommandCategory::Test, &pack.def.commands.test),
                 (CommandCategory::Lint, &pack.def.commands.lint),
@@ -111,15 +113,14 @@ impl ProjectProfile {
                 (CommandCategory::Build, &pack.def.commands.build),
             ];
             for (cat, specs) in cats {
-                if let Some(spec) = specs
-                    .iter()
-                    .find(|s| satisfied(root, s, scripts_for(lang)))
-                {
+                if let Some(spec) = specs.iter().find(|s| satisfied(root, s, scripts_for(lang))) {
                     let pm = profile.package_manager.as_deref().unwrap_or("npm");
                     let (run, targeted) = if cfg!(windows) {
                         (
                             spec.windows_run.clone().unwrap_or_else(|| spec.run.clone()),
-                            spec.windows_targeted.clone().or_else(|| spec.targeted.clone()),
+                            spec.windows_targeted
+                                .clone()
+                                .or_else(|| spec.targeted.clone()),
                         )
                     } else {
                         (spec.run.clone(), spec.targeted.clone())
@@ -145,7 +146,9 @@ impl ProjectProfile {
     }
 
     pub fn first(&self, cat: CommandCategory) -> Option<&ProjectCommand> {
-        self.commands.iter().find(|c| c.category == cat && !c.run.contains("{files}"))
+        self.commands
+            .iter()
+            .find(|c| c.category == cat && !c.run.contains("{files}"))
     }
 
     pub fn all(&self, cat: CommandCategory) -> impl Iterator<Item = &ProjectCommand> {
@@ -180,7 +183,7 @@ impl ProjectProfile {
 
 /// Expand a targeted command template for specific files.
 pub fn expand_targeted(template: &str, files: &[String]) -> String {
-    let quote = |s: &str| shell_words::quote(s).into_owned();
+    let quote = |s: &str| quote_arg(s);
     let stem = |f: &str| {
         let name = f.rsplit('/').next().unwrap_or(f);
         name.split('.').next().unwrap_or(name).to_string()
@@ -205,6 +208,25 @@ pub fn expand_targeted(template: &str, files: &[String]) -> String {
         .replace("{classes}", &names.join(","))
         .replace("{packages}", &packages.join(" "))
         .replace("{modules}", &modules.join(" "))
+}
+
+/// Quote one argument for the platform shell Veyra runs commands with
+/// (`sh -c` on Unix, `cmd /C` on Windows).
+pub fn quote_arg(s: &str) -> String {
+    if cfg!(windows) {
+        let safe = !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_./\\:=,+@".contains(c));
+        if safe {
+            s.to_string()
+        } else {
+            // Inside double quotes cmd treats & | < > ^ literally; % and " are
+            // neutralised.
+            format!("\"{}\"", s.replace('"', "").replace('%', "%%"))
+        }
+    } else {
+        shell_words::quote(s).into_owned()
+    }
 }
 
 fn satisfied(root: &Path, spec: &CommandSpec, scripts: &[String]) -> bool {
@@ -292,8 +314,14 @@ mod tests {
         write(d.path(), "spec/auth_spec.rb", "describe Auth do; end\n");
         write(d.path(), ".rubocop.yml", "");
         let p = ProjectProfile::detect(d.path(), &LanguageRegistry::builtin());
-        assert_eq!(p.first(CommandCategory::Test).unwrap().run, "bundle exec rspec");
-        assert_eq!(p.first(CommandCategory::Lint).unwrap().run, "bundle exec rubocop");
+        assert_eq!(
+            p.first(CommandCategory::Test).unwrap().run,
+            "bundle exec rspec"
+        );
+        assert_eq!(
+            p.first(CommandCategory::Lint).unwrap().run,
+            "bundle exec rubocop"
+        );
         assert_eq!(p.primary_language(), Some("ruby"));
     }
 
@@ -310,12 +338,19 @@ mod tests {
         write(d.path(), "src/index.ts", "export const a = 1;\n");
         let p = ProjectProfile::detect(d.path(), &LanguageRegistry::builtin());
         assert_eq!(p.first(CommandCategory::Test).unwrap().run, "pnpm test");
-        assert_eq!(p.first(CommandCategory::Build).unwrap().run, "pnpm run build");
+        assert_eq!(
+            p.first(CommandCategory::Build).unwrap().run,
+            "pnpm run build"
+        );
         assert_eq!(
             p.first(CommandCategory::Typecheck).unwrap().run,
             "npx --no-install tsc --noEmit"
         );
-        assert_eq!(p.all(CommandCategory::Test).count(), 1, "no JS/TS duplicate");
+        assert_eq!(
+            p.all(CommandCategory::Test).count(),
+            1,
+            "no JS/TS duplicate"
+        );
     }
 
     #[test]
@@ -339,7 +374,17 @@ mod tests {
             "python3 -m pytest -q {files}",
             &["tests/test_a.py".into(), "tests/x; rm -rf ~.py".into()],
         );
-        assert_eq!(cmd, "python3 -m pytest -q tests/test_a.py 'tests/x; rm -rf ~.py'");
+        if cfg!(windows) {
+            assert_eq!(
+                cmd,
+                "python3 -m pytest -q tests/test_a.py \"tests/x; rm -rf ~.py\""
+            );
+        } else {
+            assert_eq!(
+                cmd,
+                "python3 -m pytest -q tests/test_a.py 'tests/x; rm -rf ~.py'"
+            );
+        }
         assert_eq!(
             expand_targeted("go test {packages}", &["pkg/auth/a_test.go".into()]),
             "go test ./pkg/auth"

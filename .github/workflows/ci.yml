@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Toolchains for the fixture repositories (missing ones are skipped by the tests).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Configure git identity for fixture repositories
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.invalid
+      - run: cargo test --workspace --locked
+      - name: Build release binary
+        run: cargo build --release --locked -p veyra-cli
+      - name: Binary smoke test outside the repository
+        shell: bash
+        run: |
+          bin="$PWD/target/release/veyra"
+          cd "$RUNNER_TEMP"
+          "$bin" --version
+          VEYRA_HOME="$RUNNER_TEMP/veyra-home" "$bin" privacy
+          VEYRA_HOME="$RUNNER_TEMP/veyra-home" "$bin" doctor
+          VEYRA_HOME="$RUNNER_TEMP/veyra-home" "$bin" models list
+      - name: Evaluation harness (oracle, no model)
+        shell: bash
+        run: VEYRA_HOME="$RUNNER_TEMP/veyra-home" ./target/release/veyra eval --oracle --out "$RUNNER_TEMP/oracle.json"
+
+  vscode:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extensions/vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: extensions/vscode/package-lock.json
+      - run: cargo build -p veyra-cli --locked
+        working-directory: .
+      - run: npm ci
+      - name: Unit and protocol tests
+        run: VEYRA_BIN="$GITHUB_WORKSPACE/target/debug/veyra" npm test
+      - name: Extension host smoke test (real VS Code, headless)
+        run: VEYRA_BIN="$GITHUB_WORKSPACE/target/debug/veyra" xvfb-run -a npm run test:host
+      - run: npm run package
+      - name: Install the VSIX with the VS Code CLI
+        run: |
+          code_bin=$(find .vscode-test -path '*/bin/code' -type f | head -n1)
+          "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --install-extension veyra-*.vsix
+          "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --list-extensions | grep -x iamzayn19.veyra
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: extensions/vscode/*.vsix
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses advisories sources bans
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
