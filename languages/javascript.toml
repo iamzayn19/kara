@@ -1,0 +1,53 @@
+id = "javascript"
+name = "JavaScript"
+extensions = ["js", "jsx", "mjs", "cjs"]
+filenames = []
+package_files = ["package.json"]
+test_patterns = ["**/*.test.js", "**/*.spec.js", "**/*.test.jsx", "**/*.test.mjs", "__tests__/**/*.js", "test/**/*.js"]
+lsp = ["typescript-language-server", "--stdio"]
+tree_sitter = "javascript"
+
+[[commands.test]]
+run = "{pm} test"
+targeted = "{pm} test -- {files}"
+requires_script = "test"
+
+[[commands.test]]
+run = "node --test"
+targeted = "node --test {files}"
+requires_any = ["test", "tests"]
+
+[[commands.lint]]
+run = "{pm} run lint"
+requires_script = "lint"
+
+[[commands.lint]]
+run = "npx --no-install eslint ."
+requires_any = ["eslint.config.js", "eslint.config.mjs", ".eslintrc", ".eslintrc.js", ".eslintrc.json", ".eslintrc.cjs"]
+
+[[commands.build]]
+run = "{pm} run build"
+requires_script = "build"
+
+[[commands.format]]
+run = "npx --no-install prettier --write ."
+requires_any = [".prettierrc", ".prettierrc.json", "prettier.config.js"]
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*(?:export\s+)?(?:default\s+)?class\s+([A-Za-z_$][\w$]*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>'
+
+[[symbols]]
+kind = "method"
+pattern = '^\s+(?:static\s+)?(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{'
+
+[imports]
+patterns = ['''^\s*import\s+(?:[^'"]*\s+from\s+)?['"]([^'"]+)['"]''', '''require\(\s*['"]([^'"]+)['"]\s*\)''']

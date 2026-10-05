@@ -1,0 +1,31 @@
+id = "sql"
+name = "SQL"
+extensions = ["sql", "psql", "ddl"]
+filenames = []
+package_files = []
+test_patterns = []
+lsp = ["sqls"]
+tree_sitter = "sql"
+
+[[commands.lint]]
+run = "sqlfluff lint"
+requires_any = [".sqlfluff", "setup.cfg"]
+
+[[symbols]]
+kind = "table"
+pattern = '(?i)^\s*create\s+(?:or\s+replace\s+)?(?:temporary\s+|temp\s+)?table\s+(?:if\s+not\s+exists\s+)?([\w."]+)'
+
+[[symbols]]
+kind = "view"
+pattern = '(?i)^\s*create\s+(?:or\s+replace\s+)?(?:materialized\s+)?view\s+(?:if\s+not\s+exists\s+)?([\w."]+)'
+
+[[symbols]]
+kind = "function"
+pattern = '(?i)^\s*create\s+(?:or\s+replace\s+)?(?:function|procedure)\s+([\w."]+)'
+
+[[symbols]]
+kind = "index"
+pattern = '(?i)^\s*create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?([\w."]+)'
+
+[imports]
+patterns = []

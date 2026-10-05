@@ -1,0 +1,48 @@
+id = "go"
+name = "Go"
+extensions = ["go"]
+filenames = ["go.mod"]
+package_files = ["go.mod"]
+test_patterns = ["**/*_test.go"]
+lsp = ["gopls"]
+tree_sitter = "go"
+
+[[commands.test]]
+run = "go test ./..."
+targeted = "go test {packages}"
+requires = ["go.mod"]
+
+[[commands.lint]]
+run = "golangci-lint run"
+requires_any = [".golangci.yml", ".golangci.yaml", ".golangci.toml"]
+
+[[commands.lint]]
+run = "go vet ./..."
+requires = ["go.mod"]
+
+[[commands.format]]
+run = "gofmt -w ."
+requires = ["go.mod"]
+
+[[commands.build]]
+run = "go build ./..."
+requires = ["go.mod"]
+
+[[symbols]]
+kind = "function"
+pattern = '^func\s+([A-Za-z_]\w*)\s*[\[(]'
+
+[[symbols]]
+kind = "method"
+pattern = '^func\s+\([^)]*\)\s+([A-Za-z_]\w*)\s*[\[(]'
+
+[[symbols]]
+kind = "type"
+pattern = '^type\s+([A-Za-z_]\w*)\s'
+
+[[symbols]]
+kind = "type"
+pattern = '^\s+([A-Z]\w*)\s+(?:struct|interface)\s*\{'
+
+[imports]
+patterns = ['^\s*import\s+"([^"]+)"', '^\s+(?:\w+\s+)?"([^"]+)"\s*$']

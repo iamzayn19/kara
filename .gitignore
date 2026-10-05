@@ -1,0 +1,23 @@
+/target/
+**/*.rs.bk
+.DS_Store
+
+# Project-local Veyra state is never committed automatically.
+.veyra/sessions/
+.veyra/cache/
+
+# VS Code extension build output
+extensions/vscode/node_modules/
+extensions/vscode/out/
+extensions/vscode/*.vsix
+extensions/vscode/.vscode-test/
+
+# Eval runs
+tests/evals/results/*.json
+!tests/evals/results/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

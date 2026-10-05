@@ -1,0 +1,60 @@
+id = "ruby"
+name = "Ruby"
+extensions = ["rb", "rake", "gemspec", "ru", "erb"]
+filenames = ["Gemfile", "Rakefile", "Guardfile"]
+package_files = ["Gemfile", "*.gemspec"]
+test_patterns = ["spec/**/*_spec.rb", "test/**/*_test.rb", "test/**/test_*.rb"]
+lsp = ["ruby-lsp"]
+tree_sitter = "ruby"
+
+[[commands.test]]
+run = "bundle exec rspec"
+targeted = "bundle exec rspec {files}"
+requires = ["Gemfile", "spec"]
+
+[[commands.test]]
+run = "bin/rails test"
+targeted = "bin/rails test {files}"
+requires = ["bin/rails", "test"]
+
+[[commands.test]]
+run = "bundle exec rake test"
+targeted = "bundle exec ruby -Itest -Ilib {files}"
+requires = ["Gemfile", "test"]
+
+[[commands.test]]
+run = "rake test"
+targeted = "ruby -Itest -Ilib {files}"
+requires = ["Rakefile", "test"]
+
+[[commands.test]]
+run = "ruby -Itest -Ilib -e 'Dir.glob(\"test/**/*_test.rb\").each { |f| require File.expand_path(f) }'"
+targeted = "ruby -Itest -Ilib {files}"
+requires = ["test"]
+
+[[commands.lint]]
+run = "bundle exec rubocop"
+requires = ["Gemfile", ".rubocop.yml"]
+
+[[commands.format]]
+run = "bundle exec rubocop -a"
+requires = ["Gemfile", ".rubocop.yml"]
+
+[[symbols]]
+kind = "module"
+pattern = '^\s*module\s+([A-Z][\w:]*)'
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*class\s+([A-Z][\w:]*)'
+
+[[symbols]]
+kind = "method"
+pattern = '^\s*def\s+(?:self\.)?([A-Za-z_][\w]*[?!=]?)'
+
+[[symbols]]
+kind = "constant"
+pattern = '^\s*([A-Z][A-Z0-9_]+)\s*='
+
+[imports]
+patterns = ['''^\s*require(?:_relative)?\s+['"]([^'"]+)['"]''']

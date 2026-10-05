@@ -1,0 +1,36 @@
+id = "php"
+name = "PHP"
+extensions = ["php", "phtml"]
+filenames = ["composer.json"]
+package_files = ["composer.json"]
+test_patterns = ["tests/**/*Test.php"]
+lsp = ["intelephense", "--stdio"]
+tree_sitter = "php"
+
+[[commands.test]]
+run = "vendor/bin/phpunit"
+targeted = "vendor/bin/phpunit {files}"
+requires = ["vendor/bin/phpunit"]
+
+[[commands.test]]
+run = "composer test"
+requires_script = "test"
+
+[[commands.lint]]
+run = "vendor/bin/phpstan analyse"
+requires = ["vendor/bin/phpstan"]
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*(?:(?:abstract|final|readonly)\s+)*(?:class|trait|enum)\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "interface"
+pattern = '^\s*interface\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:(?:public|private|protected|static|final|abstract)\s+)*function\s+&?([A-Za-z_]\w*)'
+
+[imports]
+patterns = ['^\s*use\s+([\w\\]+)', '''(?:require|include)(?:_once)?\s*\(?\s*['"]([^'"]+)['"]''']

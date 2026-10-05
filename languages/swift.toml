@@ -1,0 +1,32 @@
+id = "swift"
+name = "Swift"
+extensions = ["swift"]
+filenames = ["Package.swift"]
+package_files = ["Package.swift", "*.xcodeproj"]
+test_patterns = ["Tests/**/*.swift"]
+lsp = ["sourcekit-lsp"]
+tree_sitter = "swift"
+
+[[commands.test]]
+run = "swift test"
+targeted = "swift test --filter {classes}"
+requires = ["Package.swift"]
+
+[[commands.build]]
+run = "swift build"
+requires = ["Package.swift"]
+
+[[commands.lint]]
+run = "swiftlint"
+requires = [".swiftlint.yml"]
+
+[[symbols]]
+kind = "type"
+pattern = '^\s*(?:(?:public|private|internal|open|fileprivate|final)\s+)*(?:class|struct|enum|protocol|actor|extension)\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:(?:public|private|internal|open|fileprivate|static|class|override|mutating|@\w+)\s+)*func\s+([A-Za-z_]\w*)'
+
+[imports]
+patterns = ['^\s*import\s+(\w+)']

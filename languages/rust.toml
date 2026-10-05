@@ -1,0 +1,60 @@
+id = "rust"
+name = "Rust"
+extensions = ["rs"]
+filenames = ["Cargo.toml"]
+package_files = ["Cargo.toml"]
+test_patterns = ["tests/**/*.rs"]
+lsp = ["rust-analyzer"]
+tree_sitter = "rust"
+
+[[commands.test]]
+run = "cargo test"
+targeted = "cargo test {names}"
+requires = ["Cargo.toml"]
+
+[[commands.lint]]
+run = "cargo clippy --all-targets"
+requires = ["Cargo.toml"]
+
+[[commands.typecheck]]
+run = "cargo check --all-targets"
+requires = ["Cargo.toml"]
+
+[[commands.format]]
+run = "cargo fmt"
+requires = ["Cargo.toml"]
+
+[[commands.build]]
+run = "cargo build"
+requires = ["Cargo.toml"]
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?(?:extern\s+"[^"]*"\s+)?fn\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "struct"
+pattern = '^\s*(?:pub(?:\([^)]*\))?\s+)?struct\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "enum"
+pattern = '^\s*(?:pub(?:\([^)]*\))?\s+)?enum\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "trait"
+pattern = '^\s*(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?trait\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "impl"
+pattern = '^\s*impl(?:<[^>]*>)?\s+(?:[\w:<>, ]+\s+for\s+)?([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "module"
+pattern = '^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "constant"
+pattern = '^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+([A-Z_][A-Z0-9_]*)\s*:'
+
+[imports]
+patterns = ['^\s*(?:pub\s+)?use\s+([\w:]+)', '^\s*(?:pub\s+)?mod\s+(\w+)\s*;']

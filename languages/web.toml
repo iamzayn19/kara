@@ -1,0 +1,27 @@
+id = "web"
+name = "HTML/CSS"
+extensions = ["html", "htm", "css", "scss", "sass", "less", "vue", "svelte"]
+filenames = []
+package_files = []
+test_patterns = []
+lsp = ["vscode-css-language-server", "--stdio"]
+tree_sitter = "html"
+
+[[commands.lint]]
+run = "npx --no-install stylelint \"**/*.{css,scss}\""
+requires_any = [".stylelintrc", ".stylelintrc.json", "stylelint.config.js"]
+
+[[symbols]]
+kind = "selector"
+pattern = '^\s*([.#][A-Za-z_-][\w-]*)[^{]*\{'
+
+[[symbols]]
+kind = "variable"
+pattern = '^\s*(--[\w-]+)\s*:'
+
+[[symbols]]
+kind = "id"
+pattern = '''\bid=["']([\w-]+)["']'''
+
+[imports]
+patterns = ['''@import\s+(?:url\()?["']?([^"');]+)''', '''<(?:script|link)[^>]+(?:src|href)=["']([^"']+)["']''']

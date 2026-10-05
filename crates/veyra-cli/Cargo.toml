@@ -1,0 +1,4 @@
+[package]
+name = "veyra-cli"
+version.workspace = true
+edition.workspace = true

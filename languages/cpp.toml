@@ -1,0 +1,39 @@
+id = "cpp"
+name = "C++"
+extensions = ["cpp", "cc", "cxx", "hpp", "hh", "hxx", "ipp"]
+filenames = ["CMakeLists.txt"]
+package_files = ["CMakeLists.txt", "conanfile.txt", "conanfile.py", "vcpkg.json", "meson.build"]
+test_patterns = ["tests/**/*.cpp", "test/**/*.cpp", "**/*_test.cpp", "**/*_test.cc"]
+lsp = ["clangd"]
+tree_sitter = "cpp"
+
+[[commands.test]]
+run = "ctest --test-dir build --output-on-failure"
+requires = ["CMakeLists.txt", "build"]
+
+[[commands.test]]
+run = "make test"
+requires = ["Makefile"]
+
+[[commands.build]]
+run = "cmake --build build"
+requires = ["CMakeLists.txt", "build"]
+
+[[commands.build]]
+run = "make"
+requires = ["Makefile"]
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*(?:template\s*<[^>]*>\s*)?(?:class|struct)\s+(?:[A-Z_]+\s+)?([A-Za-z_]\w*)\s*(?:final\s*)?[:{]'
+
+[[symbols]]
+kind = "namespace"
+pattern = '^\s*namespace\s+([A-Za-z_][\w:]*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^(?:[\w:<>,\*&\s]+?\s+)?((?:[A-Za-z_]\w*::)*[A-Za-z_~]\w*)\s*\([^;]*\)\s*(?:const\s*)?(?:noexcept\s*)?(?:override\s*)?\{?\s*$'
+
+[imports]
+patterns = ['^\s*#\s*include\s+["<]([^">]+)[">]']

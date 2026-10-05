@@ -1,0 +1,51 @@
+id = "python"
+name = "Python"
+extensions = ["py", "pyi"]
+filenames = []
+package_files = ["pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile"]
+test_patterns = ["tests/**/test_*.py", "tests/**/*_test.py", "test_*.py", "**/test_*.py"]
+lsp = ["pyright-langserver", "--stdio"]
+tree_sitter = "python"
+
+[[commands.test]]
+run = "python3 -m pytest -q"
+targeted = "python3 -m pytest -q {files}"
+requires_any = ["pytest.ini", "conftest.py", "tests", "pyproject.toml", "setup.cfg", "tox.ini"]
+windows_run = "python -m pytest -q"
+windows_targeted = "python -m pytest -q {files}"
+
+[[commands.test]]
+run = "python3 -m unittest discover"
+targeted = "python3 -m unittest {modules}"
+windows_run = "python -m unittest discover"
+
+[[commands.lint]]
+run = "ruff check ."
+requires_any = ["ruff.toml", ".ruff.toml", "pyproject.toml"]
+
+[[commands.lint]]
+run = "flake8"
+requires_any = [".flake8", "setup.cfg", "tox.ini"]
+
+[[commands.typecheck]]
+run = "mypy ."
+requires_any = ["mypy.ini", ".mypy.ini"]
+
+[[commands.format]]
+run = "ruff format ."
+requires_any = ["ruff.toml", ".ruff.toml", "pyproject.toml"]
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*class\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "constant"
+pattern = '^([A-Z][A-Z0-9_]+)\s*[:=]'
+
+[imports]
+patterns = ['^\s*from\s+([\w.]+)\s+import', '^\s*import\s+([\w.]+)']

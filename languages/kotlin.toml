@@ -1,0 +1,38 @@
+id = "kotlin"
+name = "Kotlin"
+extensions = ["kt", "kts"]
+filenames = ["build.gradle.kts"]
+package_files = ["build.gradle.kts", "build.gradle", "settings.gradle.kts", "pom.xml"]
+test_patterns = ["src/test/**/*.kt", "**/*Test.kt"]
+lsp = ["kotlin-language-server"]
+tree_sitter = "kotlin"
+
+[[commands.test]]
+run = "./gradlew test"
+targeted = "./gradlew test --tests {classes}"
+requires = ["gradlew"]
+windows_run = "gradlew.bat test"
+
+[[commands.test]]
+run = "gradle test"
+targeted = "gradle test --tests {classes}"
+requires_any = ["build.gradle.kts", "build.gradle"]
+
+[[commands.lint]]
+run = "ktlint"
+requires = [".editorconfig"]
+
+[[commands.build]]
+run = "gradle build -x test"
+requires_any = ["build.gradle.kts", "build.gradle"]
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*(?:(?:public|private|internal|protected|open|abstract|sealed|data|enum|inner|value|annotation)\s+)*(?:class|interface|object)\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:(?:public|private|internal|protected|open|override|suspend|inline|operator|infix|tailrec)\s+)*fun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?([A-Za-z_]\w*)'
+
+[imports]
+patterns = ['^\s*import\s+([\w.]+)']

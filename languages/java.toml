@@ -1,0 +1,57 @@
+id = "java"
+name = "Java"
+extensions = ["java"]
+filenames = ["pom.xml", "build.gradle", "build.gradle.kts"]
+package_files = ["pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle"]
+test_patterns = ["src/test/**/*.java", "**/*Test.java", "**/*Tests.java"]
+lsp = ["jdtls"]
+tree_sitter = "java"
+
+[[commands.test]]
+run = "./mvnw -q test"
+targeted = "./mvnw -q test -Dtest={classes}"
+requires = ["mvnw", "pom.xml"]
+windows_run = "mvnw.cmd -q test"
+
+[[commands.test]]
+run = "mvn -q test"
+targeted = "mvn -q test -Dtest={classes}"
+requires = ["pom.xml"]
+
+[[commands.test]]
+run = "./gradlew test"
+targeted = "./gradlew test --tests {classes}"
+requires = ["gradlew"]
+windows_run = "gradlew.bat test"
+
+[[commands.test]]
+run = "gradle test"
+targeted = "gradle test --tests {classes}"
+requires_any = ["build.gradle", "build.gradle.kts"]
+
+[[commands.build]]
+run = "mvn -q package -DskipTests"
+requires = ["pom.xml"]
+
+[[commands.build]]
+run = "gradle build -x test"
+requires_any = ["build.gradle", "build.gradle.kts"]
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*(?:(?:public|private|protected|abstract|final|static|sealed)\s+)*(?:class|record)\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "interface"
+pattern = '^\s*(?:(?:public|private|protected|sealed)\s+)*(?:interface|@interface)\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "enum"
+pattern = '^\s*(?:(?:public|private|protected)\s+)*enum\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "method"
+pattern = '^\s+(?:(?:public|private|protected|static|final|abstract|synchronized|native|default)\s+)+[\w<>\[\], ?]+\s+([a-z_]\w*)\s*\('
+
+[imports]
+patterns = ['^\s*import\s+(?:static\s+)?([\w.]+)']

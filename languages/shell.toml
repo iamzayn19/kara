@@ -1,0 +1,28 @@
+id = "shell"
+name = "Shell"
+extensions = ["sh", "bash", "zsh", "ksh", "bats"]
+filenames = [".bashrc", ".zshrc"]
+package_files = []
+test_patterns = ["test/**/*.bats", "tests/**/*.bats"]
+lsp = ["bash-language-server", "start"]
+tree_sitter = "bash"
+
+[[commands.test]]
+run = "bats test"
+targeted = "bats {files}"
+requires = ["test"]
+requires_files_matching = "test/*.bats"
+
+[[commands.lint]]
+run = "shellcheck {files}"
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:function\s+)?([A-Za-z_][\w:-]*)\s*\(\)\s*\{?'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*function\s+([A-Za-z_][\w:-]*)'
+
+[imports]
+patterns = ['^\s*(?:source|\.)\s+([^\s;]+)']

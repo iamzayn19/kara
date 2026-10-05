@@ -1,0 +1,61 @@
+id = "typescript"
+name = "TypeScript"
+extensions = ["ts", "tsx", "mts", "cts"]
+filenames = []
+package_files = ["tsconfig.json", "package.json"]
+test_patterns = ["**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "__tests__/**/*.ts", "test/**/*.ts"]
+lsp = ["typescript-language-server", "--stdio"]
+tree_sitter = "typescript"
+
+[[commands.test]]
+run = "{pm} test"
+targeted = "{pm} test -- {files}"
+requires_script = "test"
+
+[[commands.test]]
+run = "node --test"
+targeted = "node --test {files}"
+requires_any = ["test", "tests"]
+
+[[commands.lint]]
+run = "{pm} run lint"
+requires_script = "lint"
+
+[[commands.typecheck]]
+run = "npx --no-install tsc --noEmit"
+requires = ["tsconfig.json"]
+
+[[commands.build]]
+run = "{pm} run build"
+requires_script = "build"
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)'
+
+[[symbols]]
+kind = "interface"
+pattern = '^\s*(?:export\s+)?interface\s+([A-Za-z_$][\w$]*)'
+
+[[symbols]]
+kind = "type"
+pattern = '^\s*(?:export\s+)?type\s+([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*='
+
+[[symbols]]
+kind = "enum"
+pattern = '^\s*(?:export\s+)?(?:const\s+)?enum\s+([A-Za-z_$][\w$]*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)'
+
+[[symbols]]
+kind = "function"
+pattern = '^\s*(?:export\s+)?(?:const|let)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*(?::[^=]+)?=>'
+
+[[symbols]]
+kind = "method"
+pattern = '^\s+(?:public\s+|private\s+|protected\s+)?(?:static\s+)?(?:async\s+)?([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\([^)]*\)\s*(?::\s*[^{]+)?\{'
+
+[imports]
+patterns = ['''^\s*import\s+(?:type\s+)?(?:[^'"]*\s+from\s+)?['"]([^'"]+)['"]''', '''require\(\s*['"]([^'"]+)['"]\s*\)''']

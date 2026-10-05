@@ -1,0 +1,43 @@
+id = "c"
+name = "C"
+extensions = ["c", "h"]
+filenames = ["Makefile", "CMakeLists.txt", "meson.build"]
+package_files = ["CMakeLists.txt", "Makefile", "meson.build", "configure.ac"]
+test_patterns = ["tests/**/*.c", "test/**/*.c"]
+lsp = ["clangd"]
+tree_sitter = "c"
+
+[[commands.test]]
+run = "ctest --test-dir build --output-on-failure"
+requires = ["CMakeLists.txt", "build"]
+
+[[commands.test]]
+run = "make test"
+requires = ["Makefile"]
+
+[[commands.build]]
+run = "cmake --build build"
+requires = ["CMakeLists.txt", "build"]
+
+[[commands.build]]
+run = "make"
+requires = ["Makefile"]
+
+[[commands.format]]
+run = "clang-format -i {files}"
+requires = [".clang-format"]
+
+[[symbols]]
+kind = "function"
+pattern = '^(?:static\s+|inline\s+|extern\s+)*[A-Za-z_][\w\s\*]*?\b([A-Za-z_]\w*)\s*\([^;]*$'
+
+[[symbols]]
+kind = "struct"
+pattern = '^\s*(?:typedef\s+)?struct\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "macro"
+pattern = '^\s*#\s*define\s+([A-Za-z_]\w*)'
+
+[imports]
+patterns = ['^\s*#\s*include\s+["<]([^">]+)[">]']

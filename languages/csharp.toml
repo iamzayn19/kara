@@ -1,0 +1,48 @@
+id = "csharp"
+name = "C#"
+extensions = ["cs", "csx"]
+filenames = []
+package_files = ["*.csproj", "*.sln", "Directory.Build.props", "global.json"]
+test_patterns = ["**/*Tests.cs", "**/*Test.cs", "tests/**/*.cs"]
+lsp = ["csharp-ls"]
+tree_sitter = "c_sharp"
+
+[[commands.test]]
+run = "dotnet test"
+targeted = "dotnet test --filter {classes}"
+requires_any = ["*.sln", "*.csproj"]
+
+[[commands.lint]]
+run = "dotnet format --verify-no-changes"
+requires_any = ["*.sln", "*.csproj"]
+
+[[commands.format]]
+run = "dotnet format"
+requires_any = ["*.sln", "*.csproj"]
+
+[[commands.build]]
+run = "dotnet build"
+requires_any = ["*.sln", "*.csproj"]
+
+[[symbols]]
+kind = "class"
+pattern = '^\s*(?:(?:public|private|protected|internal|abstract|sealed|static|partial)\s+)*(?:class|record|struct)\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "interface"
+pattern = '^\s*(?:(?:public|private|protected|internal|partial)\s+)*interface\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "enum"
+pattern = '^\s*(?:(?:public|private|protected|internal)\s+)*enum\s+([A-Za-z_]\w*)'
+
+[[symbols]]
+kind = "method"
+pattern = '^\s+(?:(?:public|private|protected|internal|static|virtual|override|async|abstract|sealed|new)\s+)+[\w<>\[\],? ]+\s+([A-Z]\w*)\s*\('
+
+[[symbols]]
+kind = "namespace"
+pattern = '^\s*namespace\s+([\w.]+)'
+
+[imports]
+patterns = ['^\s*using\s+(?:static\s+)?([\w.]+)\s*;']

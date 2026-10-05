@@ -1,0 +1,71 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/veyra-protocol",
+    "crates/veyra-core",
+    "crates/veyra-sandbox",
+    "crates/veyra-context",
+    "crates/veyra-tools",
+    "crates/veyra-model",
+    "crates/veyra-runtime",
+    "crates/veyra-agent",
+    "crates/veyra-cli",
+    "tests/integration",
+]
+default-members = ["crates/veyra-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "Apache-2.0"
+authors = ["iamzayn19"]
+repository = "https://github.com/iamzayn19/veyra"
+homepage = "https://github.com/iamzayn19/veyra"
+
+[workspace.dependencies]
+veyra-protocol = { path = "crates/veyra-protocol", version = "0.1.0" }
+veyra-core = { path = "crates/veyra-core", version = "0.1.0" }
+veyra-sandbox = { path = "crates/veyra-sandbox", version = "0.1.0" }
+veyra-context = { path = "crates/veyra-context", version = "0.1.0" }
+veyra-tools = { path = "crates/veyra-tools", version = "0.1.0" }
+veyra-model = { path = "crates/veyra-model", version = "0.1.0" }
+veyra-runtime = { path = "crates/veyra-runtime", version = "0.1.0" }
+veyra-agent = { path = "crates/veyra-agent", version = "0.1.0" }
+
+anyhow = "1"
+async-trait = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+clap = { version = "4", features = ["derive"] }
+console = "0.15"
+dirs = "5"
+flate2 = "1"
+futures-util = "0.3"
+globset = "0.4"
+hex = "0.4"
+ignore = "0.4"
+indicatif = "0.17"
+rayon = "1"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream", "http2"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+rustyline = { version = "14", default-features = false, features = ["with-file-history"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+shell-words = "1"
+similar = "2"
+sysinfo = { version = "0.32", default-features = false, features = ["system", "disk"] }
+tar = "0.4"
+tempfile = "3"
+thiserror = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "io-std", "sync", "time", "fs", "signal"] }
+tokio-util = "0.7"
+toml = "0.8"
+uuid = { version = "1", features = ["v4"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
