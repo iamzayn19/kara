@@ -538,6 +538,96 @@ impl Tool for WriteFile {
     }
 }
 
+pub struct InsertLines;
+
+impl InsertLines {
+    fn plan(args: &Value, ctx: &ToolContext) -> Result<PlannedWrite, String> {
+        let p = resolve(ctx, arg_str(args, "path")?)?;
+        let rel = p
+            .rel
+            .clone()
+            .ok_or("edits outside the workspace are not supported")?;
+        let after =
+            opt_u64(args, "after_line").ok_or("missing `after_line` (0 inserts at the top)")?;
+        let text = args
+            .get("text")
+            .and_then(Value::as_str)
+            .ok_or("missing `text`")?;
+        let original =
+            read_existing(&p)?.ok_or_else(|| format!("{rel} does not exist; use create_file"))?;
+        let crlf = original.contains("\r\n");
+        let eol = if crlf { "\r\n" } else { "\n" };
+        let mut lines: Vec<&str> = original.lines().collect();
+        if after as usize > lines.len() {
+            return Err(format!(
+                "after_line {after} is past the end of {rel} ({} lines)",
+                lines.len()
+            ));
+        }
+        let new_lines: Vec<&str> = text.lines().collect();
+        lines.splice(after as usize..after as usize, new_lines);
+        let mut updated = lines.join(eol);
+        if original.ends_with('\n') || original.is_empty() {
+            updated.push_str(eol);
+        }
+        Ok(PlannedWrite {
+            rel,
+            before: Some(original),
+            after: Some(updated),
+            kind: ChangeKind::Modified,
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl Tool for InsertLines {
+    fn name(&self) -> &'static str {
+        "insert_lines"
+    }
+    fn description(&self) -> &'static str {
+        "Insert new lines into an existing file after line `after_line` (1-based, as shown by read_file; 0 = top of file). Use this to add new code such as a new function or test; use edit_file to change existing code."
+    }
+    fn parameters(&self) -> Value {
+        json!({"type":"object","properties":{
+            "path":{"type":"string"},
+            "after_line":{"type":"integer","description":"Insert after this line number (0 = before the first line)"},
+            "text":{"type":"string","description":"Lines to insert, with indentation"}
+        },"required":["path","after_line","text"]})
+    }
+    fn read_only(&self) -> bool {
+        false
+    }
+    fn assess(&self, args: &Value, ctx: &ToolContext) -> Result<Assessment, String> {
+        let p = resolve(ctx, arg_str(args, "path")?)?;
+        let mut a = write_assess(ctx, &p, "insert into");
+        if let Ok(plan) = Self::plan(args, ctx) {
+            a.detail = clip_chars(
+                &unified_diff(
+                    &plan.rel,
+                    plan.before.as_deref().unwrap_or(""),
+                    plan.after.as_deref().unwrap_or(""),
+                ),
+                MAX_DIFF_PREVIEW,
+            );
+        }
+        Ok(a)
+    }
+    async fn run(&self, args: &Value, ctx: &ToolContext) -> ToolOutput {
+        let plan = match Self::plan(args, ctx) {
+            Ok(p) => p,
+            Err(e) => return ToolOutput::err(e),
+        };
+        // Line numbers are only meaningful for content the model has seen.
+        if let Err(e) = ensure_fresh(ctx, &plan.rel, true) {
+            return ToolOutput::err(e);
+        }
+        match commit_writes(ctx, vec![plan]) {
+            Ok(ch) => changes_output(ch, "inserted into"),
+            Err(e) => ToolOutput::err(e),
+        }
+    }
+}
+
 pub struct CreateFile;
 
 #[async_trait::async_trait]
@@ -930,6 +1020,38 @@ mod tests {
             .await;
         assert!(!out.ok);
         assert!(out.content.contains("has not been read"));
+    }
+
+    #[tokio::test]
+    async fn insert_lines_after_a_line() {
+        let f = fixture(&[("t.rs", "mod tests {\n    fn a() {}\n}\n")]);
+        // Must read first so line numbers refer to what the model saw.
+        let out = InsertLines
+            .run(
+                &json!({"path": "t.rs", "after_line": 2, "text": "    fn b() {}"}),
+                &f.ctx,
+            )
+            .await;
+        assert!(!out.ok);
+        ReadFile.run(&json!({"path": "t.rs"}), &f.ctx).await;
+        let out = InsertLines
+            .run(
+                &json!({"path": "t.rs", "after_line": 2, "text": "    fn b() {}"}),
+                &f.ctx,
+            )
+            .await;
+        assert!(out.ok, "{}", out.content);
+        assert_eq!(
+            std::fs::read_to_string(f.dir.path().join("t.rs")).unwrap(),
+            "mod tests {\n    fn a() {}\n    fn b() {}\n}\n"
+        );
+        let out = InsertLines
+            .run(
+                &json!({"path": "t.rs", "after_line": 99, "text": "x"}),
+                &f.ctx,
+            )
+            .await;
+        assert!(!out.ok);
     }
 
     #[tokio::test]

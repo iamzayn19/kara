@@ -162,6 +162,7 @@ pub fn builtin_tools() -> Vec<Arc<dyn Tool>> {
         Arc::new(search::FindSymbol),
         Arc::new(search::FindReferences),
         Arc::new(fs::EditFile),
+        Arc::new(fs::InsertLines),
         Arc::new(fs::WriteFile),
         Arc::new(fs::CreateFile),
         Arc::new(fs::ApplyPatch),

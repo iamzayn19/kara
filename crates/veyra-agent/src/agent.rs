@@ -104,6 +104,7 @@ const UPDATE_PLAN: &str = "update_plan";
 
 const MUTATING_TOOLS: &[&str] = &[
     "edit_file",
+    "insert_lines",
     "write_file",
     "create_file",
     "apply_patch",
@@ -1105,8 +1106,8 @@ fn phase_for(tool: &str) -> Phase {
             Phase::Search
         }
         "read_file" | "read_range" | "git_show" | "git_blame" | "git_log" => Phase::Read,
-        "edit_file" | "write_file" | "create_file" | "apply_patch" | "move_file"
-        | "delete_file" => Phase::Edit,
+        "edit_file" | "insert_lines" | "write_file" | "create_file" | "apply_patch"
+        | "move_file" | "delete_file" => Phase::Edit,
         "run_test" => Phase::Test,
         "run_lint" | "run_build" | "diagnostics" => Phase::Verify,
         "git_diff" | "git_status" => Phase::Review,

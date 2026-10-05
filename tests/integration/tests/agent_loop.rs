@@ -362,16 +362,28 @@ async fn claiming_done_while_tests_fail_is_pushed_back() {
             // Claims success although the tests failed.
             2 => text("Fixed it, all good."),
             _ => {
-                if req.messages.iter().rev().take(3).any(|m| m.role == Role::Tool && m.content.contains("PASSED")) {
+                if req
+                    .messages
+                    .iter()
+                    .rev()
+                    .take(3)
+                    .any(|m| m.role == Role::Tool && m.content.contains("PASSED"))
+                {
                     text("Now the tests pass.")
                 } else {
-                    call("run_test", json!({"files": ["test/test_cart.py"], "timeout_secs": 100 + n}))
+                    call(
+                        "run_test",
+                        json!({"files": ["test/test_cart.py"], "timeout_secs": 100 + n}),
+                    )
                 }
             }
         }
     }));
     let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
-    let r = h.agent.run_turn("fix the discount", AgentMode::Execute).await;
+    let r = h
+        .agent
+        .run_turn("fix the discount", AgentMode::Execute)
+        .await;
     assert_eq!(r.outcome, TurnOutcome::Completed);
     assert!(r.last_test.unwrap().succeeded(), "{}", r.summary);
     assert!(!r.summary.contains("still failing"));
@@ -392,7 +404,10 @@ async fn finishing_with_failing_tests_is_reported_honestly() {
         _ => text("Done, everything works."),
     }));
     let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
-    let r = h.agent.run_turn("fix the discount", AgentMode::Execute).await;
+    let r = h
+        .agent
+        .run_turn("fix the discount", AgentMode::Execute)
+        .await;
     assert!(r.summary.contains("Note from Veyra"), "{}", r.summary);
     assert!(r.summary.contains("still failing"));
 }
@@ -402,7 +417,10 @@ async fn claiming_an_edit_that_never_applied_is_caught() {
     let repo = Repo::from_fixture("python-shop");
     let provider = Arc::new(ScriptedProvider::from_fn(|_: &ChatRequest, n| match n {
         // The edit's old_string does not exist, so nothing changes.
-        0 => call("edit_file", json!({"path": "shop/cart.py", "old_string": "no such text", "new_string": "x"})),
+        0 => call(
+            "edit_file",
+            json!({"path": "shop/cart.py", "old_string": "no such text", "new_string": "x"}),
+        ),
         _ => text("I added the test successfully."),
     }));
     let requests = provider.requests();
@@ -411,7 +429,12 @@ async fn claiming_an_edit_that_never_applied_is_caught() {
     assert!(r.changed_files.is_empty());
     assert!(r.summary.contains("no files were changed"), "{}", r.summary);
     let reqs = requests.lock().unwrap();
-    assert!(reqs.iter().any(|q| q.messages.last().unwrap().content.contains("no files have been changed yet")));
+    assert!(reqs.iter().any(|q| q
+        .messages
+        .last()
+        .unwrap()
+        .content
+        .contains("no files have been changed yet")));
 }
 
 #[tokio::test]
@@ -420,9 +443,22 @@ async fn orientation_points_to_project_docs() {
     let provider = Arc::new(ScriptedProvider::new(vec![text("ok")]));
     let requests = provider.requests();
     let mut h = Harness::new(&repo, provider, Profile::Balanced, Arc::new(DenyAll));
-    h.agent.run_turn("Explain the architecture", AgentMode::Execute).await;
+    h.agent
+        .run_turn("Explain the architecture", AgentMode::Execute)
+        .await;
     let reqs = requests.lock().unwrap();
-    let user = &reqs[0].messages.iter().find(|m| m.role == Role::User).unwrap().content;
-    assert!(user.contains("Documentation (read these first for overview questions): README.md"), "{user}");
-    assert!(user.contains("Top-level directories: shop/ test/"), "{user}");
+    let user = &reqs[0]
+        .messages
+        .iter()
+        .find(|m| m.role == Role::User)
+        .unwrap()
+        .content;
+    assert!(
+        user.contains("Documentation (read these first for overview questions): README.md"),
+        "{user}"
+    );
+    assert!(
+        user.contains("Top-level directories: shop/ test/"),
+        "{user}"
+    );
 }

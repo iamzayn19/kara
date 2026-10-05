@@ -297,7 +297,10 @@ mod tests {
                 m.eval_score = Some(0.5);
             }
         }
-        assert_eq!(recommend(&reg, &mac(64)).model.unwrap().id, "qwen3.6-35b-a3b-q4_k_m");
+        assert_eq!(
+            recommend(&reg, &mac(64)).model.unwrap().id,
+            "qwen3.6-35b-a3b-q4_k_m"
+        );
     }
 
     #[test]

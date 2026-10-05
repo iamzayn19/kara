@@ -329,7 +329,9 @@ fn leading_ws(s: &str) -> &str {
 
 fn closest_hint(lines: &[String], old_lines: &[String]) -> String {
     let first = old_lines.iter().find(|l| !l.trim().is_empty());
-    let mut msg = String::from("old_string not found in file.");
+    let mut msg = String::from(
+        "old_string not found in file. To add new code (rather than change existing code), use insert_lines with a line number from read_file.",
+    );
     if let Some(first) = first {
         let target = first.trim();
         let best = lines
