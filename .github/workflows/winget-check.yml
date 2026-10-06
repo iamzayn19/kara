@@ -1,0 +1,48 @@
+name: winget manifest check
+
+# Manual only. Reproduces the winget validation steps against the released
+# manifests (validate, then install from the manifest). Changes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Kara version to check
+        default: "0.1.0"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - name: Download the released manifests
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release download "v$env:VERSION" -R iamzayn19/kara -p winget-manifests.zip -D $env:RUNNER_TEMP
+          Expand-Archive (Join-Path $env:RUNNER_TEMP "winget-manifests.zip") -DestinationPath $env:RUNNER_TEMP/m -Force
+          Get-ChildItem -Recurse $env:RUNNER_TEMP/m -Filter *.yaml | ForEach-Object { $_.FullName }
+      - name: winget --version
+        shell: pwsh
+        run: winget --version
+      - name: winget validate
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "m/winget/manifests/i/iamzayn19/Kara/$env:VERSION"
+          winget validate --manifest $dir --verbose-logs
+          if ($LASTEXITCODE) { throw "winget validate failed: $LASTEXITCODE" }
+      - name: winget install from manifest
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "m/winget/manifests/i/iamzayn19/Kara/$env:VERSION"
+          winget install --manifest $dir --accept-package-agreements --accept-source-agreements --disable-interactivity --verbose-logs
+          if ($LASTEXITCODE) { throw "winget install failed: $LASTEXITCODE" }
+          kara --version
