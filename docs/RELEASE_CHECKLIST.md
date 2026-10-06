@@ -44,7 +44,7 @@ needs a green run on GitHub.
 | Dependency licenses audited | ✅ local · ✅ CI | docs/LICENSES.md, cargo-deny job |
 | README commands actually executed | ✅ local | see "README command log" below |
 | No assistant/model attribution appears as author | ✅ | metadata: iamzayn19 only |
-| Full clean-machine installation tested | ❌ | needs a fresh machine or VM, after the first GitHub Release exists |
+| Full clean-machine installation tested | ⚠️ Linux only | Linux aarch64: fresh `ubuntu:24.04` container, `install.sh` against a release-shaped mirror (checksum verified, tampered SHA256SUMS rejected), `kara --version`, `kara privacy`, `kara doctor` run, nothing downloaded. Still open: a real macOS and Windows machine, and a real GitHub Release (needs tag, which waits for your go-ahead) |
 | GitHub CI green on Linux, macOS and Windows | ✅ | all jobs green on 06fb176 (run 37438226296) |
 
 ## README command log
