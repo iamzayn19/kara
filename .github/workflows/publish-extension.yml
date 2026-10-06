@@ -1,0 +1,35 @@
+name: Publish VS Code extension
+
+# Manual only. Builds the VS Code extension and publishes it to the Visual
+# Studio Marketplace and Open VSX using the VSCE_PAT and OVSX_PAT secrets.
+# It does not create a release or a tag.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    defaults:
+      run:
+        working-directory: extensions/vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci
+      - run: npm test
+      - run: npm run package
+      - name: Visual Studio Marketplace
+        if: env.VSCE_PAT != ''
+        run: npx --yes @vscode/vsce publish --packagePath *.vsix -p "$VSCE_PAT"
+      - name: Open VSX
+        if: env.OVSX_PAT != ''
+        run: npx --yes ovsx publish *.vsix -p "$OVSX_PAT"
