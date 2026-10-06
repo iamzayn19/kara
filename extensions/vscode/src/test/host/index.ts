@@ -3,7 +3,7 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 
 export async function run(): Promise<void> {
-  const ext = vscode.extensions.getExtension("iamzayn19.kara");
+  const ext = vscode.extensions.getExtension("iamzayn19.kara-agent");
   assert.ok(ext, "extension is installed");
   await ext!.activate();
   assert.ok(ext!.isActive, "extension activates");

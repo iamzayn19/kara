@@ -116,7 +116,7 @@ jobs:
       - name: Install the VSIX with the VS Code CLI
         run: |
           code_bin=$(find .vscode-test -path '*/bin/code' -type f | head -n1)
-          "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --install-extension kara-*.vsix
+          "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --install-extension kara-agent-*.vsix
           "$code_bin" --extensions-dir "$RUNNER_TEMP/ext" --list-extensions | grep -x iamzayn19.kara-agent
       - uses: actions/upload-artifact@v4
         with:

@@ -14,7 +14,7 @@ needs a green run on GitHub.
 | Integration tests pass | ✅ local · ✅ CI | `tests/integration` (agent loop, undo, security, fixtures, scale) |
 | Agent fixture tests pass | ✅ local | fixture validation + `kara eval --oracle` (Go only in CI) |
 | VS Code extension builds | ✅ local · ✅ CI | `npm test`, `npm run package` |
-| VSIX installs successfully | ✅ local · ✅ CI | `code --install-extension kara-0.1.0.vsix` into an isolated extensions dir |
+| VSIX installs successfully | ✅ local · ✅ CI | `code --install-extension kara-agent-0.1.0.vsix` into an isolated extensions dir |
 | Kara CLI works outside repository checkout | ✅ local | release binary copied elsewhere with a fresh `KARA_HOME`; links only system libraries |
 | Hardware detection works | ✅ local | `kara doctor` (Metal, unified memory, RAM, disk) |
 | Model download works | ✅ local | `kara models pull qwen3-4b-q4_k_m` (2.5 GB, Hugging Face, pinned revision) |
@@ -69,5 +69,6 @@ test them during the clean-machine check.
 5. Extension marketplaces: add the `VSCE_PAT` and/or `OVSX_PAT` repository
    secrets (created by the publisher account, never committed), then re-run
    the `publish-extension` job, or publish by hand:
-   `npx @vscode/vsce publish --packagePath kara-0.1.0.vsix` and
-   `npx ovsx publish kara-0.1.0.vsix -p <token>`.
+   `npx @vscode/vsce publish --packagePath kara-agent-0.1.0.vsix` and
+   `npx ovsx publish kara-agent-0.1.0.vsix -p <token>`. The manual
+   `publish-extension` workflow does both from the current commit.
