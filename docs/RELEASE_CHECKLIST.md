@@ -44,7 +44,7 @@ needs a green run on GitHub.
 | Dependency licenses audited | ✅ local · ✅ CI | docs/LICENSES.md, cargo-deny job |
 | README commands actually executed | ✅ local | see "README command log" below |
 | No assistant/model attribution appears as author | ✅ | metadata: iamzayn19 only |
-| Full clean-machine installation tested | ⚠️ Linux only | Linux aarch64: fresh `ubuntu:24.04` container, `install.sh` against a release-shaped mirror (checksum verified, tampered SHA256SUMS rejected), `kara --version`, `kara privacy`, `kara doctor` run, nothing downloaded. Still open: a real macOS and Windows machine, and a real GitHub Release (needs tag, which waits for your go-ahead) |
+| Full clean-machine installation tested | ⚠️ Linux and macOS partly; Windows pending VM | macOS (Apple M5, this machine, not a clean install: developer tools and earlier Kara data present): `install.sh` against a local release-shaped mirror, checksum verified, `kara --version`, `kara privacy`, `kara doctor` run. HOME override does not isolate macOS data paths, so a truly clean macOS run is still wanted. Windows 11 ARM64 VM (VMware Fusion) pending: VM disk is encrypted and needs unlocking; `install.ps1` rejects ARM64 (only AMD64 is packaged). Linux aarch64: fresh `ubuntu:24.04` container, `install.sh` verified, tampered checksum rejected | Linux aarch64: fresh `ubuntu:24.04` container, `install.sh` against a release-shaped mirror (checksum verified, tampered SHA256SUMS rejected), `kara --version`, `kara privacy`, `kara doctor` run, nothing downloaded. Still open: a real macOS and Windows machine, and a real GitHub Release (needs tag, which waits for your go-ahead) |
 | GitHub CI green on Linux, macOS and Windows | ✅ | all jobs green on 06fb176 (run 37438226296) |
 
 ## README command log
