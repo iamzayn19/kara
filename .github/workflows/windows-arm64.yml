@@ -39,7 +39,9 @@ jobs:
           $hash = (Get-FileHash (Join-Path $mirror $zip.Name) -Algorithm SHA256).Hash.ToLower()
           "$hash  $($zip.Name)" | Set-Content (Join-Path $mirror "SHA256SUMS")
           $env:KARA_VERSION = "0.1.0"
-          $env:KARA_RELEASE_BASE = "file:///" + ($mirror -replace '\\', '/')
+          $server = Start-Process python -ArgumentList "-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", $mirror -PassThru -NoNewWindow
+          Start-Sleep -Seconds 3
+          $env:KARA_RELEASE_BASE = "http://127.0.0.1:8765"
           $env:KARA_INSTALL_DIR = Join-Path $env:RUNNER_TEMP "kara-bin"
           $env:KARA_NO_MODIFY_PATH = "1"
           ./scripts/install.ps1
