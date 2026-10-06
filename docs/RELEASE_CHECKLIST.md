@@ -14,7 +14,7 @@ needs a green run on GitHub.
 | Integration tests pass | ✅ local · ✅ CI | `tests/integration` (agent loop, undo, security, fixtures, scale) |
 | Agent fixture tests pass | ✅ local | fixture validation + `kara eval --oracle` (Go only in CI) |
 | VS Code extension builds | ✅ local · ✅ CI | `npm test`, `npm run package` |
-| VSIX installs successfully | ✅ local · ⏳ CI | `code --install-extension kara-0.1.0.vsix` into an isolated extensions dir |
+| VSIX installs successfully | ✅ local · ✅ CI | `code --install-extension kara-0.1.0.vsix` into an isolated extensions dir |
 | Kara CLI works outside repository checkout | ✅ local | release binary copied elsewhere with a fresh `KARA_HOME`; links only system libraries |
 | Hardware detection works | ✅ local | `kara doctor` (Metal, unified memory, RAM, disk) |
 | Model download works | ✅ local | `kara models pull qwen3-4b-q4_k_m` (2.5 GB, Hugging Face, pinned revision) |
@@ -34,13 +34,13 @@ needs a green run on GitHub.
 | Kara runs without local inference | ✅ local | fresh `KARA_HOME`: guidance instead of failure, nothing downloaded; `weak_machine_*` tests |
 | Remote Kara inference | ✅ local | `kara serve --inference` + `kara connect` between two Kara homes; wrong token rejected; owner-only token files; real task completed |
 | Core independent of runtimes/accelerators | ✅ | `tests/integration/tests/architecture.rs` |
-| Permission modes ask/workspace/full; full never from repository or workspace config | ✅ local · ⏳ CI (VS Code host test) | `kara-core` tests, `security.rs`, protocol test, extension host test |
-| Installers verify checksums | ✅ local (install.sh, file:// mirror) · ⏳ CI · ❌ install.ps1 untested | `scripts/install.sh` with `KARA_RELEASE_BASE` |
+| Permission modes ask/workspace/full; full never from repository or workspace config | ✅ local · ✅ CI (VS Code host test) | `kara-core` tests, `security.rs`, protocol test, extension host test |
+| Installers verify checksums | ✅ local (install.sh, file:// mirror) · ✅ install.ps1 under PowerShell 7.4.6 on macOS (happy path installs; tampered SHA256SUMS rejected) · ❌ not run on real Windows | `scripts/install.sh` with `KARA_RELEASE_BASE` |
 | Homebrew formula / winget manifests | ✅ generated and syntax-checked · ❌ not published | `packaging/render.py` |
 | Privacy command accurate | ✅ local | derived from effective config; remote endpoints reported |
 | No telemetry exists by default | ✅ | no telemetry code; network uses listed in PRIVACY.md |
 | No proprietary API required | ✅ | local llama.cpp; OpenAI-compatible protocol only |
-| No secret committed | ⏳ CI | gitleaks job; manual review |
+| No secret committed | ✅ CI (gitleaks) | gitleaks job; manual review |
 | Dependency licenses audited | ✅ local · ✅ CI | docs/LICENSES.md, cargo-deny job |
 | README commands actually executed | ✅ local | see "README command log" below |
 | No assistant/model attribution appears as author | ✅ | metadata: iamzayn19 only |
