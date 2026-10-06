@@ -29,6 +29,27 @@ jobs:
           scripts/package-release.sh "$version" aarch64-pc-windows-msvc target/aarch64-pc-windows-msvc/release/kara.exe
       - name: Smoke test
         run: ./target/aarch64-pc-windows-msvc/release/kara.exe --version
+      - name: Installer test (scripts/install.ps1, from a local release mirror)
+        shell: pwsh
+        run: |
+          $mirror = Join-Path $env:RUNNER_TEMP "mirror"
+          New-Item -ItemType Directory -Force -Path $mirror | Out-Null
+          $zip = Get-ChildItem dist -Filter "*.zip" | Select-Object -First 1
+          Copy-Item $zip.FullName $mirror
+          $hash = (Get-FileHash (Join-Path $mirror $zip.Name) -Algorithm SHA256).Hash.ToLower()
+          "$hash  $($zip.Name)" | Set-Content (Join-Path $mirror "SHA256SUMS")
+          $env:KARA_VERSION = "0.1.0"
+          $env:KARA_RELEASE_BASE = "file:///" + ($mirror -replace '\\', '/')
+          $env:KARA_INSTALL_DIR = Join-Path $env:RUNNER_TEMP "kara-bin"
+          $env:KARA_NO_MODIFY_PATH = "1"
+          ./scripts/install.ps1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $kara = Join-Path $env:KARA_INSTALL_DIR "kara.exe"
+          & $kara --version
+          & $kara privacy
+          & $kara doctor
+          & $kara run "explain this repository"
+          Write-Host "install and first-run checks finished"
       - uses: actions/upload-artifact@v4
         with:
           name: kara-windows-arm64
