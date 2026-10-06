@@ -2,7 +2,7 @@
 id = "go-reserve"
 category = "missing-validation"
 prompt = "Store.Reserve corrupts stock levels on failure and accepts negative quantities. Fix it."
-check = "go test ./inventory -run 'TestReserve'"
+check = "go test ./inventory -run TestReserve"
 expect_changed = ["inventory/stock.go"]
 
 [[task]]

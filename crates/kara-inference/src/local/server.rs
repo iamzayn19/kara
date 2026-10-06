@@ -106,7 +106,15 @@ pub fn reap_stale(dir: &Path) -> usize {
             continue;
         }
         if let Some(p) = sys.process(sysinfo::Pid::from_u32(rec.server_pid)) {
-            let same_binary = p.exe().map(|e| e == rec.binary).unwrap_or(false)
+            // Linux may report the resolved path (/usr/bin/sleep) for a
+            // recorded /bin/sleep, so compare canonical paths.
+            let recorded = std::fs::canonicalize(&rec.binary).ok();
+            let same_binary = p
+                .exe()
+                .and_then(|e| std::fs::canonicalize(e).ok())
+                .zip(recorded)
+                .map(|(a, b)| a == b)
+                .unwrap_or(false)
                 || p.name().to_string_lossy().contains("llama-server");
             if same_binary {
                 p.kill();
