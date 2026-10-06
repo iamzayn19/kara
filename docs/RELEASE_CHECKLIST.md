@@ -7,13 +7,13 @@ needs a green run on GitHub.
 
 | Blocker | Status | Evidence |
 |---|---|---|
-| Linux build passes | ⏳ CI | `test (ubuntu-latest)` job; release workflow builds x86_64 and arm64 |
-| macOS build passes | ✅ local · ⏳ CI | `cargo build --release` (arm64) |
-| Windows build passes | ⏳ CI | `test (windows-latest)` job |
-| Unit tests pass | ✅ local · ⏳ CI | `cargo test --workspace` |
-| Integration tests pass | ✅ local · ⏳ CI | `tests/integration` (agent loop, undo, security, fixtures, scale) |
+| Linux build passes | ✅ CI | `test (ubuntu-latest)` job; release workflow builds x86_64 and arm64 |
+| macOS build passes | ✅ local · ✅ CI | `cargo build --release` (arm64) |
+| Windows build passes | ✅ CI | `test (windows-latest)` job |
+| Unit tests pass | ✅ local · ✅ CI | `cargo test --workspace` |
+| Integration tests pass | ✅ local · ✅ CI | `tests/integration` (agent loop, undo, security, fixtures, scale) |
 | Agent fixture tests pass | ✅ local | fixture validation + `kara eval --oracle` (Go only in CI) |
-| VS Code extension builds | ✅ local · ⏳ CI | `npm test`, `npm run package` |
+| VS Code extension builds | ✅ local · ✅ CI | `npm test`, `npm run package` |
 | VSIX installs successfully | ✅ local · ⏳ CI | `code --install-extension kara-0.1.0.vsix` into an isolated extensions dir |
 | Kara CLI works outside repository checkout | ✅ local | release binary copied elsewhere with a fresh `KARA_HOME`; links only system libraries |
 | Hardware detection works | ✅ local | `kara doctor` (Metal, unified memory, RAM, disk) |
@@ -41,11 +41,11 @@ needs a green run on GitHub.
 | No telemetry exists by default | ✅ | no telemetry code; network uses listed in PRIVACY.md |
 | No proprietary API required | ✅ | local llama.cpp; OpenAI-compatible protocol only |
 | No secret committed | ⏳ CI | gitleaks job; manual review |
-| Dependency licenses audited | ✅ local · ⏳ CI | docs/LICENSES.md, cargo-deny job |
+| Dependency licenses audited | ✅ local · ✅ CI | docs/LICENSES.md, cargo-deny job |
 | README commands actually executed | ✅ local | see "README command log" below |
 | No assistant/model attribution appears as author | ✅ | metadata: iamzayn19 only |
 | Full clean-machine installation tested | ❌ | needs a fresh machine or VM, after the first GitHub Release exists |
-| GitHub CI green on Linux, macOS and Windows | ❌ | first push of the public repository |
+| GitHub CI green on Linux, macOS and Windows | ✅ | all jobs green on 06fb176 (run 37438226296) |
 
 ## README command log
 
