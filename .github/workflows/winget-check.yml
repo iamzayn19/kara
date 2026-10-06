@@ -42,6 +42,7 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
+          winget settings --enable LocalManifestFiles
           $dir = Join-Path $env:RUNNER_TEMP "m/winget/manifests/i/iamzayn19/Kara/$env:VERSION"
           winget install --manifest $dir --accept-package-agreements --accept-source-agreements --disable-interactivity --verbose-logs
           if ($LASTEXITCODE) { throw "winget install failed: $LASTEXITCODE" }
