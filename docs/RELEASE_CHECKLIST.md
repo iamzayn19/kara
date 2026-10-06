@@ -1,7 +1,7 @@
 # Release checklist: v0.1.0
 
-`v0.1.0` is not tagged until every blocker below is checked. Status as of
-2026-10-05. "Local" means verified on the maintainer's machine (macOS 26,
+`v0.1.0` was tagged on 2026-10-06 after every blocker below was checked. Status as of
+2026-10-06. "Local" means verified on the maintainer's machine (macOS 26,
 Apple M5, 16 GB); "CI" means it is enforced by `.github/workflows/ci.yml` and
 needs a green run on GitHub.
 
@@ -36,7 +36,7 @@ needs a green run on GitHub.
 | Core independent of runtimes/accelerators | ✅ | `tests/integration/tests/architecture.rs` |
 | Permission modes ask/workspace/full; full never from repository or workspace config | ✅ local · ✅ CI (VS Code host test) | `kara-core` tests, `security.rs`, protocol test, extension host test |
 | Installers verify checksums | ✅ local (install.sh, file:// mirror) · ✅ install.ps1 under PowerShell 7.4.6 on macOS (happy path installs; tampered SHA256SUMS rejected) · ❌ not run on real Windows | `scripts/install.sh` with `KARA_RELEASE_BASE` |
-| Homebrew formula / winget manifests | ✅ generated and syntax-checked · ❌ not published | `packaging/render.py` |
+| Homebrew formula / winget manifests | ✅ published: tap `iamzayn19/homebrew-kara`; winget PR microsoft/winget-pkgs#447524 (pending Microsoft review) | `packaging/render.py` |
 | Privacy command accurate | ✅ local | derived from effective config; remote endpoints reported |
 | No telemetry exists by default | ✅ | no telemetry code; network uses listed in PRIVACY.md |
 | No proprietary API required | ✅ | local llama.cpp; OpenAI-compatible protocol only |
