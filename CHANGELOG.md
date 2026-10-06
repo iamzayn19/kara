@@ -6,10 +6,9 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-10-06
 
-First public version. Not yet released: see docs/RELEASE_CHECKLIST.md for the
-remaining release blockers.
+First public version.
 
 ### Added
 
