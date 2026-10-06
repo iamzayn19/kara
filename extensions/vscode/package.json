@@ -1,6 +1,6 @@
 {
   "name": "kara-agent",
-  "displayName": "Kara",
+  "displayName": "Kara Agent",
   "description": "Local-first coding agent. Chat, edits, tests and reviews in VS Code, driven by the Kara binary on your machine.",
   "version": "0.1.0",
   "publisher": "iamzayn19",
