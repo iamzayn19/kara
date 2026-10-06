@@ -1,0 +1,36 @@
+name: Windows ARM64 build
+
+# Manual only. Builds the Windows ARM64 binary and uploads it as a workflow
+# artifact for testing. It does not create a release or a tag.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build (aarch64-pc-windows-msvc)
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+      - run: cargo build --release --locked -p kara-cli --target aarch64-pc-windows-msvc
+      - name: Package
+        shell: bash
+        run: |
+          version="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          scripts/package-release.sh "$version" aarch64-pc-windows-msvc target/aarch64-pc-windows-msvc/release/kara.exe
+      - name: Smoke test
+        run: ./target/aarch64-pc-windows-msvc/release/kara.exe --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kara-windows-arm64
+          path: dist/*
+          if-no-files-found: error

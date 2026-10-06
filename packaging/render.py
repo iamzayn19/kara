@@ -22,6 +22,7 @@ TARGETS = {
     "linux_arm": "aarch64-unknown-linux-gnu",
     "linux_intel": "x86_64-unknown-linux-gnu",
     "windows_x64": "x86_64-pc-windows-msvc",
+    "windows_arm64": "aarch64-pc-windows-msvc",
 }
 
 
@@ -90,6 +91,7 @@ end
 def winget(version, sums):
     ident = "iamzayn19.Kara"
     t = TARGETS["windows_x64"]
+    arm = TARGETS["windows_arm64"]
     folder = asset(version, t)[: -len(".zip")]
     header = "# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.1.6.0.schema.json\n"
     version_manifest = header.format(kind="version") + f"""PackageIdentifier: {ident}
@@ -109,6 +111,9 @@ Installers:
   - Architecture: x64
     InstallerUrl: {url(version, t)}
     InstallerSha256: {sums[asset(version, t)].upper()}
+  - Architecture: arm64
+    InstallerUrl: {url(version, arm)}
+    InstallerSha256: {sums[asset(version, arm)].upper()}
 ManifestType: installer
 ManifestVersion: 1.6.0
 """
@@ -145,7 +150,7 @@ def main(argv=None):
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
     sums = parse_sums(open(args.sums, encoding="utf-8").read())
-    required = ["macos_arm", "macos_intel", "linux_intel", "windows_x64"]
+    required = ["macos_arm", "macos_intel", "linux_intel", "windows_x64", "windows_arm64"]
     missing = [asset(args.version, TARGETS[k]) for k in required if asset(args.version, TARGETS[k]) not in sums]
     if missing:
         sys.exit(f"missing from SHA256SUMS: {', '.join(missing)}")

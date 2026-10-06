@@ -8,8 +8,15 @@ $Version = $env:KARA_VERSION
 if (-not $Version) {
   $Version = (Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest").tag_name.TrimStart("v")
 }
-if ($env:PROCESSOR_ARCHITECTURE -ne "AMD64") { throw "No prebuilt Kara for $env:PROCESSOR_ARCHITECTURE. Build from source: https://github.com/$Repo" }
-$Asset = "kara-v$Version-x86_64-pc-windows-msvc.zip"
+# OSArchitecture reports the machine's real architecture, even when this
+# PowerShell runs under x64 emulation on Windows on ARM.
+$Arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+$Target = switch ($Arch) {
+  "X64" { "x86_64-pc-windows-msvc" }
+  "Arm64" { "aarch64-pc-windows-msvc" }
+  default { throw "No prebuilt Kara for $Arch. Build from source: https://github.com/$Repo" }
+}
+$Asset = "kara-v$Version-$Target.zip"
 $Base = if ($env:KARA_RELEASE_BASE) { $env:KARA_RELEASE_BASE } else { "https://github.com/$Repo/releases/download/v$Version" }
 $Tmp = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ("kara-" + [guid]::NewGuid()))
 try {
