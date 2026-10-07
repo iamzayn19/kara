@@ -58,8 +58,14 @@ pub const COMMANDS: &[(&str, &str)] = &[
     ("/exit", "quit"),
 ];
 
+/// Kara's own accent color (matches `theme::ACCENT` in the full-screen UI),
+/// so plain-mode command output doesn't jump to a different palette.
+fn accent() -> console::Style {
+    crate::theme::console_accent()
+}
+
 fn header(title: &str) {
-    println!("{}", style(title).bold());
+    println!("{}", accent().apply_to(title));
 }
 
 pub fn handle(
@@ -77,7 +83,7 @@ pub fn handle(
                 "Talk to Kara in plain language, e.g. \"fix the failing auth tests\". Commands:",
             );
             for (name, desc) in COMMANDS {
-                println!("  {:<13} {}", style(name).cyan(), desc);
+                println!("  {:<13} {}", accent().apply_to(name), desc);
             }
             println!(
                 "  {}",
@@ -94,7 +100,7 @@ pub fn handle(
                 match s.agent.pending_plan() {
                     Some((task, plan)) => {
                         header(&format!("Pending plan for: {task}"));
-                        println!("{plan}\n\n{}", style("Type /approve to carry it out.").cyan());
+                        println!("{plan}\n\n{}", accent().apply_to("Type /approve to carry it out."));
                     }
                     None => println!("Usage: {cmd} <task>. Kara investigates and proposes a plan; nothing changes until you /approve."),
                 }
@@ -373,7 +379,7 @@ fn direct_tool(
                 println!("{} {b}", style("blocked:").red());
                 return;
             }
-            println!("{} {}", style("→").cyan(), a.title);
+            println!("{} {}", accent().apply_to("→"), a.title);
         }
         Err(e) => {
             println!("{e}");

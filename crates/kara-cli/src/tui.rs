@@ -59,19 +59,17 @@ impl Approver for TerminalApprover {
     }
 }
 
-fn prompt_permission(r: &PermissionRequest) -> PermissionDecision {
+pub(crate) fn prompt_permission(r: &PermissionRequest) -> PermissionDecision {
     let kinds: Vec<&str> = r.kinds.iter().map(|k| k.label()).collect();
     let hard = !r.can_remember;
     println!();
     println!(
         "{} {}",
-        style(if hard {
-            "⚠ approval needed (high risk)"
+        if hard {
+            style("⚠ approval needed (high risk)").yellow().bold()
         } else {
-            "? approval needed"
-        })
-        .yellow()
-        .bold(),
+            crate::theme::console_accent().apply_to("? approval needed")
+        },
         style(&r.title).bold()
     );
     println!("  {} {}", style("category:").dim(), kinds.join(", "));
@@ -211,13 +209,38 @@ pub fn no_model_message() -> String {
     )
 }
 
-fn build_session(
+pub(crate) fn build_session(
     rt: &tokio::runtime::Runtime,
     opts: &Options,
     resume: bool,
     consent: Consent,
     approver: Arc<dyn Approver>,
     renderer: Renderer,
+) -> anyhow::Result<Session> {
+    let r2 = renderer.clone();
+    build_session_with_sink(
+        rt,
+        opts,
+        resume,
+        consent,
+        approver,
+        renderer,
+        Arc::new(move |e: kara_protocol::AgentEvent| r2.handle(&e)),
+    )
+}
+
+/// Like `build_session`, but turn events go to `sink` instead of `renderer`.
+/// `renderer` is kept only for the one call site (`commands.rs`) that still
+/// prints directly; the full-screen UI passes a Transcript-backed sink and a
+/// throwaway renderer it never otherwise touches.
+pub(crate) fn build_session_with_sink(
+    rt: &tokio::runtime::Runtime,
+    opts: &Options,
+    resume: bool,
+    consent: Consent,
+    approver: Arc<dyn Approver>,
+    renderer: Renderer,
+    sink: Arc<dyn Fn(kara_protocol::AgentEvent) + Send + Sync>,
 ) -> anyhow::Result<Session> {
     let app = App::load(opts)?;
     for w in &app.warnings {
@@ -244,13 +267,12 @@ fn build_session(
         Some(p) => p.clone(),
         None => Arc::new(NoModel(no_model_message())),
     };
-    let r2 = renderer.clone();
     let mut agent = Agent::new(
         provider,
         ctx,
         PermissionPolicy::new(app.config.permissions.mode),
         approver,
-        Arc::new(move |e| r2.handle(&e)),
+        Arc::new(move |e| sink(e)),
         app.agent_settings(runtime.context),
     );
     if resumed {

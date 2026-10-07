@@ -6,8 +6,11 @@ mod doctor;
 mod evalcmd;
 mod models;
 mod render;
+mod screen;
 mod serve;
 mod share;
+mod theme;
+mod transcript;
 mod tui;
 
 use clap::{Parser, Subcommand};
@@ -176,7 +179,15 @@ fn run(cli: Cli, rt: &tokio::runtime::Runtime) -> anyhow::Result<i32> {
         model: cli.model.clone(),
     };
     match cli.command {
-        None => tui::interactive(rt, &opts, cli.resume),
+        None => {
+            if console::Term::stdout().is_term() {
+                screen::interactive(rt, &opts, cli.resume)
+            } else {
+                // Not a real terminal (piped, redirected, some CI runners):
+                // the full-screen UI needs one, fall back to the plain REPL.
+                tui::interactive(rt, &opts, cli.resume)
+            }
+        }
         Some(Command::Run {
             prompt,
             yes,

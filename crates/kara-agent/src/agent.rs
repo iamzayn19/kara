@@ -166,6 +166,12 @@ impl Agent {
         self.provider = provider;
     }
 
+    /// Swap the permission approver, e.g. when a UI needs to take over
+    /// prompting after the agent was already constructed.
+    pub fn set_approver(&mut self, approver: Arc<dyn Approver>) {
+        self.approver = approver;
+    }
+
     pub fn provider(&self) -> &Arc<dyn InferenceProvider> {
         &self.provider
     }

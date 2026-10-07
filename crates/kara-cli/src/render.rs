@@ -326,7 +326,7 @@ pub fn colorize_diff(diff: &str) -> String {
         } else if l.starts_with('-') {
             style(l).red().to_string()
         } else if l.starts_with("@@") {
-            style(l).cyan().to_string()
+            style(l).blue().to_string()
         } else {
             style(l).dim().to_string()
         };
