@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kara</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="toolbar">
+        <div id="brand">
+          <span id="brand-mark">K</span>
+          <span id="brand-name">Kara</span>
+        </div>
+        <div id="toolbar-actions">
+          <button id="btn-undo" class="icon-btn" title="Undo Kara's last change">↩</button>
+          <button id="btn-new" class="icon-btn" title="New session">＋</button>
+        </div>
+      </header>
+
+      <main id="transcript" aria-live="polite">
+        <div id="empty-state">
+          <div id="empty-mark">K</div>
+          <p>Describe what you want. Kara reads your repo, makes the change, and shows you the diff.</p>
+        </div>
+      </main>
+
+      <div id="composer-wrap">
+        <div id="composer">
+          <textarea
+            id="input"
+            rows="1"
+            placeholder="Describe what you want, e.g. &quot;fix the failing auth tests&quot;…"
+            autofocus
+          ></textarea>
+          <div id="composer-row">
+            <span id="hint">Enter to send · Shift+Enter for a new line · Esc to stop</span>
+            <button id="send" title="Send (Enter)">
+              <span id="send-label">Send</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <footer id="statusbar">
+        <button id="model-pill" class="pill" title="Model">no model</button>
+        <button id="perm-pill" class="pill" title="Permission mode">—</button>
+        <span id="spacer"></span>
+        <span id="session-state">starting…</span>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
