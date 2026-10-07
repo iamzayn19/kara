@@ -805,10 +805,14 @@ function shortPath(p: string): string {
   return parts.length ? parts[parts.length - 1] : p;
 }
 
+let currentWorkspace = "";
+
 async function startWorkspace(workspace: string) {
   sessionState.textContent = "starting…";
+  removeRestartButton();
   try {
     const info: any = await invoke("kara_start", { workspace });
+    currentWorkspace = info?.workspace ?? workspace;
     modelPill.textContent = info?.model?.available ? info.model.label : "no model";
     modelPill.className = info?.model?.available ? "pill ready" : "pill warn";
     permissionsMode = info?.permissionsMode ?? "";
@@ -819,14 +823,39 @@ async function startWorkspace(workspace: string) {
     sessionState.textContent = "ready";
     void updateContextPill();
     try {
-      localStorage.setItem(LAST_WORKSPACE_KEY, info?.workspace ?? workspace);
+      localStorage.setItem(LAST_WORKSPACE_KEY, currentWorkspace);
     } catch {
       /* private window or storage disabled: just skip remembering it */
     }
   } catch (e: any) {
     activity(`Kara failed to start: ${e?.message ?? e}`, "err");
     sessionState.textContent = "not running";
+    showRestartButton();
   }
+}
+
+let restartRow: HTMLElement | undefined;
+
+function removeRestartButton() {
+  restartRow?.remove();
+  restartRow = undefined;
+}
+
+function showRestartButton() {
+  removeRestartButton();
+  const row = document.createElement("div");
+  row.className = "approve-row";
+  const btn = document.createElement("button");
+  btn.className = "approve-btn";
+  btn.textContent = "Restart Kara";
+  btn.addEventListener("click", async () => {
+    removeRestartButton();
+    await startWorkspace(currentWorkspace);
+  });
+  row.appendChild(btn);
+  transcript.appendChild(row);
+  scrollToBottom();
+  restartRow = row;
 }
 
 async function pickProject() {
@@ -947,6 +976,8 @@ async function boot() {
     sessionState.textContent = "Kara exited";
     modelPill.textContent = "stopped";
     modelPill.className = "pill";
+    activity("Kara's process exited unexpectedly.", "err");
+    showRestartButton();
   });
   await listen("kara://request", async (e: any) => {
     const { id, method, params } = e.payload;
