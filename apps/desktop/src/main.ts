@@ -735,6 +735,30 @@ modeOpts.forEach((btn) => {
 btnNew.addEventListener("click", newSession);
 btnUndo.addEventListener("click", undo);
 
+// Native-feeling shortcuts: Cmd on macOS, Ctrl elsewhere.
+window.addEventListener("keydown", (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (!mod) return;
+  switch (e.key.toLowerCase()) {
+    case "n":
+      e.preventDefault();
+      newSession();
+      break;
+    case "k":
+      e.preventDefault();
+      openSessions();
+      break;
+    case ",":
+      e.preventDefault();
+      openSettings();
+      break;
+    case "o":
+      e.preventDefault();
+      pickProject();
+      break;
+  }
+});
+
 // ── Boot ──────────────────────────────────────────────────────────
 
 /** macOS gets an overlay titlebar (native traffic lights); reserve space
