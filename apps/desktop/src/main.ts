@@ -14,6 +14,7 @@ const sendLabel = document.querySelector<HTMLElement>("#send-label")!;
 const sessionState = document.querySelector<HTMLElement>("#session-state")!;
 const modelPill = document.querySelector<HTMLButtonElement>("#model-pill")!;
 const permPill = document.querySelector<HTMLButtonElement>("#perm-pill")!;
+const contextPill = document.querySelector<HTMLElement>("#context-pill")!;
 const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
 const btnUndo = document.querySelector<HTMLButtonElement>("#btn-undo")!;
 const btnProject = document.querySelector<HTMLButtonElement>("#btn-project")!;
@@ -322,6 +323,7 @@ function handleEvent(e: any) {
       if (e.usage && e.usage.prompt_tokens + e.usage.completion_tokens > 0) {
         activity(`${e.usage.prompt_tokens} tokens in, ${e.usage.completion_tokens} out`, "dim");
       }
+      void updateContextPill();
       break;
   }
 }
@@ -394,6 +396,7 @@ async function newSession() {
     clearTranscript();
     pendingPlan = false;
     sessionState.textContent = "ready";
+    void updateContextPill();
   } catch (e: any) {
     activity(`error: ${e?.message ?? e}`, "err");
   }
@@ -484,6 +487,29 @@ function formatBytes(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1)} GB`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(0)} MB`;
   return `${n} B`;
+}
+
+function formatTokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+/** Refreshes the context-usage pill from session/status. Best-effort: a
+ * failure here (e.g. between sessions) just leaves the pill as it was. */
+async function updateContextPill() {
+  try {
+    const s: any = await invoke("kara_request", { method: "session/status", params: {} });
+    const used = s.context?.historyTokens ?? 0;
+    const window = s.context?.window ?? 0;
+    if (!window) {
+      contextPill.textContent = "";
+      return;
+    }
+    const pct = Math.min(100, Math.round((used / window) * 100));
+    contextPill.textContent = `${formatTokens(used)} / ${formatTokens(window)} ctx`;
+    contextPill.className = "pill" + (pct >= 90 ? " warn" : "");
+  } catch {
+    /* not fatal — just skip the update */
+  }
 }
 
 async function openModelPicker() {
@@ -579,6 +605,7 @@ async function openSessions() {
             await invoke("kara_request", { method: "session/resume", params: { id: s.id } });
             clearTranscript();
             activity(`Resumed: ${s.title || s.id.slice(0, 8)}`, "dim");
+            void updateContextPill();
           } catch (e: any) {
             activity(`error: ${e?.message ?? e}`, "err");
           }
@@ -741,6 +768,7 @@ async function startWorkspace(workspace: string) {
     btnProject.textContent = info?.workspace ? shortPath(info.workspace) : "~";
     btnProject.title = info?.workspace ?? "Open a different folder";
     sessionState.textContent = "ready";
+    void updateContextPill();
     try {
       localStorage.setItem(LAST_WORKSPACE_KEY, info?.workspace ?? workspace);
     } catch {
