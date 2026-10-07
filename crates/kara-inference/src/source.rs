@@ -271,10 +271,17 @@ pub fn choose_model(
                 .ok_or_else(|| format!("unknown model `{id}`; see `kara models`"))?
                 .clone();
             let cand = rec.candidates.iter().find(|c| c.id == spec.id);
+            // A model picked explicitly (an earlier session's choice, or
+            // `--model`) that no longer comfortably fits used to fall back
+            // to its *largest* default context here — backwards, and the
+            // opposite of what the auto-recommend path already does for
+            // the same model (shrink toward min_context). Smallest first:
+            // the live memory_gate_message check below still has the
+            // final say and refuses outright if even that doesn't fit.
             let ctx = cand
                 .filter(|c| c.fits)
                 .map(|c| c.context)
-                .unwrap_or(spec.default_context);
+                .unwrap_or(spec.min_context);
             (spec, ctx, cand.and_then(|c| c.placement.clone()))
         }
         None => match rec.model.clone() {
@@ -381,13 +388,35 @@ pub async fn ensure_runtime(
     Ok(rec?.binary)
 }
 
-/// `None` if `available` has enough headroom over `needed` to load safely
-/// right now; otherwise the guidance message to show instead of loading.
-/// 20% headroom beyond the model's own estimate, floor 512MB, so a close
-/// call still refuses rather than guessing.
-fn memory_gate_message(model_id: &str, needed: u64, available: u64) -> Option<String> {
-    let headroom = (needed / 5).max(512 << 20);
+/// `None` if it's safe to load `needed` bytes right now; otherwise the
+/// guidance message to show instead of loading.
+///
+/// Two independent checks, not one: macOS (and to a lesser extent Linux)
+/// report "available" memory generously — inactive, cached and purgeable
+/// pages all count as "available" even though reclaiming them during one
+/// large allocation causes real paging pressure while it happens. A
+/// machine reporting 9GB "available" can still stutter hard loading a
+/// 7.5GB model, which is exactly what happened testing this: the
+/// available-based check alone passed, the load was fine on paper, and
+/// the machine still spent the load under heavy reclaim pressure.
+///
+/// So: headroom over the estimate (35%, floor 512MB) against `available`,
+/// *and* a hard ceiling against `total` that no "available" number can
+/// talk its way past — nothing gets to ask for more than half the
+/// machine's total memory in one shot, full stop.
+fn memory_gate_message(model_id: &str, needed: u64, available: u64, total: u64) -> Option<String> {
+    let headroom = (needed * 35 / 100).max(512 << 20);
     let required = needed.saturating_add(headroom);
+    if needed > total / 2 {
+        return Some(format!(
+            "{model_id} needs about {} to load, more than half this machine's {} of memory \
+             (even if some of that looks \"available\" right now — reclaiming it during the \
+             load is itself what causes a stall). Pick a smaller model: \
+             `kara config set inference.model auto`.",
+            format_bytes(needed),
+            format_bytes(total),
+        ));
+    }
     if available >= required {
         return None;
     }
@@ -462,7 +491,9 @@ async fn resolve_local(req: ResolveRequest<'_>) -> anyhow::Result<InferenceSessi
     // machine under memory pressure right now (another Kara process already
     // holding a model in RAM, another app, swap) still got a fresh
     // multi-GB `llama-server` thrown at it and hung.
-    if let Some(msg) = memory_gate_message(&spec.id, spec.memory_needed(ctx), hw.available_ram) {
+    if let Some(msg) =
+        memory_gate_message(&spec.id, spec.memory_needed(ctx), hw.available_ram, hw.total_ram)
+    {
         return Ok(InferenceSession::none(msg));
     }
 
@@ -476,6 +507,7 @@ async fn resolve_local(req: ResolveRequest<'_>) -> anyhow::Result<InferenceSessi
         context: ctx,
         gpu_layers: if accelerated { local.gpu_layers } else { 0 },
         cpu_moe: placement == Some(Placement::PartialOffload),
+        threads: hw.inference_threads(),
         alias: spec.id.clone(),
         reasoning: req.config.inference.reasoning.clone(),
         reasoning_budget: if req.config.inference.reasoning_budget != 0 {
@@ -520,6 +552,30 @@ mod tests {
     use super::*;
     use crate::local::hardware::HardwareInfo;
 
+    #[test]
+    fn explicitly_configured_model_shrinks_context_when_tight_not_grows() {
+        // A machine that can't comfortably run qwen3-4b at its full
+        // 32768-token default, but was explicitly configured to use it
+        // (an earlier, roomier session). Must get the smallest context,
+        // not the largest — the bug that let a 16GB machine's explicitly
+        // configured model reach for a 32k-context ~7.5GB load.
+        let hw = HardwareInfo {
+            total_ram: 6 << 30,
+            available_ram: 3 << 30,
+            unified_memory: true,
+            metal: true,
+            disk_free: Some(50 << 30),
+            ..Default::default()
+        };
+        let mut config = Config::default();
+        config.inference.model = "qwen3-4b-q4_k_m".into();
+        let (spec, ctx, _) =
+            choose_model(&config, &Registry::builtin(), &hw, None).expect("should resolve");
+        assert_eq!(spec.id, "qwen3-4b-q4_k_m");
+        assert_eq!(ctx, spec.min_context, "should shrink to the smallest context, not default_context");
+        assert_ne!(ctx, spec.default_context);
+    }
+
     fn tiny() -> HardwareInfo {
         HardwareInfo {
             total_ram: 4 << 30,
@@ -531,22 +587,48 @@ mod tests {
     #[test]
     fn memory_gate_refuses_a_close_call_instead_of_guessing() {
         let one_gb = 1u64 << 30;
-        // Comfortably clears needed + 20% headroom.
-        assert!(memory_gate_message("m", one_gb, one_gb * 2).is_none());
+        let plenty_total = 64 << 30;
+        // Comfortably clears needed + 35% headroom.
+        assert!(memory_gate_message("m", one_gb, one_gb * 2, plenty_total).is_none());
         // Technically more than `needed`, but inside the headroom: refuse.
-        let msg = memory_gate_message("m", one_gb, one_gb + (one_gb / 10)).unwrap();
+        let msg = memory_gate_message("m", one_gb, one_gb + (one_gb / 10), plenty_total).unwrap();
         assert!(msg.contains("another Kara session"), "{msg}");
         assert!(msg.contains("kara config set inference.model auto"), "{msg}");
     }
 
     #[test]
     fn memory_gate_floor_covers_tiny_models_too() {
-        // A tiny model's 20% headroom could round to a few MB; the 512MB
+        // A tiny model's 35% headroom could round to a few MB; the 512MB
         // floor is what actually protects a low-RAM machine from a close
         // call on a 100MB model.
         let tiny_model = 100u64 << 20;
-        assert!(memory_gate_message("m", tiny_model, tiny_model + (400 << 20)).is_some());
-        assert!(memory_gate_message("m", tiny_model, tiny_model + (600 << 20)).is_none());
+        let plenty_total = 64 << 30;
+        assert!(memory_gate_message("m", tiny_model, tiny_model + (400 << 20), plenty_total).is_some());
+        assert!(memory_gate_message("m", tiny_model, tiny_model + (600 << 20), plenty_total).is_none());
+    }
+
+    #[test]
+    fn memory_gate_rejects_half_the_machine_even_if_available_says_yes() {
+        // Isolates the total-RAM ceiling specifically: `available` is set
+        // to the full 16GB total (as generous as the OS's "available"
+        // figure could possibly be — this is what tonight's near-miss
+        // actually looked like, since cache/inactive pages count as
+        // "available" even under real memory pressure), which clears the
+        // 35%-headroom check on its own. Needing 9GB of a 16GB machine
+        // (56%) must still be refused by the ceiling regardless.
+        let total = 16u64 << 30;
+        let needed = 9u64 << 30;
+        let available = total;
+        let msg = memory_gate_message("qwen3-4b", needed, available, total).unwrap();
+        assert!(msg.contains("more than half"), "{msg}");
+    }
+
+    #[test]
+    fn memory_gate_allows_well_under_half_the_machine() {
+        let total = 16u64 << 30;
+        let needed = 2u64 << 30;
+        let available = 10u64 << 30;
+        assert!(memory_gate_message("small-model", needed, available, total).is_none());
     }
 
     #[test]

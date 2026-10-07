@@ -113,6 +113,22 @@ impl HardwareInfo {
             .min(self.total_ram.saturating_sub(2_000_000_000))
     }
 
+    /// CPU threads the local inference runtime should use — not "however
+    /// many cores exist", which is llama.cpp's own default and is exactly
+    /// how an inference process saturates every core on a machine with few
+    /// of them, freezing the OS and UI along with it. Always leaves
+    /// headroom for the system; scales how much headroom with core count,
+    /// since a 4-core budget laptop needs to keep proportionally more of
+    /// itself free than a 10-core machine does.
+    pub fn inference_threads(&self) -> usize {
+        match self.cpu_cores {
+            0 => 1,
+            1..=2 => 1,
+            3..=4 => self.cpu_cores - 1,
+            _ => self.cpu_cores - 2,
+        }
+    }
+
     pub fn has_discrete_gpu(&self) -> bool {
         !self.unified_memory
             && self
@@ -405,6 +421,24 @@ mod tests {
         assert!(h.total_ram > 0);
         assert!(h.cpu_cores > 0);
         assert!(h.fast_memory_budget() > 0);
+    }
+
+    #[test]
+    fn inference_threads_leaves_headroom_scaled_to_core_count() {
+        let with = |cores: usize| HardwareInfo {
+            cpu_cores: cores,
+            ..Default::default()
+        };
+        // A budget laptop's 2-4 cores: never hand over every core — one
+        // left for the OS and the UI is the whole point of this.
+        assert_eq!(with(1).inference_threads(), 1);
+        assert_eq!(with(2).inference_threads(), 1);
+        assert_eq!(with(4).inference_threads(), 3);
+        // More cores to spare: leave proportionally more for everything
+        // else, never fewer than 1.
+        assert_eq!(with(8).inference_threads(), 6);
+        assert_eq!(with(16).inference_threads(), 14);
+        assert!(with(0).inference_threads() >= 1);
     }
 
     #[test]

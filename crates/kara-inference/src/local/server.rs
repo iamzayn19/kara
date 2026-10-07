@@ -19,6 +19,12 @@ pub struct ServerOptions {
     pub gpu_layers: i32,
     /// Keep MoE expert weights in system RAM (`--cpu-moe`).
     pub cpu_moe: bool,
+    /// CPU threads llama-server may use. Left unset, it defaults to every
+    /// logical core, which is fine on a machine with cores to spare and
+    /// genuinely freezes one that doesn't — a budget laptop's 4 weak cores
+    /// serving the OS and everything else at once, not just this Mac's 10.
+    /// See `inference_threads`.
+    pub threads: usize,
     pub alias: String,
     /// "auto", "on" or "off".
     pub reasoning: String,
@@ -206,6 +212,8 @@ pub fn build_args(opts: &ServerOptions, port: u16) -> Vec<String> {
         } else {
             opts.gpu_layers.to_string()
         },
+        "--threads".into(),
+        opts.threads.to_string(),
     ];
     if opts.cpu_moe {
         args.push("--cpu-moe".into());
@@ -399,6 +407,7 @@ mod tests {
             context: 32768,
             gpu_layers: -1,
             cpu_moe: false,
+            threads: 4,
             alias: "kara".into(),
             reasoning: "auto".into(),
             reasoning_budget: -1,
