@@ -687,6 +687,32 @@ body.platform-macos #toolbar {
   font-size: 12px;
 }
 
+.progress-wrap {
+  padding: 20px 16px;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: var(--fg);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.15s ease-out;
+}
+
 .panel-section-label {
   color: var(--dim);
   font-size: 11px;

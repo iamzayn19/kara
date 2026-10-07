@@ -515,6 +515,48 @@ function openPanel(title: string) {
 function closePanel() {
   overlay.classList.add("hidden");
   panelBody.innerHTML = "";
+  progressFill = undefined;
+  progressText = undefined;
+}
+
+let progressFill: HTMLElement | undefined;
+let progressText: HTMLElement | undefined;
+
+function showDownloadProgress(label: string) {
+  overlay.classList.remove("hidden");
+  panelTitle.textContent = "Downloading";
+  panelBody.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "progress-wrap";
+  const text = document.createElement("div");
+  text.className = "progress-label";
+  text.textContent = label;
+  const track = document.createElement("div");
+  track.className = "progress-track";
+  const fill = document.createElement("div");
+  fill.className = "progress-fill";
+  track.appendChild(fill);
+  wrap.appendChild(text);
+  wrap.appendChild(track);
+  panelBody.appendChild(wrap);
+  progressFill = fill;
+  progressText = text;
+}
+
+/** Driven by `kara://log` events with level "progress" (see RpcUi::progress
+ * in serve.rs) — structured done/total, not just a log line, so this can
+ * render a real bar instead of spamming the transcript with one line per
+ * chunk. */
+function updateDownloadProgress(payload: any) {
+  if (!progressFill || !progressText) return;
+  const { label, done, total } = payload;
+  if (total) {
+    const pct = Math.min(100, Math.round((done / total) * 100));
+    progressFill.style.width = `${pct}%`;
+    progressText.textContent = `${label}: ${formatBytes(done)} / ${formatBytes(total)} (${pct}%)`;
+  } else {
+    progressText.textContent = `${label}: ${formatBytes(done)}`;
+  }
 }
 
 panelClose.addEventListener("click", closePanel);
@@ -594,13 +636,15 @@ async function openModelPicker() {
           );
           if (!ok) return;
         }
-        closePanel();
+        showDownloadProgress(m.installed ? `Starting ${m.name}…` : `Downloading ${m.name} ${m.quantization}…`);
         modelPill.textContent = `loading ${m.name}…`;
         try {
           const sel: any = await invoke("kara_request", { method: "models/select", params: { id: m.id, download: true } });
           modelPill.textContent = sel?.available ? sel.label : "no model";
           modelPill.className = sel?.available ? "pill ready" : "pill warn";
+          closePanel();
         } catch (e: any) {
+          closePanel();
           activity(`error: ${e?.message ?? e}`, "err");
         }
       });
@@ -985,7 +1029,13 @@ setTheme(currentTheme());
 async function boot() {
   markPlatform();
   await listen("kara://event", (e) => handleEvent(e.payload));
-  await listen("kara://log", (e: any) => activity(`[${e.payload?.level ?? "info"}] ${e.payload?.message ?? ""}`, "dim"));
+  await listen("kara://log", (e: any) => {
+    if (e.payload?.level === "progress") {
+      updateDownloadProgress(e.payload);
+      return;
+    }
+    activity(`[${e.payload?.level ?? "info"}] ${e.payload?.message ?? ""}`, "dim");
+  });
   await listen("kara://protocol-error", (e) => activity(`protocol error: ${e.payload}`, "err"));
   await listen("kara://stderr", () => {
     /* surfaced in the Rust side's own logs; not shown in-window for v1 */
