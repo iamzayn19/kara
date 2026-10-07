@@ -229,6 +229,64 @@ body.platform-macos #toolbar {
   color: var(--user);
 }
 
+.file-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.file-row.file-rejected .file-summary .activity {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.file-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.file-summary .activity {
+  flex: 1;
+}
+
+.file-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.file-action {
+  font: inherit;
+  font-size: 11px;
+  color: var(--dim);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.file-action:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.file-action.reject:hover {
+  color: var(--err);
+  border-color: var(--err);
+}
+
+.file-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.file-action-done {
+  font-size: 11px;
+  color: var(--dim);
+}
+
 .spinner-row {
   display: flex;
   align-items: center;

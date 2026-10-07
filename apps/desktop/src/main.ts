@@ -81,7 +81,7 @@ function diffStat(diff: string): [number, number] {
   return [add, del];
 }
 
-function appendDiff(diff: string) {
+function diffBlock(diff: string): HTMLElement {
   const pre = document.createElement("div");
   pre.className = "diff-block";
   for (const l of diff.split("\n")) {
@@ -93,7 +93,80 @@ function appendDiff(diff: string) {
     else if (l.startsWith("@@")) span.className = "diff-hunk";
     pre.appendChild(span);
   }
-  transcript.appendChild(pre);
+  return pre;
+}
+
+function fileChangedRow(change: { path: string; kind: string; diff: string; batch_id: number }) {
+  clearEmptyState();
+  const [add, del] = diffStat(change.diff);
+  const sym = change.kind === "created" ? "+" : change.kind === "deleted" ? "-" : "~";
+  const big = add + del > 24;
+
+  const row = document.createElement("div");
+  row.className = "file-row";
+
+  const summary = document.createElement("div");
+  summary.className = "file-summary";
+  const label = document.createElement("span");
+  label.className = "activity dim";
+  label.textContent = `  ${sym} ${change.path}  (+${add} −${del})`;
+  summary.appendChild(label);
+
+  const actions = document.createElement("span");
+  actions.className = "file-actions";
+
+  let shown = !big;
+  let container: HTMLElement | undefined;
+  const render = () => {
+    container?.remove();
+    container = undefined;
+    if (shown && change.kind !== "deleted") {
+      container = diffBlock(change.diff);
+      row.appendChild(container);
+    }
+  };
+
+  if (big && change.kind !== "deleted") {
+    const toggle = document.createElement("button");
+    toggle.className = "file-action";
+    toggle.textContent = "view diff";
+    toggle.addEventListener("click", () => {
+      shown = !shown;
+      toggle.textContent = shown ? "hide diff" : "view diff";
+      render();
+    });
+    actions.appendChild(toggle);
+  }
+
+  {
+    const reject = document.createElement("button");
+    reject.className = "file-action reject";
+    reject.textContent = "reject";
+    reject.title = "Revert this file to how it was before Kara's change";
+    reject.addEventListener("click", async () => {
+      reject.disabled = true;
+      reject.textContent = "reverting…";
+      try {
+        await invoke("kara_request", { method: "session/command", params: { name: "revert", args: change.path } });
+        row.classList.add("file-rejected");
+        actions.innerHTML = "";
+        const done = document.createElement("span");
+        done.className = "file-action-done";
+        done.textContent = "reverted";
+        actions.appendChild(done);
+      } catch (e: any) {
+        reject.disabled = false;
+        reject.textContent = "reject";
+        activity(`error: ${e?.message ?? e}`, "err");
+      }
+    });
+    actions.appendChild(reject);
+  }
+
+  summary.appendChild(actions);
+  row.appendChild(summary);
+  render();
+  transcript.appendChild(row);
   scrollToBottom();
 }
 
@@ -209,13 +282,9 @@ function handleEvent(e: any) {
       activity(`  ${mark} ${e.summary}${time}`, e.ok ? "dim" : "err");
       break;
     }
-    case "file_changed": {
-      const [add, del] = diffStat(e.change.diff);
-      const sym = e.change.kind === "created" ? "+" : e.change.kind === "deleted" ? "-" : "~";
-      activity(`  ${sym} ${e.change.path}  (+${add} −${del})`, "dim");
-      if (add + del <= 24 && e.change.kind !== "deleted") appendDiff(e.change.diff);
+    case "file_changed":
+      fileChangedRow(e.change);
       break;
-    }
     case "test_finished": {
       const r = e.report;
       const counts = r.passed != null && r.failed != null ? `${r.passed} passed, ${r.failed} failed` : `exit ${r.exit_code ?? "?"}`;
