@@ -4,6 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 const transcript = document.querySelector<HTMLElement>("#transcript")!;
 const emptyState = document.querySelector<HTMLElement>("#empty-state")!;
@@ -15,13 +16,27 @@ const modelPill = document.querySelector<HTMLButtonElement>("#model-pill")!;
 const permPill = document.querySelector<HTMLButtonElement>("#perm-pill")!;
 const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
 const btnUndo = document.querySelector<HTMLButtonElement>("#btn-undo")!;
+const btnProject = document.querySelector<HTMLButtonElement>("#btn-project")!;
+const btnSessions = document.querySelector<HTMLButtonElement>("#btn-sessions")!;
+const btnSettings = document.querySelector<HTMLButtonElement>("#btn-settings")!;
+const cmdMenu = document.querySelector<HTMLUListElement>("#cmd-menu")!;
+const overlay = document.querySelector<HTMLElement>("#overlay")!;
+const panelTitle = document.querySelector<HTMLElement>("#panel-title")!;
+const panelBody = document.querySelector<HTMLElement>("#panel-body")!;
+const panelClose = document.querySelector<HTMLButtonElement>("#panel-close")!;
 
 let busy = false;
 let pendingPlan = false;
 let spinnerTimer: number | undefined;
 let spinnerRow: HTMLElement | undefined;
 let spinnerFrame = 0;
+let availableCommands: { name: string; description: string }[] = [];
+let cmdMenuIndex = 0;
+let permissionsMode = "";
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const LAST_WORKSPACE_KEY = "kara.lastWorkspace";
+
+// ── Transcript rendering ──────────────────────────────────────────
 
 function clearEmptyState() {
   emptyState.style.display = "none";
@@ -78,6 +93,11 @@ function appendDiff(diff: string) {
   }
   transcript.appendChild(pre);
   scrollToBottom();
+}
+
+function clearTranscript() {
+  transcript.querySelectorAll(".bubble-row, .activity, .diff-block").forEach((el) => el.remove());
+  emptyState.style.display = "flex";
 }
 
 let pendingAssistant: HTMLElement | undefined;
@@ -191,6 +211,22 @@ function handleEvent(e: any) {
   }
 }
 
+// ── Sending / commands ─────────────────────────────────────────────
+
+async function runCommand(name: string, args: string) {
+  bubble(`/${name}${args ? ` ${args}` : ""}`, "user");
+  try {
+    const r: any = await invoke("kara_request", { method: "session/command", params: { name, args } });
+    if (typeof r?.text === "string") activity(r.text, "dim");
+    if (Array.isArray(r?.rows)) {
+      // /permissions table.
+      for (const row of r.rows) activity(`  ${row.kind}: ${row.decision}`, "dim");
+    }
+  } catch (e: any) {
+    activity(`error: ${e?.message ?? e}`, "err");
+  }
+}
+
 async function send() {
   if (busy) {
     await cancel();
@@ -198,6 +234,16 @@ async function send() {
   }
   const text = input.value.trim();
   if (!text) return;
+  hideCmdMenu();
+
+  if (text.startsWith("/")) {
+    const [cmd, ...rest] = text.slice(1).split(/\s+/);
+    input.value = "";
+    autosize();
+    await runCommand(cmd, rest.join(" "));
+    return;
+  }
+
   input.value = "";
   autosize();
   bubble(text, "user");
@@ -226,8 +272,7 @@ async function newSession() {
   if (busy) await cancel();
   try {
     await invoke("kara_request", { method: "session/new", params: {} });
-    transcript.querySelectorAll(".bubble-row, .activity, .diff-block").forEach((el) => el.remove());
-    emptyState.style.display = "flex";
+    clearTranscript();
     pendingPlan = false;
     sessionState.textContent = "ready";
   } catch (e: any) {
@@ -247,23 +292,324 @@ async function undo() {
   }
 }
 
+// ── Slash-command autocomplete ─────────────────────────────────────
+
+function hideCmdMenu() {
+  cmdMenu.classList.add("hidden");
+  cmdMenu.innerHTML = "";
+}
+
+function showCmdMenu(prefix: string) {
+  const matches = availableCommands.filter((c) => c.name.startsWith(`/${prefix}`)).slice(0, 8);
+  if (matches.length === 0) {
+    hideCmdMenu();
+    return;
+  }
+  cmdMenuIndex = Math.min(cmdMenuIndex, matches.length - 1);
+  cmdMenu.innerHTML = "";
+  matches.forEach((c, i) => {
+    const li = document.createElement("li");
+    li.className = i === cmdMenuIndex ? "active" : "";
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = c.name;
+    const desc = document.createElement("span");
+    desc.className = "desc";
+    desc.textContent = c.description;
+    li.appendChild(name);
+    li.appendChild(desc);
+    li.addEventListener("mousedown", (ev) => {
+      ev.preventDefault();
+      input.value = `${c.name} `;
+      autosize();
+      hideCmdMenu();
+      input.focus();
+    });
+    cmdMenu.appendChild(li);
+  });
+  cmdMenu.classList.remove("hidden");
+  return matches;
+}
+
+function updateCmdMenu() {
+  const v = input.value;
+  if (v.startsWith("/") && !v.includes(" ")) {
+    showCmdMenu(v.slice(1));
+  } else {
+    hideCmdMenu();
+  }
+}
+
+// ── Overlay panel (model picker / sessions / settings) ─────────────
+
+function openPanel(title: string) {
+  panelTitle.textContent = title;
+  panelBody.innerHTML = "";
+  overlay.classList.remove("hidden");
+}
+
+function closePanel() {
+  overlay.classList.add("hidden");
+  panelBody.innerHTML = "";
+}
+
+panelClose.addEventListener("click", closePanel);
+overlay.addEventListener("click", (e) => {
+  if (e.target === overlay) closePanel();
+});
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !overlay.classList.contains("hidden")) closePanel();
+});
+
+function formatBytes(n: number): string {
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)} GB`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(0)} MB`;
+  return `${n} B`;
+}
+
+async function openModelPicker() {
+  openPanel("Choose a model");
+  const loading = document.createElement("div");
+  loading.className = "panel-empty";
+  loading.textContent = "Loading…";
+  panelBody.appendChild(loading);
+  try {
+    const r: any = await invoke("kara_request", { method: "models/list", params: {} });
+    panelBody.innerHTML = "";
+    if (!r.models?.length) {
+      const empty = document.createElement("div");
+      empty.className = "panel-empty";
+      empty.textContent = r.summary ?? "No models available.";
+      panelBody.appendChild(empty);
+      return;
+    }
+    const summary = document.createElement("div");
+    summary.className = "panel-section-label";
+    summary.textContent = r.summary ?? "";
+    panelBody.appendChild(summary);
+    for (const m of r.models) {
+      const row = document.createElement("div");
+      row.className = "panel-row";
+      const left = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "title";
+      title.textContent = `${m.recommended ? "★ " : ""}${m.name} ${m.quantization}`;
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `${formatBytes(m.sizeBytes)} · ${m.license}${m.installed ? " · installed" : ""}${!m.fits ? ` · ${m.reason}` : ""}`;
+      left.appendChild(title);
+      left.appendChild(meta);
+      row.appendChild(left);
+      row.addEventListener("click", async () => {
+        if (!m.installed) {
+          const ok = window.confirm(
+            `Download ${m.name} ${m.quantization}?\n\nSize: ${formatBytes(m.sizeBytes)}\nMemory needed: about ${formatBytes(m.memoryNeeded ?? m.sizeBytes)}\nLicense: ${m.license}\n\nThe download is verified against a pinned SHA-256.`,
+          );
+          if (!ok) return;
+        }
+        closePanel();
+        modelPill.textContent = `loading ${m.name}…`;
+        try {
+          const sel: any = await invoke("kara_request", { method: "models/select", params: { id: m.id, download: true } });
+          modelPill.textContent = sel?.available ? sel.label : "no model";
+          modelPill.className = sel?.available ? "pill ready" : "pill warn";
+        } catch (e: any) {
+          activity(`error: ${e?.message ?? e}`, "err");
+        }
+      });
+      panelBody.appendChild(row);
+    }
+  } catch (e: any) {
+    panelBody.innerHTML = "";
+    const err = document.createElement("div");
+    err.className = "panel-empty";
+    err.textContent = String(e?.message ?? e);
+    panelBody.appendChild(err);
+  }
+}
+
+async function openSessions() {
+  openPanel("Session history");
+  try {
+    const r: any = await invoke("kara_request", { method: "session/list", params: {} });
+    panelBody.innerHTML = "";
+    if (!r.sessions?.length) {
+      const empty = document.createElement("div");
+      empty.className = "panel-empty";
+      empty.textContent = "No past sessions for this project.";
+      panelBody.appendChild(empty);
+      return;
+    }
+    for (const s of r.sessions) {
+      const row = document.createElement("div");
+      row.className = "panel-row" + (s.id === r.current ? " current" : "");
+      const left = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "title";
+      title.textContent = s.title || "(empty)";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `${(s.updated ?? "").slice(0, 16).replace("T", " ")} · ${s.turns} turn${s.turns === 1 ? "" : "s"} · ${s.model}`;
+      left.appendChild(title);
+      left.appendChild(meta);
+      row.appendChild(left);
+      if (s.id !== r.current) {
+        row.addEventListener("click", async () => {
+          closePanel();
+          try {
+            await invoke("kara_request", { method: "session/resume", params: { id: s.id } });
+            clearTranscript();
+            activity(`Resumed: ${s.title || s.id.slice(0, 8)}`, "dim");
+          } catch (e: any) {
+            activity(`error: ${e?.message ?? e}`, "err");
+          }
+        });
+      }
+      panelBody.appendChild(row);
+    }
+  } catch (e: any) {
+    panelBody.innerHTML = "";
+    const err = document.createElement("div");
+    err.className = "panel-empty";
+    err.textContent = String(e?.message ?? e);
+    panelBody.appendChild(err);
+  }
+}
+
+async function openSettings() {
+  openPanel("Settings");
+  const label = document.createElement("div");
+  label.className = "panel-section-label";
+  label.textContent = "Permissions";
+  panelBody.appendChild(label);
+  const options: [string, string, string][] = [
+    ["ask", "Ask", "Confirm anything that reads outside the repo, runs a command, or changes files."],
+    ["workspace", "Workspace", "Allow everything inside this repository without asking; still asks to leave it."],
+    ["full", "Full", "Allow everything, including outside the repository. Highest risk."],
+  ];
+  for (const [mode, title, desc] of options) {
+    const row = document.createElement("div");
+    row.className = "perm-option" + (mode === permissionsMode ? " selected" : "");
+    const left = document.createElement("div");
+    const t = document.createElement("div");
+    t.className = "title";
+    t.textContent = title;
+    const m = document.createElement("div");
+    m.className = "meta";
+    m.textContent = desc;
+    left.appendChild(t);
+    left.appendChild(m);
+    row.appendChild(left);
+    row.addEventListener("click", async () => {
+      try {
+        await invoke("kara_request", { method: "session/command", params: { name: "permissions", args: mode } });
+        permissionsMode = mode;
+        permPill.textContent = mode;
+        closePanel();
+      } catch (e: any) {
+        activity(`error: ${e?.message ?? e}`, "err");
+      }
+    });
+    panelBody.appendChild(row);
+  }
+}
+
+modelPill.addEventListener("click", openModelPicker);
+permPill.addEventListener("click", openSettings);
+btnSettings.addEventListener("click", openSettings);
+btnSessions.addEventListener("click", openSessions);
+
+// ── Project (folder) picker ─────────────────────────────────────────
+
+function shortPath(p: string): string {
+  const parts = p.split(/[/\\]/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : p;
+}
+
+async function startWorkspace(workspace: string) {
+  sessionState.textContent = "starting…";
+  try {
+    const info: any = await invoke("kara_start", { workspace });
+    modelPill.textContent = info?.model?.available ? info.model.label : "no model";
+    modelPill.className = info?.model?.available ? "pill ready" : "pill warn";
+    permissionsMode = info?.permissionsMode ?? "";
+    permPill.textContent = permissionsMode || "—";
+    availableCommands = info?.commands ?? [];
+    btnProject.textContent = info?.workspace ? shortPath(info.workspace) : "~";
+    btnProject.title = info?.workspace ?? "Open a different folder";
+    sessionState.textContent = "ready";
+    try {
+      localStorage.setItem(LAST_WORKSPACE_KEY, info?.workspace ?? workspace);
+    } catch {
+      /* private window or storage disabled: just skip remembering it */
+    }
+  } catch (e: any) {
+    activity(`Kara failed to start: ${e?.message ?? e}`, "err");
+    sessionState.textContent = "not running";
+  }
+}
+
+async function pickProject() {
+  const dir = await openDialog({ directory: true, multiple: false, title: "Open a project for Kara" });
+  if (!dir || typeof dir !== "string") return;
+  clearTranscript();
+  pendingPlan = false;
+  await startWorkspace(dir);
+}
+
+btnProject.addEventListener("click", pickProject);
+
+// ── Composer wiring ──────────────────────────────────────────────────
+
 function autosize() {
   input.style.height = "auto";
   input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
 }
 
-input.addEventListener("input", autosize);
+input.addEventListener("input", () => {
+  autosize();
+  updateCmdMenu();
+});
 input.addEventListener("keydown", (ev) => {
+  const menuOpen = !cmdMenu.classList.contains("hidden");
+  if (menuOpen && (ev.key === "ArrowDown" || ev.key === "ArrowUp")) {
+    ev.preventDefault();
+    cmdMenuIndex += ev.key === "ArrowDown" ? 1 : -1;
+    updateCmdMenu();
+    return;
+  }
+  if (menuOpen && ev.key === "Tab") {
+    ev.preventDefault();
+    const active = cmdMenu.querySelector("li.active .name");
+    if (active?.textContent) {
+      input.value = `${active.textContent} `;
+      autosize();
+      hideCmdMenu();
+    }
+    return;
+  }
   if (ev.key === "Enter" && !ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
     ev.preventDefault();
+    if (menuOpen) {
+      const active = cmdMenu.querySelector("li.active .name");
+      if (active?.textContent) {
+        input.value = `${active.textContent} `;
+        autosize();
+        hideCmdMenu();
+        return;
+      }
+    }
     send();
-  } else if (ev.key === "Escape" && busy) {
-    cancel();
+  } else if (ev.key === "Escape") {
+    if (menuOpen) hideCmdMenu();
+    else if (busy) cancel();
   }
 });
 sendBtn.addEventListener("click", send);
 btnNew.addEventListener("click", newSession);
 btnUndo.addEventListener("click", undo);
+
+// ── Boot ──────────────────────────────────────────────────────────
 
 async function boot() {
   await listen("kara://event", (e) => handleEvent(e.payload));
@@ -289,21 +635,15 @@ async function boot() {
     }
   });
 
-  sessionState.textContent = "starting…";
-  // v1: no folder picker yet — defaults to the user's home directory on
-  // the Rust side (empty string). A real "open project" flow is the next
-  // step before this is a general-purpose app rather than a single fixed
-  // workspace.
+  // v1 has no "recent projects" list — just the one remembered workspace,
+  // falling back to the Rust side's home-directory default on first run.
+  let last = "";
   try {
-    const info: any = await invoke("kara_start", { workspace: "" });
-    modelPill.textContent = info?.model?.available ? info.model.label : "no model";
-    modelPill.className = info?.model?.available ? "pill ready" : "pill warn";
-    permPill.textContent = info?.permissionsMode ?? "—";
-    sessionState.textContent = "ready";
-  } catch (e: any) {
-    activity(`Kara failed to start: ${e?.message ?? e}`, "err");
-    sessionState.textContent = "not running";
+    last = localStorage.getItem(LAST_WORKSPACE_KEY) ?? "";
+  } catch {
+    /* ignore */
   }
+  await startWorkspace(last);
 }
 
 boot();
