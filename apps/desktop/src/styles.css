@@ -66,6 +66,13 @@ body {
   -webkit-app-region: drag;
 }
 
+/* The overlay titlebar (macOS traffic lights) sits on top of our own
+   toolbar; this leaves room so the brand mark never sits under them.
+   Set by main.ts once it knows the platform. */
+body.platform-macos #toolbar {
+  padding-left: 76px;
+}
+
 #brand {
   display: flex;
   align-items: center;
@@ -76,13 +83,7 @@ body {
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  background: var(--accent);
-  color: #1b1b1b;
-  font-weight: 800;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
 }
 
 #brand-name {
@@ -139,16 +140,10 @@ body {
 }
 
 #empty-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 800;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: block;
 }
 
 #empty-state p {

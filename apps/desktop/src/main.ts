@@ -611,7 +611,17 @@ btnUndo.addEventListener("click", undo);
 
 // ── Boot ──────────────────────────────────────────────────────────
 
+/** macOS gets an overlay titlebar (native traffic lights); reserve space
+ * for them in the toolbar. No navigator.platform parsing library needed
+ * for a yes/no check this simple. */
+function markPlatform() {
+  if (/Mac/.test(navigator.platform) || /Macintosh/.test(navigator.userAgent)) {
+    document.body.classList.add("platform-macos");
+  }
+}
+
 async function boot() {
+  markPlatform();
   await listen("kara://event", (e) => handleEvent(e.payload));
   await listen("kara://log", (e: any) => activity(`[${e.payload?.level ?? "info"}] ${e.payload?.message ?? ""}`, "dim"));
   await listen("kara://protocol-error", (e) => activity(`protocol error: ${e.payload}`, "err"));
