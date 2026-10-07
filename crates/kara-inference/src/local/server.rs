@@ -78,6 +78,61 @@ struct PidRecord {
     server_pid: u32,
     owner_pid: u32,
     binary: PathBuf,
+    /// Added alongside server/owner tracking so a second Kara process can
+    /// find and reuse this server instead of loading its own copy of the
+    /// same multi-GB model (see `find_running`).
+    #[serde(default)]
+    model_path: PathBuf,
+    #[serde(default)]
+    base_url: String,
+}
+
+/// A server already running (started by this process or another one) that
+/// serves `model_path`, if it's still alive and answering `/health`.
+///
+/// Two Kara clients starting around the same time (e.g. the CLI and the
+/// desktop app, or two windows) used to each load their own full copy of
+/// the model into RAM — the fastest way to turn "a bit tight on memory"
+/// into a frozen machine. This is checked before every new `start`.
+pub async fn find_running(dir: &Path, model_path: &Path) -> Option<String> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    let model_path = std::fs::canonicalize(model_path).unwrap_or_else(|_| model_path.to_path_buf());
+    for e in entries.flatten() {
+        let path = e.path();
+        if path.extension().and_then(|x| x.to_str()) != Some("pid") {
+            continue;
+        }
+        let Ok(bytes) = std::fs::read(&path) else { continue };
+        let Ok(rec) = serde_json::from_slice::<PidRecord>(&bytes) else {
+            continue;
+        };
+        if rec.base_url.is_empty() {
+            continue;
+        }
+        let recorded = std::fs::canonicalize(&rec.model_path).unwrap_or(rec.model_path.clone());
+        if recorded != model_path {
+            continue;
+        }
+        if sys.process(sysinfo::Pid::from_u32(rec.server_pid)).is_none() {
+            continue;
+        }
+        let client = match reqwest::Client::builder().timeout(Duration::from_secs(2)).build() {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let healthy = client
+            .get(format!("{}/health", rec.base_url.trim_end_matches("/v1")))
+            .send()
+            .await
+            .map(|r| r.status().is_success())
+            .unwrap_or(false);
+        if healthy {
+            return Some(rec.base_url);
+        }
+    }
+    None
 }
 
 /// Stop servers left behind by Kara processes that died without cleaning
@@ -196,6 +251,12 @@ impl LlamaServer {
         let child = cmd
             .spawn()
             .map_err(|e| anyhow::anyhow!("failed to start {}: {e}", opts.binary.display()))?;
+        let host = if opts.host.contains(':') {
+            format!("[{}]", opts.host)
+        } else {
+            opts.host.clone()
+        };
+        let base_url = format!("http://{host}:{port}/v1");
         let pid_file = child.id().and_then(|pid| {
             register(pid);
             let dir = opts.log_file.parent()?;
@@ -203,20 +264,17 @@ impl LlamaServer {
                 server_pid: pid,
                 owner_pid: std::process::id(),
                 binary: opts.binary.clone(),
+                model_path: opts.model_path.clone(),
+                base_url: base_url.clone(),
             };
             let f = dir.join(format!("llama-server-{pid}.pid"));
             std::fs::write(&f, serde_json::to_vec(&rec).ok()?).ok()?;
             Some(f)
         });
-        let host = if opts.host.contains(':') {
-            format!("[{}]", opts.host)
-        } else {
-            opts.host.clone()
-        };
         let mut server = LlamaServer {
             child: Some(child),
             port,
-            base_url: format!("http://{host}:{port}/v1"),
+            base_url,
             log_file: opts.log_file.clone(),
             args,
             pid_file,
@@ -399,6 +457,8 @@ mod tests {
             server_pid: orphan.id(),
             owner_pid: 999_999_999,
             binary: "/bin/sleep".into(),
+            model_path: PathBuf::new(),
+            base_url: String::new(),
         };
         std::fs::write(
             dir.path().join("llama-server-1.pid"),
@@ -414,6 +474,8 @@ mod tests {
             server_pid: kept.id(),
             owner_pid: std::process::id(),
             binary: "/bin/sleep".into(),
+            model_path: PathBuf::new(),
+            base_url: String::new(),
         };
         std::fs::write(
             dir.path().join("llama-server-2.pid"),
@@ -429,6 +491,52 @@ mod tests {
         );
         assert!(dir.path().join("llama-server-2.pid").exists());
         let _ = kept.kill();
+    }
+
+    #[tokio::test]
+    async fn find_running_reuses_a_healthy_match_for_the_same_model() {
+        let dir = tempfile::tempdir().unwrap();
+        // Stand-ins: a real alive process (for the pid check) and a tiny
+        // HTTP responder (for the /health check) — no real llama-server
+        // needed to test the dedup logic itself.
+        let mut alive = std::process::Command::new("sleep").arg("5").spawn().unwrap();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for stream in listener.incoming().flatten() {
+                use std::io::{Read, Write};
+                let mut s = stream;
+                let mut buf = [0u8; 512];
+                let _ = s.read(&mut buf);
+                let _ = s.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+            }
+        });
+        let model = dir.path().join("m.gguf");
+        std::fs::write(&model, "gguf").unwrap();
+        let base_url = format!("http://127.0.0.1:{port}/v1");
+        let rec = PidRecord {
+            server_pid: alive.id(),
+            owner_pid: std::process::id(),
+            binary: "llama-server".into(),
+            model_path: model.clone(),
+            base_url: base_url.clone(),
+        };
+        std::fs::write(
+            dir.path().join("llama-server-1.pid"),
+            serde_json::to_vec(&rec).unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(find_running(dir.path(), &model).await, Some(base_url));
+        // A different model must not reuse someone else's server.
+        let other = dir.path().join("other.gguf");
+        std::fs::write(&other, "gguf").unwrap();
+        assert_eq!(find_running(dir.path(), &other).await, None);
+
+        let _ = alive.kill();
+        let _ = alive.wait();
+        // Once the process is gone, it's no longer a candidate to reuse.
+        assert_eq!(find_running(dir.path(), &model).await, None);
     }
 
     #[tokio::test]
