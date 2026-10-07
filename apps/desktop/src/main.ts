@@ -631,6 +631,50 @@ async function openSettings() {
     });
     panelBody.appendChild(row);
   }
+
+  const diagLabel = document.createElement("div");
+  diagLabel.className = "panel-section-label";
+  diagLabel.textContent = "Diagnostics";
+  panelBody.appendChild(diagLabel);
+  const diagBody = document.createElement("div");
+  diagBody.className = "diagnostics";
+  diagBody.textContent = "Loading…";
+  panelBody.appendChild(diagBody);
+  try {
+    const d: any = await invoke("kara_request", { method: "doctor", params: {} });
+    const hw = d.hardware ?? {};
+    const rows: [string, string][] = [
+      ["OS", `${hw.os_version ?? "?"} (${hw.arch ?? "?"})`],
+      ["CPU", `${hw.cpu ?? "?"} · ${hw.cpu_cores ?? "?"} threads`],
+      [
+        "RAM",
+        `${formatBytes(hw.total_ram ?? 0)} total, ${formatBytes(hw.available_ram ?? 0)} available`,
+      ],
+      ["GPU", (hw.gpus ?? []).map((g: any) => g.name).join(", ") || "none detected"],
+      [
+        "Accel",
+        ["metal", "cuda", "vulkan", "rocm"].filter((k) => hw[k]).join(", ") || "none",
+      ],
+      ["Local runtime", d.localRuntime ?? "not installed"],
+      ["Recommendation", d.recommendation?.summary ?? "—"],
+    ];
+    diagBody.innerHTML = "";
+    for (const [k, v] of rows) {
+      const r = document.createElement("div");
+      r.className = "diag-row";
+      const kEl = document.createElement("span");
+      kEl.className = "diag-key";
+      kEl.textContent = k;
+      const vEl = document.createElement("span");
+      vEl.className = "diag-val";
+      vEl.textContent = v;
+      r.appendChild(kEl);
+      r.appendChild(vEl);
+      diagBody.appendChild(r);
+    }
+  } catch (e: any) {
+    diagBody.textContent = String(e?.message ?? e);
+  }
 }
 
 modelPill.addEventListener("click", openModelPicker);

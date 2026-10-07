@@ -650,3 +650,32 @@ body.platform-macos #toolbar {
   color: var(--dim);
   font-size: 11px;
 }
+
+.diagnostics {
+  padding: 2px 10px 10px;
+  font-size: 12px;
+}
+
+.diag-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.diag-row:last-child {
+  border-bottom: none;
+}
+
+.diag-key {
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+.diag-val {
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
