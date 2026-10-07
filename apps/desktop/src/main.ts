@@ -94,18 +94,65 @@ function scrollToBottom() {
   transcript.scrollTop = transcript.scrollHeight;
 }
 
+const rawBubbleText = new WeakMap<HTMLElement, string>();
+
 function bubble(text: string, who: "user" | "assistant"): HTMLElement {
   clearEmptyState();
   const row = document.createElement("div");
   row.className = `bubble-row from-${who}`;
   const b = document.createElement("div");
   b.className = `bubble ${who}`;
-  b.textContent = text;
+  if (who === "assistant") setBubbleMarkdown(b, text);
+  else b.textContent = text;
   row.appendChild(b);
   if (who === "assistant") row.appendChild(copyButton(b));
   transcript.appendChild(row);
   scrollToBottom();
   return b;
+}
+
+/** Re-renders an assistant bubble from its raw (un-rendered) text — called
+ * on every streamed delta, so this stays cheap: regex passes over a string
+ * that's at most one message long, not a real parser. */
+function setBubbleMarkdown(el: HTMLElement, raw: string) {
+  rawBubbleText.set(el, raw);
+  el.innerHTML = mdToHtml(raw);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Minimal, safe markdown: fenced + inline code, bold, italic, paragraphs.
+ * Not a full CommonMark parser — assistant replies don't need tables or
+ * nested lists to be dramatically more readable than one flat text blob. */
+function mdToHtml(src: string): string {
+  const blocks: string[] = [];
+  const stash = (html: string): string => {
+    const idx = blocks.push(html) - 1;
+    return `\u0000${idx}\u0000`;
+  };
+
+  let text = src.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, _lang, code) =>
+    stash(`<pre class="md-code"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre>`),
+  );
+  // An unterminated fence (still streaming): render what's there so far
+  // rather than waiting for the closing ``` to show anything.
+  text = text.replace(/```(\w*)\n([\s\S]*)$/, (_m, _lang, code) =>
+    stash(`<pre class="md-code"><code>${escapeHtml(code)}</code></pre>`),
+  );
+
+  text = escapeHtml(text);
+  text = text.replace(/`([^`\n]+)`/g, (_m, code) => stash(`<code class="md-inline-code">${code}</code>`));
+  text = text.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>");
+
+  text = text
+    .split(/\n{2,}/)
+    .map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`)
+    .join("");
+
+  return text.replace(/\u0000(\d+)\u0000/g, (_m, i) => blocks[Number(i)]);
 }
 
 function copyButton(target: HTMLElement): HTMLElement {
@@ -115,7 +162,7 @@ function copyButton(target: HTMLElement): HTMLElement {
   btn.textContent = "⧉";
   btn.addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText(target.textContent ?? "");
+      await navigator.clipboard.writeText(rawBubbleText.get(target) ?? target.textContent ?? "");
       btn.textContent = "✓";
       window.setTimeout(() => (btn.textContent = "⧉"), 1200);
     } catch {
@@ -331,7 +378,7 @@ function handleEvent(e: any) {
       break;
     case "assistant_delta":
       if (!pendingAssistant) pendingAssistant = bubble("", "assistant");
-      pendingAssistant.textContent += e.text;
+      setBubbleMarkdown(pendingAssistant, (rawBubbleText.get(pendingAssistant) ?? "") + e.text);
       scrollToBottom();
       break;
     case "assistant_message":
