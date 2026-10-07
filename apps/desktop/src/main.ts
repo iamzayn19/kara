@@ -99,10 +99,52 @@ function appendDiff(diff: string) {
 
 function clearTranscript() {
   transcript.querySelectorAll(".bubble-row, .activity, .diff-block").forEach((el) => el.remove());
+  removeApproveButton();
   emptyState.style.display = "flex";
 }
 
 let pendingAssistant: HTMLElement | undefined;
+let approveRow: HTMLElement | undefined;
+
+function removeApproveButton() {
+  approveRow?.remove();
+  approveRow = undefined;
+}
+
+function showApproveButton() {
+  removeApproveButton();
+  const row = document.createElement("div");
+  row.className = "approve-row";
+  const btn = document.createElement("button");
+  btn.className = "approve-btn";
+  btn.textContent = "Approve plan";
+  const edit = document.createElement("span");
+  edit.className = "approve-hint";
+  edit.textContent = "or reply below to change it";
+  btn.addEventListener("click", () => approvePlan());
+  row.appendChild(btn);
+  row.appendChild(edit);
+  transcript.appendChild(row);
+  scrollToBottom();
+  approveRow = row;
+}
+
+async function approvePlan() {
+  removeApproveButton();
+  pendingPlan = false;
+  bubble("Approved.", "user");
+  setBusy(true);
+  try {
+    await invoke("kara_request", {
+      method: "session/prompt",
+      params: { text: "", mode: "execute", approvePlan: true },
+    });
+  } catch (e: any) {
+    activity(`error: ${e?.message ?? e}`, "err");
+  } finally {
+    setBusy(false);
+  }
+}
 
 function startSpinner() {
   stopSpinner();
@@ -145,6 +187,7 @@ function handleEvent(e: any) {
   switch (e.type) {
     case "turn_started":
       pendingAssistant = undefined;
+      removeApproveButton();
       break;
     case "phase":
       if (e.phase === "recover") activity("→ tests failed; investigating and retrying", "warn");
@@ -198,7 +241,8 @@ function handleEvent(e: any) {
         for (const f of e.changed_files) activity(`  ${f}`, "dim");
       }
       if (e.outcome === "awaiting_approval") {
-        activity("Plan ready. Reply (or \"approve\") to carry it out.", "accent");
+        activity("Plan ready.", "accent");
+        showApproveButton();
       } else if (e.outcome === "cancelled") {
         activity("cancelled", "warn");
       } else if (e.outcome === "stalled") {
