@@ -21,8 +21,9 @@
   --radius: 10px;
 }
 
+/* OS preference, unless overridden below. */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --accent-soft: #d78a5f22;
     --user-soft: #6fb3e01c;
     --bg: #faf8f5;
@@ -32,6 +33,19 @@
     --border: #e4e0da;
     --dim: #8a8a8a;
   }
+}
+
+/* Manual override from the theme toggle, either direction, regardless of
+   OS preference. */
+:root[data-theme="light"] {
+  --accent-soft: #d78a5f22;
+  --user-soft: #6fb3e01c;
+  --bg: #faf8f5;
+  --bg-raised: #ffffff;
+  --bg-sunken: #f1efe9;
+  --fg: #1c1d22;
+  --border: #e4e0da;
+  --dim: #8a8a8a;
 }
 
 * {
@@ -402,6 +416,37 @@ body.platform-macos #toolbar {
 }
 
 .mode-opt.active {
+  background: var(--accent);
+  color: #1b1b1b;
+}
+
+#theme-switch {
+  display: flex;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 2px;
+  margin: 0 10px 12px;
+  width: fit-content;
+}
+
+.theme-opt {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dim);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.theme-opt:hover {
+  color: var(--fg);
+}
+
+.theme-opt.active {
   background: var(--accent);
   color: #1b1b1b;
 }

@@ -38,6 +38,30 @@ let turnMode: "execute" | "plan" | "review" = "execute";
 const modeOpts = document.querySelectorAll<HTMLButtonElement>(".mode-opt");
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const LAST_WORKSPACE_KEY = "kara.lastWorkspace";
+const THEME_KEY = "kara.theme";
+
+type Theme = "system" | "light" | "dark";
+
+function currentTheme(): Theme {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    if (v === "light" || v === "dark") return v;
+  } catch {
+    /* ignore */
+  }
+  return "system";
+}
+
+function setTheme(t: Theme) {
+  if (t === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+  try {
+    if (t === "system") localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, t);
+  } catch {
+    /* a per-viewer convenience; fine to lose on a private window */
+  }
+}
 
 // ── Transcript rendering ──────────────────────────────────────────
 
@@ -624,6 +648,26 @@ async function openSessions() {
 
 async function openSettings() {
   openPanel("Settings");
+
+  const appearanceLabel = document.createElement("div");
+  appearanceLabel.className = "panel-section-label";
+  appearanceLabel.textContent = "Appearance";
+  panelBody.appendChild(appearanceLabel);
+  const switcher = document.createElement("div");
+  switcher.id = "theme-switch";
+  for (const [value, label] of [["system", "System"], ["light", "Light"], ["dark", "Dark"]] as const) {
+    const btn = document.createElement("button");
+    btn.className = "theme-opt" + (currentTheme() === value ? " active" : "");
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      setTheme(value);
+      switcher.querySelectorAll(".theme-opt").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+    switcher.appendChild(btn);
+  }
+  panelBody.appendChild(switcher);
+
   const label = document.createElement("div");
   label.className = "panel-section-label";
   label.textContent = "Permissions";
@@ -886,6 +930,10 @@ function markPlatform() {
     document.body.classList.add("platform-macos");
   }
 }
+
+// Applied immediately at module load, not inside boot()'s first await, so
+// there's no flash of the wrong theme before the RPC round-trip resolves.
+setTheme(currentTheme());
 
 async function boot() {
   markPlatform();
