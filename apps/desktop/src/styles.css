@@ -195,6 +195,27 @@ body.platform-macos #toolbar {
   border-bottom-left-radius: 3px;
 }
 
+.copy-btn {
+  align-self: flex-end;
+  margin-left: 4px;
+  font-size: 13px;
+  color: var(--dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+  padding: 2px;
+}
+
+.bubble-row.from-assistant:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  color: var(--fg);
+}
+
 /* A compact "activity" row: tool calls, file changes, test results —
    system-ish events shown as a thin log line, not a chat bubble. */
 .activity {

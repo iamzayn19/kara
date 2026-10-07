@@ -81,9 +81,27 @@ function bubble(text: string, who: "user" | "assistant"): HTMLElement {
   b.className = `bubble ${who}`;
   b.textContent = text;
   row.appendChild(b);
+  if (who === "assistant") row.appendChild(copyButton(b));
   transcript.appendChild(row);
   scrollToBottom();
   return b;
+}
+
+function copyButton(target: HTMLElement): HTMLElement {
+  const btn = document.createElement("button");
+  btn.className = "copy-btn";
+  btn.title = "Copy";
+  btn.textContent = "⧉";
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(target.textContent ?? "");
+      btn.textContent = "✓";
+      window.setTimeout(() => (btn.textContent = "⧉"), 1200);
+    } catch {
+      /* clipboard denied; not worth surfacing an error for */
+    }
+  });
+  return btn;
 }
 
 function activity(text: string, cls?: string): HTMLElement {
