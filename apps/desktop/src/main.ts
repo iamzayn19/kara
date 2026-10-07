@@ -658,22 +658,62 @@ async function openSettings() {
       ["Local runtime", d.localRuntime ?? "not installed"],
       ["Recommendation", d.recommendation?.summary ?? "—"],
     ];
-    diagBody.innerHTML = "";
-    for (const [k, v] of rows) {
-      const r = document.createElement("div");
-      r.className = "diag-row";
-      const kEl = document.createElement("span");
-      kEl.className = "diag-key";
-      kEl.textContent = k;
-      const vEl = document.createElement("span");
-      vEl.className = "diag-val";
-      vEl.textContent = v;
-      r.appendChild(kEl);
-      r.appendChild(vEl);
-      diagBody.appendChild(r);
-    }
+    renderKeyValueRows(diagBody, rows);
   } catch (e: any) {
     diagBody.textContent = String(e?.message ?? e);
+  }
+
+  const privLabel = document.createElement("div");
+  privLabel.className = "panel-section-label";
+  privLabel.textContent = "Privacy";
+  panelBody.appendChild(privLabel);
+  const privBody = document.createElement("div");
+  privBody.className = "diagnostics";
+  privBody.textContent = "Loading…";
+  panelBody.appendChild(privBody);
+  try {
+    const p: any = await invoke("kara_request", { method: "session/command", params: { name: "privacy", args: "" } });
+    const rows: [string, string][] = [
+      ["Inference", p.inference ?? "—"],
+      ["Leaves this machine", p.remote_inference ? "yes, inference only" : "no"],
+      ["Telemetry", p.telemetry ? "on" : "none"],
+      ["Account required", p.account_required ? "yes" : "no"],
+      ["Prompts uploaded", p.prompt_uploads ? "yes" : "no"],
+      ["Repository uploaded", p.repository_uploads ? "yes" : "no"],
+    ];
+    renderKeyValueRows(privBody, rows);
+    if (p.network_uses?.length) {
+      const uses = document.createElement("div");
+      uses.className = "diag-row";
+      const label = document.createElement("span");
+      label.className = "diag-key";
+      label.textContent = "Network";
+      const val = document.createElement("span");
+      val.className = "diag-val";
+      val.textContent = p.network_uses.join(", ");
+      uses.appendChild(label);
+      uses.appendChild(val);
+      privBody.appendChild(uses);
+    }
+  } catch (e: any) {
+    privBody.textContent = String(e?.message ?? e);
+  }
+}
+
+function renderKeyValueRows(container: HTMLElement, rows: [string, string][]) {
+  container.innerHTML = "";
+  for (const [k, v] of rows) {
+    const r = document.createElement("div");
+    r.className = "diag-row";
+    const kEl = document.createElement("span");
+    kEl.className = "diag-key";
+    kEl.textContent = k;
+    const vEl = document.createElement("span");
+    vEl.className = "diag-val";
+    vEl.textContent = v;
+    r.appendChild(kEl);
+    r.appendChild(vEl);
+    container.appendChild(r);
   }
 }
 
