@@ -38,6 +38,27 @@ let turnMode: "execute" | "plan" | "review" = "execute";
 const modeOpts = document.querySelectorAll<HTMLButtonElement>(".mode-opt");
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const LAST_WORKSPACE_KEY = "kara.lastWorkspace";
+const RECENT_WORKSPACES_KEY = "kara.recentWorkspaces";
+const MAX_RECENT = 8;
+
+function recentWorkspaces(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_WORKSPACES_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter((p) => typeof p === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function addRecentWorkspace(path: string) {
+  try {
+    const list = [path, ...recentWorkspaces().filter((p) => p !== path)].slice(0, MAX_RECENT);
+    localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(list));
+  } catch {
+    /* per-viewer convenience; fine to lose */
+  }
+}
 const THEME_KEY = "kara.theme";
 
 type Theme = "system" | "light" | "dark";
@@ -889,6 +910,7 @@ async function startWorkspace(workspace: string) {
     } catch {
       /* private window or storage disabled: just skip remembering it */
     }
+    addRecentWorkspace(currentWorkspace);
   } catch (e: any) {
     activity(`Kara failed to start: ${e?.message ?? e}`, "err");
     sessionState.textContent = "not running";
@@ -920,15 +942,65 @@ function showRestartButton() {
   restartRow = row;
 }
 
+/** The native folder dialog directly, skipping the recents list — used by
+ * the "choose a folder" action and the Cmd/Ctrl+O shortcut. */
 async function pickProject() {
   const dir = await openDialog({ directory: true, multiple: false, title: "Open a project for Kara" });
   if (!dir || typeof dir !== "string") return;
+  await openWorkspace(dir);
+}
+
+async function openWorkspace(dir: string) {
   clearTranscript();
   pendingPlan = false;
   await startWorkspace(dir);
 }
 
-btnProject.addEventListener("click", pickProject);
+/** Clicking the project name shows recent projects first (VS Code's "Open
+ * Recent" pattern) rather than jumping straight to a folder dialog every
+ * time. */
+function openProjectPanel() {
+  openPanel("Open a project");
+  const recents = recentWorkspaces().filter((p) => p !== currentWorkspace);
+  if (recents.length) {
+    const label = document.createElement("div");
+    label.className = "panel-section-label";
+    label.textContent = "Recent";
+    panelBody.appendChild(label);
+    for (const path of recents) {
+      const row = document.createElement("div");
+      row.className = "panel-row";
+      const left = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "title";
+      title.textContent = shortPath(path);
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = path;
+      left.appendChild(title);
+      left.appendChild(meta);
+      row.appendChild(left);
+      row.addEventListener("click", async () => {
+        closePanel();
+        await openWorkspace(path);
+      });
+      panelBody.appendChild(row);
+    }
+  }
+  const chooseRow = document.createElement("div");
+  chooseRow.className = "panel-row";
+  const chooseTitle = document.createElement("div");
+  chooseTitle.className = "title";
+  chooseTitle.textContent = "Choose a folder…";
+  chooseRow.appendChild(chooseTitle);
+  chooseRow.addEventListener("click", async () => {
+    closePanel();
+    await pickProject();
+  });
+  panelBody.appendChild(chooseRow);
+}
+
+btnProject.addEventListener("click", openProjectPanel);
 
 // ── Composer wiring ──────────────────────────────────────────────────
 
