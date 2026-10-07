@@ -37,6 +37,7 @@ axum = { version = "0.7", default-features = false, features = ["http1", "tokio"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 clap = { version = "4", features = ["derive"] }
 console = "0.15"
+crossterm = "0.28"
 dirs = "5"
 flate2 = "1"
 futures-util = "0.3"
@@ -45,6 +46,7 @@ hex = "0.4"
 ignore = "0.4"
 indicatif = "0.17"
 rand = "0.8"
+ratatui = "0.29"
 rayon = "1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream", "http2"] }

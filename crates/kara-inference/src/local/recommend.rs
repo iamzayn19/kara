@@ -243,6 +243,30 @@ mod tests {
     }
 
     #[test]
+    fn four_gb_mac_gets_the_smallest_model_or_nothing() {
+        // The low end this was asked to run on without hanging: either the
+        // smallest registry model (1.7B) fits, or Kara honestly says no
+        // local model fits here — never something that silently overruns.
+        let r = recommend(&Registry::builtin(), &mac(4));
+        match r.model {
+            Some(m) => {
+                assert_eq!(m.id, "qwen3-1.7b-q4_k_m", "a 4 GB machine should only ever get the smallest model");
+                assert_eq!(r.placement, Some(Placement::Full));
+            }
+            None => {
+                // Also acceptable: honest refusal rather than a bad fit.
+            }
+        }
+    }
+
+    #[test]
+    fn two_gb_mac_gets_nothing_not_a_bad_fit() {
+        // Below every model's floor: must refuse, not squeeze something in.
+        let r = recommend(&Registry::builtin(), &mac(2));
+        assert!(r.model.is_none(), "{:?}", r.model.map(|m| m.id));
+    }
+
+    #[test]
     fn moe_partial_offload_on_mid_gpu() {
         let hw = HardwareInfo {
             os: "linux".into(),

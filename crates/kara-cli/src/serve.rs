@@ -181,6 +181,8 @@ impl Server {
             methods::UNDO => self.undo().await,
             methods::COMMAND => self.command(params).await,
             methods::NEW_SESSION => self.new_session().await,
+            methods::LIST_SESSIONS => self.list_sessions().await,
+            methods::RESUME_SESSION => self.resume_session(params).await,
             methods::DOCTOR => self.doctor().await,
             methods::MODELS => self.models().await,
             methods::SELECT_MODEL => {
@@ -477,6 +479,56 @@ impl Server {
             .create(&s.app.root, &s.inference.label)
             .map_err(internal)?;
         let agent = self.build_agent(&s.app, &s.inference, &id)?;
+        s.agent = agent;
+        s.session_id = id.clone();
+        Ok(json!({"session": id}))
+    }
+
+    /// Recent sessions for the current workspace, newest first.
+    async fn list_sessions(&self) -> Result<Value, RpcError> {
+        let guard = self
+            .session
+            .try_lock()
+            .map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        let list = s
+            .app
+            .sessions
+            .list(Some(&s.app.root), 50)
+            .map_err(internal)?;
+        Ok(json!({
+            "current": s.session_id,
+            "sessions": list.into_iter().map(|i| json!({
+                "id": i.id,
+                "updated": i.updated,
+                "model": i.model,
+                "title": i.title,
+                "turns": i.turns,
+            })).collect::<Vec<_>>(),
+        }))
+    }
+
+    /// Switch the live session to a previously saved one, restoring its
+    /// conversation state. `{id}`.
+    async fn resume_session(&self, params: Value) -> Result<Value, RpcError> {
+        let id = params
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("id is required"))?
+            .to_string();
+        let mut guard = self
+            .session
+            .try_lock()
+            .map_err(|_| RpcError::new(codes::BUSY, "busy"))?;
+        let s = guard
+            .as_mut()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        let mut agent = self.build_agent(&s.app, &s.inference, &id)?;
+        if let Some((state, history)) = s.app.sessions.load_state(&id).map_err(internal)? {
+            agent.restore(state, history);
+        }
         s.agent = agent;
         s.session_id = id.clone();
         Ok(json!({"session": id}))

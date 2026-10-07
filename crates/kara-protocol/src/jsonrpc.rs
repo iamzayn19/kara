@@ -17,6 +17,8 @@ pub mod methods {
     pub const CHANGES: &str = "session/changes";
     pub const UNDO: &str = "session/undo";
     pub const NEW_SESSION: &str = "session/new";
+    pub const LIST_SESSIONS: &str = "session/list";
+    pub const RESUME_SESSION: &str = "session/resume";
     pub const DOCTOR: &str = "doctor";
     pub const MODELS: &str = "models/list";
     pub const SELECT_MODEL: &str = "models/select";
