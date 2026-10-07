@@ -445,7 +445,11 @@ body.platform-macos #toolbar {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 3px 10px;
-  cursor: default;
+  cursor: pointer;
+}
+
+.pill:empty {
+  display: none;
 }
 
 .pill.ready {

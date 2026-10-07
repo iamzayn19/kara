@@ -14,7 +14,7 @@ const sendLabel = document.querySelector<HTMLElement>("#send-label")!;
 const sessionState = document.querySelector<HTMLElement>("#session-state")!;
 const modelPill = document.querySelector<HTMLButtonElement>("#model-pill")!;
 const permPill = document.querySelector<HTMLButtonElement>("#perm-pill")!;
-const contextPill = document.querySelector<HTMLElement>("#context-pill")!;
+const contextPill = document.querySelector<HTMLButtonElement>("#context-pill")!;
 const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
 const btnUndo = document.querySelector<HTMLButtonElement>("#btn-undo")!;
 const btnProject = document.querySelector<HTMLButtonElement>("#btn-project")!;
@@ -744,6 +744,11 @@ function renderKeyValueRows(container: HTMLElement, rows: [string, string][]) {
   }
 }
 
+contextPill.addEventListener("click", async () => {
+  if (busy || !contextPill.textContent) return;
+  await runCommand("compact", "");
+  void updateContextPill();
+});
 modelPill.addEventListener("click", openModelPicker);
 permPill.addEventListener("click", openSettings);
 btnSettings.addEventListener("click", openSettings);
