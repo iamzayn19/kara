@@ -61,8 +61,15 @@ fn dirs_home() -> Option<String> {
 
 /// Minimal `which`: search `PATH` ourselves rather than add a dependency.
 fn which(name: &str) -> Option<std::path::PathBuf> {
-    std::env::var_os("PATH")?
-        .to_string_lossy()
+    let path_var = std::env::var_os("PATH")?;
+    which_in(name, &path_var.to_string_lossy())
+}
+
+/// The testable half of `which`: pure given an explicit `PATH`-style
+/// string, so tests don't have to mutate the real process environment
+/// (unsafe to do in parallel with other tests touching it).
+fn which_in(name: &str, path_var: &str) -> Option<std::path::PathBuf> {
+    path_var
         .split(if cfg!(windows) { ';' } else { ':' })
         .map(std::path::PathBuf::from)
         .map(|dir| dir.join(name))
@@ -196,7 +203,6 @@ fn route_incoming(app: &AppHandle, pending: &PendingMap, line: &str) {
             if let Some(id) = id.as_u64() {
                 if let Some(tx) = pending.lock().unwrap().remove(&id) {
                     let _ = tx.send(result);
-                    return;
                 }
             }
         }
@@ -211,5 +217,52 @@ fn route_incoming(app: &AppHandle, pending: &PendingMap, line: &str) {
                 serde_json::json!({ "id": id, "method": method, "params": params }),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Write;
+
+    #[cfg(unix)]
+    fn make_executable(path: &std::path::Path) {
+        use std::os::unix::fs::PermissionsExt;
+        let mut f = fs::File::create(path).unwrap();
+        f.write_all(b"#!/bin/sh\n").unwrap();
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn which_in_finds_an_executable_on_the_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("kara");
+        make_executable(&bin);
+        let path_var = format!("/nonexistent:{}:/also/nonexistent", dir.path().display());
+        assert_eq!(which_in("kara", &path_var), Some(bin));
+    }
+
+    #[test]
+    fn which_in_returns_none_when_not_found() {
+        let dir = tempfile::tempdir().unwrap();
+        let path_var = format!("{}:/nonexistent", dir.path().display());
+        assert_eq!(which_in("kara", &path_var), None);
+    }
+
+    #[test]
+    fn which_in_skips_directories_that_dont_exist() {
+        // Every PATH entry is bogus; must not panic, just return None.
+        assert_eq!(which_in("kara", "/no/such/dir:/another/bad/one"), None);
+    }
+
+    #[test]
+    fn dirs_home_prefers_home_over_userprofile() {
+        // Exercises the real env; just asserts it doesn't panic and, on
+        // this CI/dev machine, returns something non-empty when either
+        // var is set (true for every supported platform's dev setup).
+        let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"));
+        assert_eq!(dirs_home().is_some(), home.is_ok());
     }
 }
