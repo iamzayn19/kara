@@ -44,6 +44,13 @@ async fn kara_stop(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
+/// The folder-picker dialog's starting location only — never used to
+/// start a session without the user actually choosing a folder.
+#[tauri::command]
+fn kara_home_dir() -> Option<String> {
+    rpc::dirs_home()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -58,7 +65,8 @@ pub fn run() {
             kara_request,
             kara_notify,
             kara_respond,
-            kara_stop
+            kara_stop,
+            kara_home_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

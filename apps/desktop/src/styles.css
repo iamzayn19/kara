@@ -165,6 +165,10 @@ body.platform-macos #toolbar {
   line-height: 1.5;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .bubble-row {
   display: flex;
 }

@@ -8,6 +8,8 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 const transcript = document.querySelector<HTMLElement>("#transcript")!;
 const emptyState = document.querySelector<HTMLElement>("#empty-state")!;
+const emptyText = document.querySelector<HTMLElement>("#empty-text")!;
+const emptyOpenBtn = document.querySelector<HTMLButtonElement>("#empty-open-btn")!;
 const input = document.querySelector<HTMLTextAreaElement>("#input")!;
 const sendBtn = document.querySelector<HTMLButtonElement>("#send")!;
 const sendLabel = document.querySelector<HTMLElement>("#send-label")!;
@@ -285,6 +287,8 @@ function clearTranscript() {
   transcript.querySelectorAll(".bubble-row, .activity, .diff-block").forEach((el) => el.remove());
   removeApproveButton();
   emptyState.style.display = "flex";
+  emptyText.textContent = "Describe what you want. Kara reads your repo, makes the change, and shows you the diff.";
+  emptyOpenBtn.classList.add("hidden");
 }
 
 let pendingAssistant: HTMLElement | undefined;
@@ -992,7 +996,16 @@ function showRestartButton() {
 /** The native folder dialog directly, skipping the recents list — used by
  * the "choose a folder" action and the Cmd/Ctrl+O shortcut. */
 async function pickProject() {
-  const dir = await openDialog({ directory: true, multiple: false, title: "Open a project for Kara" });
+  // The home directory is only ever a starting point to browse from here
+  // — never a workspace Kara indexes without the user picking something
+  // inside it first.
+  const defaultPath = await invoke<string | null>("kara_home_dir").catch(() => null);
+  const dir = await openDialog({
+    directory: true,
+    multiple: false,
+    title: "Open a project for Kara",
+    defaultPath: defaultPath ?? undefined,
+  });
   if (!dir || typeof dir !== "string") return;
   await openWorkspace(dir);
 }
@@ -1048,6 +1061,7 @@ function openProjectPanel() {
 }
 
 btnProject.addEventListener("click", openProjectPanel);
+emptyOpenBtn.addEventListener("click", openProjectPanel);
 
 // ── Composer wiring ──────────────────────────────────────────────────
 
@@ -1178,15 +1192,24 @@ async function boot() {
     }
   });
 
-  // v1 has no "recent projects" list — just the one remembered workspace,
-  // falling back to the Rust side's home-directory default on first run.
   let last = "";
   try {
     last = localStorage.getItem(LAST_WORKSPACE_KEY) ?? "";
   } catch {
     /* ignore */
   }
-  await startWorkspace(last);
+  if (last) {
+    await startWorkspace(last);
+  } else {
+    // No remembered workspace: wait for the user to actually pick one,
+    // rather than defaulting to the home directory. Confirmed by running
+    // it that "default to $HOME" means indexing the user's entire home
+    // folder with full parallelism the moment the window opens — not a
+    // reasonable default on any machine, fast or not.
+    sessionState.textContent = "no project open";
+    emptyText.textContent = "Open a project to get started.";
+    emptyOpenBtn.classList.remove("hidden");
+  }
 }
 
 boot();

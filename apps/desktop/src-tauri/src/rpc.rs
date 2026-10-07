@@ -52,8 +52,11 @@ fn locate_kara_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
     which(name)
 }
 
-/// Home directory without pulling in the `dirs` crate just for this.
-fn dirs_home() -> Option<String> {
+/// Home directory without pulling in the `dirs` crate just for this. Used
+/// only as the folder-picker dialog's starting location (see
+/// `kara_home_dir` in lib.rs) — never as a silent workspace fallback; see
+/// the comment on `Session::start` for why.
+pub fn dirs_home() -> Option<String> {
     std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .ok()
@@ -85,13 +88,19 @@ impl Session {
         workspace: String,
     ) -> Result<Value, String> {
         self.stop().await;
-        // v1 has no folder picker yet: an empty workspace falls back to
-        // the user's home directory rather than the app bundle's own cwd.
-        let workspace = if workspace.trim().is_empty() {
-            dirs_home().ok_or_else(|| "could not determine a home directory".to_string())?
-        } else {
-            workspace
-        };
+        // No silent fallback to the home directory: confirmed by actually
+        // running this that it means indexing the user's entire home
+        // folder (Library, Downloads, every repo they have, caches —
+        // commonly hundreds of thousands of files) with full rayon
+        // parallelism the moment the app opens with no project chosen
+        // yet. That's real, sustained all-core CPU usage on launch, not a
+        // theoretical risk. The window picks a real folder before ever
+        // calling this; an empty one here is a bug on the caller's side,
+        // not something to paper over.
+        let workspace = workspace.trim().to_string();
+        if workspace.is_empty() {
+            return Err("no project folder given".to_string());
+        }
         let binary = locate_kara_binary(&app)
             .ok_or_else(|| "the `kara` binary was not found (bundled or on PATH)".to_string())?;
         let mut child = Command::new(&binary)
