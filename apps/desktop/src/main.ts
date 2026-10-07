@@ -33,6 +33,8 @@ let spinnerFrame = 0;
 let availableCommands: { name: string; description: string }[] = [];
 let cmdMenuIndex = 0;
 let permissionsMode = "";
+let turnMode: "execute" | "plan" | "review" = "execute";
+const modeOpts = document.querySelectorAll<HTMLButtonElement>(".mode-opt");
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const LAST_WORKSPACE_KEY = "kara.lastWorkspace";
 
@@ -251,7 +253,11 @@ async function send() {
   try {
     await invoke("kara_request", {
       method: "session/prompt",
-      params: { text, mode: "execute", approvePlan: pendingPlan && /^(y|yes|approve|go|ok|proceed)$/i.test(text) },
+      params: {
+        text,
+        mode: turnMode,
+        approvePlan: turnMode === "execute" && pendingPlan && /^(y|yes|approve|go|ok|proceed)$/i.test(text),
+      },
     });
   } catch (e: any) {
     activity(`error: ${e?.message ?? e}`, "err");
@@ -606,6 +612,13 @@ input.addEventListener("keydown", (ev) => {
   }
 });
 sendBtn.addEventListener("click", send);
+modeOpts.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    turnMode = btn.dataset.mode as "execute" | "plan" | "review";
+    modeOpts.forEach((b) => b.classList.toggle("active", b === btn));
+    input.focus();
+  });
+});
 btnNew.addEventListener("click", newSession);
 btnUndo.addEventListener("click", undo);
 

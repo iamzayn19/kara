@@ -40,6 +40,11 @@
             autofocus
           ></textarea>
           <div id="composer-row">
+            <div id="mode-switch" role="radiogroup" aria-label="Turn mode">
+              <button class="mode-opt active" data-mode="execute" title="Understand, edit, test, review">Execute</button>
+              <button class="mode-opt" data-mode="plan" title="Read-only: propose a plan, wait for approval">Plan</button>
+              <button class="mode-opt" data-mode="review" title="Read-only: risk review of the current diff">Review</button>
+            </div>
             <span id="hint">Enter to send · Shift+Enter for a new line · Esc to stop · / for commands</span>
             <button id="send" title="Send (Enter)">
               <span id="send-label">Send</span>
