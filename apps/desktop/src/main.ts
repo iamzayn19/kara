@@ -44,6 +44,19 @@ let permissionsMode = "";
 let turnMode: "execute" | "plan" | "review" = "execute";
 const modeOpts = document.querySelectorAll<HTMLButtonElement>(".mode-opt");
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+// Kara is named for Supergirl (Kara Zor-El) — the working indicator leans
+// on that instead of a generic "thinking…", picked once per turn so it
+// doesn't flicker between phrases every animation frame.
+const WORKING_PHRASES = [
+  "Flying in",
+  "X-raying the code",
+  "Super-speeding through it",
+  "Listening in close",
+  "Scanning the repo",
+  "Channeling the House of El",
+  "Warming up heat vision",
+  "Orbiting the problem",
+];
 const LAST_WORKSPACE_KEY = "kara.lastWorkspace";
 const RECENT_WORKSPACES_KEY = "kara.recentWorkspaces";
 const MAX_RECENT = 8;
@@ -361,15 +374,16 @@ function startSpinner() {
   stopSpinner();
   clearEmptyState();
   spinnerRow = document.createElement("div");
-  spinnerRow.className = "spinner-row";
+  spinnerRow.className = "spinner-row krypton";
   transcript.appendChild(spinnerRow);
   spinnerFrame = 0;
+  const phrase = WORKING_PHRASES[Math.floor(Math.random() * WORKING_PHRASES.length)];
   const started = Date.now();
   spinnerTimer = window.setInterval(() => {
     spinnerFrame++;
     const secs = Math.round((Date.now() - started) / 1000);
     if (spinnerRow) {
-      spinnerRow.textContent = `${SPINNER[spinnerFrame % SPINNER.length]} Kara is working… ${secs}s`;
+      spinnerRow.textContent = `${SPINNER[spinnerFrame % SPINNER.length]} ${phrase}… ${secs}s`;
     }
     scrollToBottom();
   }, 100);
@@ -412,7 +426,7 @@ function handleEvent(e: any) {
       pendingAssistant = undefined;
       break;
     case "tool_started":
-      activity(`→ ${e.summary}`, "accent");
+      activity(`→ ${e.summary}`, "krypton");
       break;
     case "tool_finished": {
       const mark = e.ok ? "✓" : "✗";

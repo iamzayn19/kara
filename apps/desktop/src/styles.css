@@ -436,6 +436,15 @@ body.platform-macos #toolbar {
   font-weight: 600;
 }
 
+/* Kryptonian crystal blue: a tool call in progress, or the working
+   spinner — "this is happening right now", distinct from Kara's own
+   amber brand color and from the green/red/amber status colors. */
+.activity.krypton,
+.krypton {
+  color: var(--krypton);
+  font-weight: 600;
+}
+
 .diff-block {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 12px;
