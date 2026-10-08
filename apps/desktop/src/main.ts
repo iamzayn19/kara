@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { showFile, showDiff, monacoThemeFor, setMonacoTheme } from "./editor";
 
 const transcript = document.querySelector<HTMLElement>("#transcript")!;
 const emptyState = document.querySelector<HTMLElement>("#empty-state")!;
@@ -20,6 +21,13 @@ const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
 const btnUndo = document.querySelector<HTMLButtonElement>("#btn-undo")!;
 const btnSlash = document.querySelector<HTMLButtonElement>("#btn-slash")!;
 const sessionTimer = document.querySelector<HTMLElement>("#session-timer")!;
+const sidebarTabs = document.querySelectorAll<HTMLButtonElement>(".sidebar-tab");
+const sidebarPanelProject = document.querySelector<HTMLElement>("#sidebar-panel-project")!;
+const sidebarPanelFiles = document.querySelector<HTMLElement>("#sidebar-panel-files")!;
+const fileTree = document.querySelector<HTMLElement>("#file-tree")!;
+const editorTabsEl = document.querySelector<HTMLElement>("#editor-tabs")!;
+const editorContainer = document.querySelector<HTMLElement>("#editor-container")!;
+const composerWrap = document.querySelector<HTMLElement>("#composer-wrap")!;
 const btnProject = document.querySelector<HTMLButtonElement>("#btn-project")!;
 const btnSettings = document.querySelector<HTMLButtonElement>("#btn-settings")!;
 const btnTheme = document.querySelector<HTMLButtonElement>("#btn-theme")!;
@@ -121,6 +129,7 @@ function effectiveTheme(): "light" | "dark" {
  * wants to follow the OS instead. */
 function toggleTheme() {
   setTheme(effectiveTheme() === "light" ? "dark" : "light");
+  setMonacoTheme(monacoThemeFor(effectiveTheme()));
 }
 
 // ── Transcript rendering ──────────────────────────────────────────
@@ -275,6 +284,15 @@ function fileChangedRow(change: { path: string; kind: string; diff: string; batc
       row.appendChild(container);
     }
   };
+
+  if (change.kind !== "deleted") {
+    const openDiff = document.createElement("button");
+    openDiff.className = "file-action";
+    openDiff.textContent = "open diff";
+    openDiff.title = "Open a real side-by-side diff";
+    openDiff.addEventListener("click", () => void openDiffTab(change.path));
+    actions.appendChild(openDiff);
+  }
 
   if (big && change.kind !== "deleted") {
     const toggle = document.createElement("button");
@@ -828,6 +846,7 @@ async function openSettings() {
     btn.textContent = label;
     btn.addEventListener("click", () => {
       setTheme(value);
+      setMonacoTheme(monacoThemeFor(effectiveTheme()));
       switcher.querySelectorAll(".theme-opt").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
     });
@@ -1091,7 +1110,18 @@ async function pickProject() {
 async function openWorkspace(dir: string) {
   clearTranscript();
   pendingPlan = false;
+  resetEditorTabs();
   await startWorkspace(dir);
+}
+
+function resetEditorTabs() {
+  openTabs.length = 0;
+  activeTabId = "chat";
+  renderEditorTabs();
+  transcript.classList.remove("hidden");
+  composerWrap.classList.remove("hidden");
+  editorContainer.classList.add("hidden");
+  fileTree.innerHTML = "";
 }
 
 /** Clicking the project name shows recent projects first (VS Code's "Open
@@ -1234,6 +1264,198 @@ function markPlatform() {
 // Applied immediately at module load, not inside boot()'s first await, so
 // there's no flash of the wrong theme before the RPC round-trip resolves.
 setTheme(currentTheme());
+
+// ── Sidebar tabs: Project (recent/sessions) vs Files (explorer) ─────
+
+sidebarTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    const panel = tab.dataset.panel;
+    sidebarTabs.forEach((t) => t.classList.toggle("active", t === tab));
+    sidebarPanelProject.classList.toggle("hidden", panel !== "project");
+    sidebarPanelFiles.classList.toggle("hidden", panel !== "files");
+    if (panel === "files" && !fileTree.hasChildNodes()) void loadFileTree();
+  });
+});
+
+// ── File explorer ────────────────────────────────────────────────
+
+const treeIcon = (isDir: boolean, expanded = false) => (isDir ? (expanded ? "▾" : "▸") : "·");
+
+async function loadFileTree() {
+  fileTree.innerHTML = "";
+  if (!currentWorkspace) {
+    const empty = document.createElement("div");
+    empty.className = "sidebar-empty";
+    empty.textContent = "Open a project to browse its files.";
+    fileTree.appendChild(empty);
+    return;
+  }
+  try {
+    const entries = await fsListDir("");
+    renderTreeLevel(fileTree, entries, 0);
+  } catch (e: any) {
+    const err = document.createElement("div");
+    err.className = "sidebar-empty";
+    err.textContent = String(e?.message ?? e);
+    fileTree.appendChild(err);
+  }
+}
+
+async function fsListDir(path: string): Promise<{ name: string; path: string; isDir: boolean }[]> {
+  const r: any = await invoke("kara_request", { method: "fs/list", params: { path } });
+  return r.entries ?? [];
+}
+
+function renderTreeLevel(container: HTMLElement, entries: { name: string; path: string; isDir: boolean }[], depth: number) {
+  for (const entry of entries) {
+    const row = document.createElement("button");
+    row.className = "tree-row";
+    row.style.paddingLeft = `${6 + depth * 14}px`;
+    const icon = document.createElement("span");
+    icon.className = "tree-icon";
+    icon.textContent = treeIcon(entry.isDir);
+    const name = document.createElement("span");
+    name.className = "tree-name";
+    name.textContent = entry.name;
+    row.appendChild(icon);
+    row.appendChild(name);
+
+    if (entry.isDir) {
+      let expanded = false;
+      let childContainer: HTMLElement | undefined;
+      row.addEventListener("click", async () => {
+        expanded = !expanded;
+        icon.textContent = treeIcon(true, expanded);
+        if (!expanded) {
+          childContainer?.remove();
+          childContainer = undefined;
+          return;
+        }
+        childContainer = document.createElement("div");
+        row.insertAdjacentElement("afterend", childContainer);
+        try {
+          const children = await fsListDir(entry.path);
+          renderTreeLevel(childContainer, children, depth + 1);
+        } catch (e: any) {
+          childContainer.textContent = String(e?.message ?? e);
+        }
+      });
+    } else {
+      row.addEventListener("click", () => void openFileTab(entry.path));
+    }
+    container.appendChild(row);
+  }
+}
+
+// ── Editor tabs: Chat (permanent) + open files/diffs ─────────────
+
+interface OpenTab {
+  id: string;
+  label: string;
+  kind: "file" | "diff";
+  path: string;
+  content?: { before: string; after: string } | string;
+}
+
+const openTabs: OpenTab[] = [];
+let activeTabId = "chat";
+
+function renderEditorTabs() {
+  editorTabsEl.innerHTML = "";
+  const chatTab = document.createElement("button");
+  chatTab.className = "editor-tab" + (activeTabId === "chat" ? " active" : "");
+  chatTab.textContent = "Chat";
+  chatTab.addEventListener("click", () => activateTab("chat"));
+  editorTabsEl.appendChild(chatTab);
+
+  for (const tab of openTabs) {
+    const btn = document.createElement("button");
+    btn.className = "editor-tab" + (activeTabId === tab.id ? " active" : "");
+    const label = document.createElement("span");
+    label.textContent = tab.label;
+    const close = document.createElement("span");
+    close.className = "tab-close";
+    close.textContent = "✕";
+    close.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      closeTab(tab.id);
+    });
+    btn.appendChild(label);
+    btn.appendChild(close);
+    btn.addEventListener("click", () => activateTab(tab.id));
+    editorTabsEl.appendChild(btn);
+  }
+}
+
+function activateTab(id: string) {
+  activeTabId = id;
+  renderEditorTabs();
+  const isChat = id === "chat";
+  transcript.classList.toggle("hidden", !isChat);
+  composerWrap.classList.toggle("hidden", !isChat);
+  editorContainer.classList.toggle("hidden", isChat);
+  if (isChat) return;
+  const tab = openTabs.find((t) => t.id === id);
+  if (!tab) return;
+  const theme = monacoThemeFor(effectiveTheme());
+  if (tab.kind === "file") {
+    showFile(editorContainer, tab.path, tab.content as string, theme);
+  } else {
+    const c = tab.content as { before: string; after: string };
+    showDiff(editorContainer, tab.path, c.before, c.after, theme);
+  }
+}
+
+function closeTab(id: string) {
+  const idx = openTabs.findIndex((t) => t.id === id);
+  if (idx === -1) return;
+  openTabs.splice(idx, 1);
+  if (activeTabId === id) activateTab("chat");
+  else renderEditorTabs();
+}
+
+async function openFileTab(path: string) {
+  const id = `file:${path}`;
+  if (openTabs.some((t) => t.id === id)) {
+    activateTab(id);
+    return;
+  }
+  try {
+    const r: any = await invoke("kara_request", { method: "fs/read", params: { path } });
+    if (r.binary) {
+      activity(`${path} looks binary — nothing to show as text.`, "warn");
+      return;
+    }
+    const label = path.split("/").pop() ?? path;
+    openTabs.push({ id, label, kind: "file", path, content: r.content ?? "" });
+    activateTab(id);
+  } catch (e: any) {
+    activity(`error: ${e?.message ?? e}`, "err");
+  }
+}
+
+async function openDiffTab(path: string) {
+  const id = `diff:${path}`;
+  try {
+    const r: any = await invoke("kara_request", { method: "session/changes", params: {} });
+    const match = (r.kara ?? []).find((f: any) => f.path === path);
+    if (!match) {
+      activity(`No diff available for ${path} anymore.`, "warn");
+      return;
+    }
+    const existing = openTabs.find((t) => t.id === id);
+    const content = { before: match.before ?? "", after: match.after ?? "" };
+    if (existing) {
+      existing.content = content;
+    } else {
+      const label = path.split("/").pop() ?? path;
+      openTabs.push({ id, label: `${label} (diff)`, kind: "diff", path, content });
+    }
+    activateTab(id);
+  } catch (e: any) {
+    activity(`error: ${e?.message ?? e}`, "err");
+  }
+}
 
 async function boot() {
   markPlatform();

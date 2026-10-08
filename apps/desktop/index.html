@@ -26,23 +26,38 @@
 
       <div id="body">
         <aside id="sidebar">
-          <div id="sidebar-top">
-            <button id="btn-project" class="sidebar-open-btn" title="Open a different folder (⌘O)">
-              <span class="sidebar-open-icon">📁</span>
-              <span>Open project…</span>
-            </button>
+          <div id="sidebar-tabs" role="tablist">
+            <button class="sidebar-tab active" data-panel="project">Project</button>
+            <button class="sidebar-tab" data-panel="files">Files</button>
           </div>
-          <div class="sidebar-section">
-            <div class="sidebar-label">Recent</div>
-            <div id="recent-list" class="sidebar-list"></div>
+
+          <div id="sidebar-panel-project" class="sidebar-panel">
+            <div id="sidebar-top">
+              <button id="btn-project" class="sidebar-open-btn" title="Open a different folder (⌘O)">
+                <span class="sidebar-open-icon">📁</span>
+                <span>Open project…</span>
+              </button>
+            </div>
+            <div class="sidebar-section">
+              <div class="sidebar-label">Recent</div>
+              <div id="recent-list" class="sidebar-list"></div>
+            </div>
+            <div class="sidebar-section">
+              <div class="sidebar-label">Sessions</div>
+              <div id="sessions-list" class="sidebar-list"></div>
+            </div>
           </div>
-          <div class="sidebar-section">
-            <div class="sidebar-label">Sessions</div>
-            <div id="sessions-list" class="sidebar-list"></div>
+
+          <div id="sidebar-panel-files" class="sidebar-panel hidden">
+            <div id="file-tree" class="sidebar-list"></div>
           </div>
         </aside>
 
         <div id="main">
+          <div id="editor-tabs" role="tablist">
+            <button class="editor-tab active" data-tab="chat">Chat</button>
+          </div>
+
           <main id="transcript" aria-live="polite">
             <div id="empty-state">
               <img id="empty-mark" src="/src/assets/kara-mark.png" alt="" />
@@ -50,6 +65,8 @@
               <button id="empty-open-btn" class="approve-btn hidden">Open a project…</button>
             </div>
           </main>
+
+          <div id="editor-container" class="hidden"></div>
 
           <div id="composer-wrap">
             <ul id="cmd-menu" class="hidden"></ul>
