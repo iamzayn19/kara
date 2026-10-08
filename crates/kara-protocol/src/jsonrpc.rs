@@ -23,6 +23,14 @@ pub mod methods {
     pub const MODELS: &str = "models/list";
     pub const SELECT_MODEL: &str = "models/select";
 
+    // client -> server: read-only file browsing for an editor's own file
+    // explorer. Deliberately not the agent's tool-permission pipeline —
+    // the user browsing their own already-open project is a different
+    // trust boundary than the agent acting autonomously. Lazy and
+    // single-level like a real file explorer, never a full-tree walk.
+    pub const FS_LIST: &str = "fs/list";
+    pub const FS_READ: &str = "fs/read";
+
     // server -> client notifications
     pub const EVENT: &str = "event";
     pub const LOG: &str = "log";

@@ -185,6 +185,8 @@ impl Server {
             methods::RESUME_SESSION => self.resume_session(params).await,
             methods::DOCTOR => self.doctor().await,
             methods::MODELS => self.models().await,
+            methods::FS_LIST => self.fs_list(params).await,
+            methods::FS_READ => self.fs_read(params).await,
             methods::SELECT_MODEL => {
                 let me = self.clone();
                 tokio::spawn(async move {
@@ -624,6 +626,116 @@ impl Server {
         }))
     }
 
+    /// Resolve a client-given relative path against the workspace root,
+    /// refusing anything that would land outside it (`..` escapes, or an
+    /// absolute path elsewhere). Used only by the read-only fs/* methods
+    /// below — the agent's own file tools go through ToolContext/Workspace
+    /// instead, with their own permission checks; this is the editor's
+    /// file explorer browsing a project the user already opened on
+    /// purpose, a different trust boundary.
+    fn safe_join(root: &std::path::Path, rel: &str) -> Result<std::path::PathBuf, RpcError> {
+        let candidate = if rel.is_empty() {
+            root.to_path_buf()
+        } else {
+            root.join(rel)
+        };
+        let canon = candidate
+            .canonicalize()
+            .map_err(|e| invalid(format!("{rel}: {e}")))?;
+        let root_canon = root.canonicalize().map_err(internal)?;
+        if !canon.starts_with(&root_canon) {
+            return Err(invalid("path escapes the workspace"));
+        }
+        Ok(canon)
+    }
+
+    /// Immediate children of a directory only (never a recursive walk —
+    /// confirmed by actually running an earlier version of this app that
+    /// a full-tree scan of a real project is real, sustained CPU, not a
+    /// theoretical risk). Gitignore-aware via the same `ignore` crate the
+    /// repo indexer uses, so `.git`, `target`, `node_modules` etc. stay
+    /// out exactly as they do there.
+    async fn fs_list(&self, params: Value) -> Result<Value, RpcError> {
+        let guard = self.session.lock().await;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        let rel = params.get("path").and_then(Value::as_str).unwrap_or("");
+        let root = s.app.root.clone();
+        let dir = Self::safe_join(&root, rel)?;
+        if !dir.is_dir() {
+            return Err(invalid("not a directory"));
+        }
+        tokio::task::spawn_blocking(move || {
+            let mut entries = Vec::new();
+            for entry in ignore::WalkBuilder::new(&dir)
+                .max_depth(Some(1))
+                .hidden(false)
+                .git_ignore(true)
+                .git_global(true)
+                .git_exclude(true)
+                .build()
+                .flatten()
+            {
+                if entry.path() == dir {
+                    continue;
+                }
+                let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                let rel = entry.path().strip_prefix(&root).unwrap_or(entry.path());
+                entries.push(json!({
+                    "name": entry.file_name().to_string_lossy(),
+                    "path": rel.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect::<Vec<_>>().join("/"),
+                    "isDir": is_dir,
+                }));
+            }
+            entries.sort_by(|a: &Value, b: &Value| {
+                let ad = a["isDir"].as_bool().unwrap_or(false);
+                let bd = b["isDir"].as_bool().unwrap_or(false);
+                bd.cmp(&ad).then_with(|| {
+                    a["name"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_lowercase()
+                        .cmp(&b["name"].as_str().unwrap_or("").to_lowercase())
+                })
+            });
+            Ok(json!({ "entries": entries }))
+        })
+        .await
+        .map_err(internal)?
+    }
+
+    /// One file's content for the editor's viewer — capped and
+    /// binary-checked, not a structured tool call; same trust-boundary
+    /// note as fs_list.
+    async fn fs_read(&self, params: Value) -> Result<Value, RpcError> {
+        const MAX_BYTES: usize = 2_000_000;
+        let guard = self.session.lock().await;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        let rel = params
+            .get("path")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("path is required"))?;
+        let root = s.app.root.clone();
+        let file = Self::safe_join(&root, rel)?;
+        if !file.is_file() {
+            return Err(invalid("not a file"));
+        }
+        let bytes = tokio::fs::read(&file).await.map_err(internal)?;
+        if kara_context::looks_binary(&bytes) {
+            return Ok(json!({ "binary": true, "content": null, "truncated": false }));
+        }
+        let truncated = bytes.len() > MAX_BYTES;
+        let slice = &bytes[..bytes.len().min(MAX_BYTES)];
+        Ok(json!({
+            "binary": false,
+            "content": String::from_utf8_lossy(slice),
+            "truncated": truncated,
+        }))
+    }
+
     async fn local_context(
         &self,
     ) -> Result<
@@ -815,6 +927,32 @@ pub fn serve_stdio(rt: &tokio::runtime::Runtime, opts: &Options) -> anyhow::Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn safe_join_allows_paths_inside_the_root() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("src")).unwrap();
+        std::fs::write(dir.path().join("src/a.ts"), "x").unwrap();
+        let got = Server::safe_join(dir.path(), "src/a.ts").unwrap();
+        assert_eq!(got, dir.path().join("src/a.ts").canonicalize().unwrap());
+        // Empty path means the root itself.
+        assert_eq!(
+            Server::safe_join(dir.path(), "").unwrap(),
+            dir.path().canonicalize().unwrap()
+        );
+    }
+
+    #[test]
+    fn safe_join_refuses_escaping_the_root() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("inside")).unwrap();
+        // A real file one level above the workspace root (`inside`), via `..`.
+        let outside = dir.path().join("kara-safe-join-test-victim");
+        std::fs::write(&outside, "secret").unwrap();
+        let root = dir.path().join("inside");
+        let err = Server::safe_join(&root, "../kara-safe-join-test-victim").unwrap_err();
+        assert!(err.message.contains("escapes"), "{}", err.message);
+    }
 
     #[test]
     fn editor_context_is_rendered() {

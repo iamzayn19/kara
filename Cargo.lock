@@ -1244,6 +1244,7 @@ dependencies = [
  "clap",
  "console",
  "crossterm",
+ "ignore",
  "indicatif",
  "kara-agent",
  "kara-context",

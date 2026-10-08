@@ -20,6 +20,7 @@ kara-protocol.workspace = true
 kara-core.workspace = true
 kara-sandbox.workspace = true
 kara-context.workspace = true
+ignore.workspace = true
 kara-tools.workspace = true
 kara-inference.workspace = true
 kara-agent.workspace = true
@@ -42,3 +43,4 @@ toml.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2"
+tempfile.workspace = true
