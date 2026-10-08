@@ -20,8 +20,12 @@ const contextPill = document.querySelector<HTMLButtonElement>("#context-pill")!;
 const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
 const btnUndo = document.querySelector<HTMLButtonElement>("#btn-undo")!;
 const btnProject = document.querySelector<HTMLButtonElement>("#btn-project")!;
-const btnSessions = document.querySelector<HTMLButtonElement>("#btn-sessions")!;
 const btnSettings = document.querySelector<HTMLButtonElement>("#btn-settings")!;
+const btnSidebar = document.querySelector<HTMLButtonElement>("#btn-sidebar")!;
+const sidebar = document.querySelector<HTMLElement>("#sidebar")!;
+const recentList = document.querySelector<HTMLElement>("#recent-list")!;
+const sessionsList = document.querySelector<HTMLElement>("#sessions-list")!;
+const projectName = document.querySelector<HTMLElement>("#project-name")!;
 const cmdMenu = document.querySelector<HTMLUListElement>("#cmd-menu")!;
 const overlay = document.querySelector<HTMLElement>("#overlay")!;
 const panelTitle = document.querySelector<HTMLElement>("#panel-title")!;
@@ -511,6 +515,7 @@ async function newSession() {
     pendingPlan = false;
     sessionState.textContent = "ready";
     void updateContextPill();
+    void refreshSessionsSidebar();
   } catch (e: any) {
     activity(`error: ${e?.message ?? e}`, "err");
   }
@@ -731,52 +736,46 @@ async function openModelPicker() {
   }
 }
 
-async function openSessions() {
-  openPanel("Session history");
+async function refreshSessionsSidebar() {
+  if (!currentWorkspace) {
+    sessionsList.innerHTML = "";
+    return;
+  }
   try {
     const r: any = await invoke("kara_request", { method: "session/list", params: {} });
-    panelBody.innerHTML = "";
+    sessionsList.innerHTML = "";
     if (!r.sessions?.length) {
       const empty = document.createElement("div");
-      empty.className = "panel-empty";
-      empty.textContent = "No past sessions for this project.";
-      panelBody.appendChild(empty);
+      empty.className = "sidebar-empty";
+      empty.textContent = "No past sessions yet.";
+      sessionsList.appendChild(empty);
       return;
     }
     for (const s of r.sessions) {
-      const row = document.createElement("div");
-      row.className = "panel-row" + (s.id === r.current ? " current" : "");
-      const left = document.createElement("div");
-      const title = document.createElement("div");
-      title.className = "title";
+      const row = document.createElement("button");
+      row.className = "sidebar-row" + (s.id === r.current ? " current" : "");
+      row.title = `${s.turns} turn${s.turns === 1 ? "" : "s"} · ${s.model}`;
+      const title = document.createElement("span");
+      title.className = "sidebar-row-title";
       title.textContent = s.title || "(empty)";
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      meta.textContent = `${(s.updated ?? "").slice(0, 16).replace("T", " ")} · ${s.turns} turn${s.turns === 1 ? "" : "s"} · ${s.model}`;
-      left.appendChild(title);
-      left.appendChild(meta);
-      row.appendChild(left);
+      row.appendChild(title);
       if (s.id !== r.current) {
         row.addEventListener("click", async () => {
-          closePanel();
           try {
             await invoke("kara_request", { method: "session/resume", params: { id: s.id } });
             clearTranscript();
             activity(`Resumed: ${s.title || s.id.slice(0, 8)}`, "dim");
             void updateContextPill();
+            void refreshSessionsSidebar();
           } catch (e: any) {
             activity(`error: ${e?.message ?? e}`, "err");
           }
         });
       }
-      panelBody.appendChild(row);
+      sessionsList.appendChild(row);
     }
-  } catch (e: any) {
-    panelBody.innerHTML = "";
-    const err = document.createElement("div");
-    err.className = "panel-empty";
-    err.textContent = String(e?.message ?? e);
-    panelBody.appendChild(err);
+  } catch {
+    sessionsList.innerHTML = "";
   }
 }
 
@@ -930,7 +929,6 @@ contextPill.addEventListener("click", async () => {
 modelPill.addEventListener("click", openModelPicker);
 permPill.addEventListener("click", openSettings);
 btnSettings.addEventListener("click", openSettings);
-btnSessions.addEventListener("click", openSessions);
 
 // ── Project (folder) picker ─────────────────────────────────────────
 
@@ -940,6 +938,16 @@ function shortPath(p: string): string {
 }
 
 let currentWorkspace = "";
+
+/** Toolbar/composer controls that need an active session — disabled
+ * rather than left clickable-but-erroring when no project is open yet
+ * (the model picker in particular used to just throw "call initialize
+ * first" at the user). */
+function setProjectControlsEnabled(enabled: boolean) {
+  for (const el of [modelPill, permPill, btnSettings, btnUndo, btnNew, input, sendBtn]) {
+    el.toggleAttribute("disabled", !enabled);
+  }
+}
 
 async function startWorkspace(workspace: string) {
   sessionState.textContent = "starting…";
@@ -952,9 +960,10 @@ async function startWorkspace(workspace: string) {
     permissionsMode = info?.permissionsMode ?? "";
     permPill.textContent = permissionsMode || "—";
     availableCommands = info?.commands ?? [];
-    btnProject.textContent = info?.workspace ? shortPath(info.workspace) : "~";
-    btnProject.title = info?.workspace ?? "Open a different folder";
+    projectName.textContent = info?.workspace ? shortPath(info.workspace) : "no project open";
+    projectName.title = info?.workspace ?? "";
     sessionState.textContent = "ready";
+    setProjectControlsEnabled(true);
     void updateContextPill();
     try {
       localStorage.setItem(LAST_WORKSPACE_KEY, currentWorkspace);
@@ -962,9 +971,12 @@ async function startWorkspace(workspace: string) {
       /* private window or storage disabled: just skip remembering it */
     }
     addRecentWorkspace(currentWorkspace);
+    refreshRecentSidebar();
+    void refreshSessionsSidebar();
   } catch (e: any) {
     activity(`Kara failed to start: ${e?.message ?? e}`, "err");
     sessionState.textContent = "not running";
+    setProjectControlsEnabled(false);
     showRestartButton();
   }
 }
@@ -1019,49 +1031,34 @@ async function openWorkspace(dir: string) {
 /** Clicking the project name shows recent projects first (VS Code's "Open
  * Recent" pattern) rather than jumping straight to a folder dialog every
  * time. */
-function openProjectPanel() {
-  openPanel("Open a project");
+/** Renders into the persistent sidebar, not a popup — recent projects
+ * should be glanceable the way Cursor/VS Code's own sidebar is, not
+ * hidden behind a click every time. */
+function refreshRecentSidebar() {
   const recents = recentWorkspaces().filter((p) => p !== currentWorkspace);
-  if (recents.length) {
-    const label = document.createElement("div");
-    label.className = "panel-section-label";
-    label.textContent = "Recent";
-    panelBody.appendChild(label);
-    for (const path of recents) {
-      const row = document.createElement("div");
-      row.className = "panel-row";
-      const left = document.createElement("div");
-      const title = document.createElement("div");
-      title.className = "title";
-      title.textContent = shortPath(path);
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      meta.textContent = path;
-      left.appendChild(title);
-      left.appendChild(meta);
-      row.appendChild(left);
-      row.addEventListener("click", async () => {
-        closePanel();
-        await openWorkspace(path);
-      });
-      panelBody.appendChild(row);
-    }
+  recentList.innerHTML = "";
+  if (!recents.length) {
+    const empty = document.createElement("div");
+    empty.className = "sidebar-empty";
+    empty.textContent = "No other recent projects.";
+    recentList.appendChild(empty);
+    return;
   }
-  const chooseRow = document.createElement("div");
-  chooseRow.className = "panel-row";
-  const chooseTitle = document.createElement("div");
-  chooseTitle.className = "title";
-  chooseTitle.textContent = "Choose a folder…";
-  chooseRow.appendChild(chooseTitle);
-  chooseRow.addEventListener("click", async () => {
-    closePanel();
-    await pickProject();
-  });
-  panelBody.appendChild(chooseRow);
+  for (const path of recents) {
+    const row = document.createElement("button");
+    row.className = "sidebar-row";
+    row.title = path;
+    const title = document.createElement("span");
+    title.className = "sidebar-row-title";
+    title.textContent = shortPath(path);
+    row.appendChild(title);
+    row.addEventListener("click", () => openWorkspace(path));
+    recentList.appendChild(row);
+  }
 }
 
-btnProject.addEventListener("click", openProjectPanel);
-emptyOpenBtn.addEventListener("click", openProjectPanel);
+btnProject.addEventListener("click", pickProject);
+emptyOpenBtn.addEventListener("click", pickProject);
 
 // ── Composer wiring ──────────────────────────────────────────────────
 
@@ -1129,10 +1126,6 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       newSession();
       break;
-    case "k":
-      e.preventDefault();
-      openSessions();
-      break;
     case ",":
       e.preventDefault();
       openSettings();
@@ -1141,8 +1134,17 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       pickProject();
       break;
+    case "b":
+      e.preventDefault();
+      toggleSidebar();
+      break;
   }
 });
+
+function toggleSidebar() {
+  sidebar.classList.toggle("collapsed");
+}
+btnSidebar.addEventListener("click", toggleSidebar);
 
 // ── Boot ──────────────────────────────────────────────────────────
 
@@ -1177,6 +1179,7 @@ async function boot() {
     sessionState.textContent = "Kara exited";
     modelPill.textContent = "stopped";
     modelPill.className = "pill";
+    setProjectControlsEnabled(false);
     activity("Kara's process exited unexpectedly.", "err");
     showRestartButton();
   });
@@ -1198,6 +1201,7 @@ async function boot() {
   } catch {
     /* ignore */
   }
+  setProjectControlsEnabled(false);
   if (last) {
     await startWorkspace(last);
   } else {
@@ -1209,6 +1213,7 @@ async function boot() {
     sessionState.textContent = "no project open";
     emptyText.textContent = "Open a project to get started.";
     emptyOpenBtn.classList.remove("hidden");
+    refreshRecentSidebar();
   }
 }
 

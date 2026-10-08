@@ -110,6 +110,125 @@ body.platform-macos #toolbar {
   display: flex;
   gap: 4px;
   -webkit-app-region: no-drag;
+  margin-left: auto;
+}
+
+/* ── Body: sidebar + main, like a real editor's layout ──────────── */
+
+#body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+#sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  transition: margin-left 0.15s ease, width 0.15s ease;
+}
+
+#sidebar.collapsed {
+  width: 0;
+  margin-left: -240px;
+  border-right: none;
+  overflow: hidden;
+}
+
+#sidebar-top {
+  padding: 12px;
+}
+
+.sidebar-open-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.sidebar-open-btn:hover {
+  border-color: var(--accent);
+}
+
+.sidebar-open-icon {
+  font-size: 13px;
+}
+
+.sidebar-section {
+  padding: 4px 8px 10px;
+}
+
+.sidebar-label {
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 8px 8px 6px;
+}
+
+.sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+
+.sidebar-row:hover {
+  background: var(--bg-sunken);
+}
+
+.sidebar-row.current {
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: default;
+}
+
+.sidebar-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-empty {
+  color: var(--dim);
+  font-size: 11px;
+  padding: 6px 8px;
+}
+
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .icon-btn {
@@ -124,11 +243,21 @@ body.platform-macos #toolbar {
   display: flex;
   align-items: center;
   justify-content: center;
+  -webkit-app-region: no-drag;
 }
 
 .icon-btn:hover {
   background: var(--border);
   color: var(--fg);
+}
+
+.icon-btn:disabled,
+.pill:disabled,
+#input:disabled,
+#send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ── Transcript ──────────────────────────────────────────────────── */
@@ -580,26 +709,14 @@ body.platform-macos #toolbar {
 
 /* ── Project picker ──────────────────────────────────────────────── */
 
-.text-btn {
-  font: inherit;
-  font-size: 11px;
+#project-name {
+  font-size: 12px;
   color: var(--dim);
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 3px 10px;
-  margin-left: 8px;
-  max-width: 220px;
+  margin-left: 10px;
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
-  -webkit-app-region: no-drag;
-}
-
-.text-btn:hover {
-  border-color: var(--accent);
-  color: var(--fg);
 }
 
 /* ── Slash-command menu ──────────────────────────────────────────── */
