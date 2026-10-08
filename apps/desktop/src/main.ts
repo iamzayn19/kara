@@ -21,6 +21,7 @@ const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
 const btnUndo = document.querySelector<HTMLButtonElement>("#btn-undo")!;
 const btnProject = document.querySelector<HTMLButtonElement>("#btn-project")!;
 const btnSettings = document.querySelector<HTMLButtonElement>("#btn-settings")!;
+const btnTheme = document.querySelector<HTMLButtonElement>("#btn-theme")!;
 const btnSidebar = document.querySelector<HTMLButtonElement>("#btn-sidebar")!;
 const sidebar = document.querySelector<HTMLElement>("#sidebar")!;
 const recentList = document.querySelector<HTMLElement>("#recent-list")!;
@@ -88,6 +89,21 @@ function setTheme(t: Theme) {
   } catch {
     /* a per-viewer convenience; fine to lose on a private window */
   }
+}
+
+/** light or dark, resolving "system" against the OS preference — what's
+ * actually on screen right now, not just the stored setting. */
+function effectiveTheme(): "light" | "dark" {
+  const t = currentTheme();
+  if (t !== "system") return t;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+
+/** The toolbar's one-click toggle — always lands on an explicit light or
+ * dark (never back to "system"); Settings still has System for anyone who
+ * wants to follow the OS instead. */
+function toggleTheme() {
+  setTheme(effectiveTheme() === "light" ? "dark" : "light");
 }
 
 // ── Transcript rendering ──────────────────────────────────────────
@@ -929,6 +945,7 @@ contextPill.addEventListener("click", async () => {
 modelPill.addEventListener("click", openModelPicker);
 permPill.addEventListener("click", openSettings);
 btnSettings.addEventListener("click", openSettings);
+btnTheme.addEventListener("click", toggleTheme);
 
 // ── Project (folder) picker ─────────────────────────────────────────
 
