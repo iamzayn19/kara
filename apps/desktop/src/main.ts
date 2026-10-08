@@ -12,13 +12,14 @@ const emptyText = document.querySelector<HTMLElement>("#empty-text")!;
 const emptyOpenBtn = document.querySelector<HTMLButtonElement>("#empty-open-btn")!;
 const input = document.querySelector<HTMLTextAreaElement>("#input")!;
 const sendBtn = document.querySelector<HTMLButtonElement>("#send")!;
-const sendLabel = document.querySelector<HTMLElement>("#send-label")!;
 const sessionState = document.querySelector<HTMLElement>("#session-state")!;
 const modelPill = document.querySelector<HTMLButtonElement>("#model-pill")!;
 const permPill = document.querySelector<HTMLButtonElement>("#perm-pill")!;
 const contextPill = document.querySelector<HTMLButtonElement>("#context-pill")!;
 const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
 const btnUndo = document.querySelector<HTMLButtonElement>("#btn-undo")!;
+const btnSlash = document.querySelector<HTMLButtonElement>("#btn-slash")!;
+const sessionTimer = document.querySelector<HTMLElement>("#session-timer")!;
 const btnProject = document.querySelector<HTMLButtonElement>("#btn-project")!;
 const btnSettings = document.querySelector<HTMLButtonElement>("#btn-settings")!;
 const btnTheme = document.querySelector<HTMLButtonElement>("#btn-theme")!;
@@ -400,7 +401,7 @@ function stopSpinner() {
 
 function setBusy(b: boolean) {
   busy = b;
-  sendLabel.textContent = b ? "Stop" : "Send";
+  sendBtn.textContent = b ? "■" : "↑";
   sendBtn.classList.toggle("stop", b);
   sendBtn.disabled = false;
   sessionState.textContent = b ? "working…" : pendingPlan ? "plan ready — reply or say \"approve\"" : "ready";
@@ -860,7 +861,7 @@ async function openSettings() {
       try {
         await invoke("kara_request", { method: "session/command", params: { name: "permissions", args: mode } });
         permissionsMode = mode;
-        permPill.textContent = mode;
+        permPill.textContent = permPillLabel(mode);
         closePanel();
       } catch (e: any) {
         activity(`error: ${e?.message ?? e}`, "err");
@@ -972,13 +973,43 @@ function shortPath(p: string): string {
 }
 
 let currentWorkspace = "";
+let sessionTimerStart: number | null = null;
+let sessionTimerInterval: number | undefined;
+
+function formatElapsed(ms: number): string {
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+function startSessionTimer() {
+  sessionTimerStart = Date.now();
+  sessionTimer.textContent = "0m";
+  if (sessionTimerInterval !== undefined) window.clearInterval(sessionTimerInterval);
+  sessionTimerInterval = window.setInterval(() => {
+    if (sessionTimerStart) sessionTimer.textContent = formatElapsed(Date.now() - sessionTimerStart);
+  }, 30_000);
+}
 
 /** Toolbar/composer controls that need an active session — disabled
  * rather than left clickable-but-erroring when no project is open yet
  * (the model picker in particular used to just throw "call initialize
  * first" at the user). */
+function permPillLabel(mode: string): string {
+  switch (mode) {
+    case "ask":
+      return "⚠ Ask every time";
+    case "workspace":
+      return "Workspace";
+    case "full":
+      return "⚠ Full access";
+    default:
+      return mode || "—";
+  }
+}
+
 function setProjectControlsEnabled(enabled: boolean) {
-  for (const el of [modelPill, permPill, btnSettings, btnUndo, btnNew, input, sendBtn]) {
+  for (const el of [modelPill, permPill, btnSettings, btnUndo, btnNew, btnSlash, input, sendBtn]) {
     el.toggleAttribute("disabled", !enabled);
   }
 }
@@ -992,12 +1023,13 @@ async function startWorkspace(workspace: string) {
     modelPill.textContent = info?.model?.available ? info.model.label : "no model";
     modelPill.className = info?.model?.available ? "pill ready" : "pill warn";
     permissionsMode = info?.permissionsMode ?? "";
-    permPill.textContent = permissionsMode || "—";
+    permPill.textContent = permPillLabel(permissionsMode);
     availableCommands = info?.commands ?? [];
     projectName.textContent = info?.workspace ? shortPath(info.workspace) : "no project open";
     projectName.title = info?.workspace ?? "";
     sessionState.textContent = "ready";
     setProjectControlsEnabled(true);
+    startSessionTimer();
     void updateContextPill();
     try {
       localStorage.setItem(LAST_WORKSPACE_KEY, currentWorkspace);
@@ -1150,6 +1182,14 @@ modeOpts.forEach((btn) => {
 });
 btnNew.addEventListener("click", newSession);
 btnUndo.addEventListener("click", undo);
+btnSlash.addEventListener("click", () => {
+  input.focus();
+  if (!input.value.startsWith("/")) {
+    input.value = "/" + input.value;
+    autosize();
+  }
+  updateCmdMenu();
+});
 
 // Native-feeling shortcuts: Cmd on macOS, Ctrl elsewhere.
 window.addEventListener("keydown", (e) => {

@@ -54,29 +54,35 @@
           <div id="composer-wrap">
             <ul id="cmd-menu" class="hidden"></ul>
             <div id="composer">
-              <textarea
-                id="input"
-                rows="1"
-                placeholder="Describe what you want, e.g. &quot;fix the failing auth tests&quot;… (/ for commands)"
-                autofocus
-              ></textarea>
+              <div id="composer-top">
+                <textarea
+                  id="input"
+                  rows="1"
+                  placeholder="Ask Kara anything, or describe a change… (/ for commands)"
+                  autofocus
+                ></textarea>
+                <button id="btn-voice" class="icon-btn composer-icon-btn" title="Voice input (coming soon)" disabled>🎤</button>
+              </div>
+              <div id="composer-divider"></div>
               <div id="composer-row">
+                <button id="btn-attach" class="icon-btn composer-icon-btn" title="Attach a file (coming soon)" disabled>＋</button>
+                <button id="btn-slash" class="icon-btn composer-icon-btn" title="Commands">[/]</button>
                 <div id="mode-switch" role="radiogroup" aria-label="Turn mode">
                   <button class="mode-opt active" data-mode="execute" title="Understand, edit, test, review">Execute</button>
                   <button class="mode-opt" data-mode="plan" title="Read-only: propose a plan, wait for approval">Plan</button>
                   <button class="mode-opt" data-mode="review" title="Read-only: risk review of the current diff">Review</button>
                 </div>
-                <span id="hint">Enter to send · Shift+Enter for a new line · Esc to stop · / for commands</span>
-                <button id="send" title="Send (Enter)">
-                  <span id="send-label">Send</span>
-                </button>
+                <span id="session-timer" title="Time since this session started">0m</span>
+                <div style="flex: 1;"></div>
+                <button id="perm-pill" class="pill perm-pill" title="Permission mode — click to change">—</button>
+                <button id="send" title="Send (Enter)">↑</button>
               </div>
             </div>
+            <div id="hint">Enter to send · Shift+Enter for a new line · Esc to stop</div>
           </div>
 
           <footer id="statusbar">
             <button id="model-pill" class="pill" title="Choose a model">no model</button>
-            <button id="perm-pill" class="pill" title="Permission mode">—</button>
             <button id="context-pill" class="pill" title="Conversation context used — click to compact"></button>
             <span id="spacer"></span>
             <span id="session-state">starting…</span>
