@@ -73,11 +73,14 @@ type Theme = "system" | "light" | "dark";
 function currentTheme(): Theme {
   try {
     const v = localStorage.getItem(THEME_KEY);
-    if (v === "light" || v === "dark") return v;
+    if (v === "light" || v === "dark" || v === "system") return v;
   } catch {
     /* ignore */
   }
-  return "system";
+  // Dark is Kara's actual identity, not "whatever the OS happens to be" —
+  // a bright cream window was the single biggest complaint testing this.
+  // System is still one click away in Settings for anyone who wants it.
+  return "dark";
 }
 
 function setTheme(t: Theme) {

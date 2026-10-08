@@ -12,12 +12,16 @@
   --ok: #6bc27a;
   --err: #e06c6c;
   --warn: #d9b35a;
+  /* Kryptonian crystal blue — the activity timeline's neutral/active tint,
+     standing in for plain gray. Status colors above (ok/err/warn) are
+     untouched; this is flavor, not a semantic change. */
+  --krypton: #4fd8e0;
   --dim: #8a8a8f;
-  --bg: #121317;
-  --bg-raised: #191a1f;
-  --bg-sunken: #0d0e11;
+  --bg: #181819;
+  --bg-raised: #232327;
+  --bg-sunken: #121213;
   --fg: #eaeaec;
-  --border: #26272e;
+  --border: #2c2c30;
   --radius: 10px;
 }
 
