@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kara — dark theme</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; font-family: -apple-system, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif; }
+  a { color: #6fb3e0; text-decoration: none; }
+  a:hover { color: #8ec4e8; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</helmet>
+
+<div style="width: 100%; min-width: 1100px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: {{bg}}; color: #cccccc; font-size: 13px; overflow: hidden;">
+
+  <!-- Toolbar -->
+  <div style="height: 44px; flex-shrink: 0; display: flex; align-items: center; padding: 0 14px; background: {{toolbarBg}}; border-bottom: 1px solid {{border}};">
+    <div style="display: flex; gap: 8px; margin-right: 18px;">
+      <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57;"></div>
+      <div style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e;"></div>
+      <div style="width: 12px; height: 12px; border-radius: 50%; background: #28c840;"></div>
+    </div>
+    <button style="width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;" aria-label="Toggle sidebar">▤</button>
+    <div style="width: 18px; height: 18px; border-radius: 5px; background: {{accent}}; margin-left: 10px;"></div>
+    <span style="font-weight: 650; font-size: 13px; color: #ffffff; margin-left: 7px;">Kara</span>
+    <span style="font-size: 12px; color: #8a8a8f; margin-left: 10px;">navigate-be</span>
+    <div style="flex: 1;"></div>
+    <div style="display: flex; gap: 2px;">
+      <button style="width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 13px; cursor: pointer;" aria-label="Toggle theme">◐</button>
+      <button style="width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 13px; cursor: pointer;" aria-label="Settings">⚙</button>
+      <button style="width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 13px; cursor: pointer;" aria-label="Undo">↩</button>
+      <button style="width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 13px; cursor: pointer;" aria-label="New session">＋</button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex: 1; display: flex; min-height: 0;">
+
+    <!-- Sidebar -->
+    <div style="width: 240px; flex-shrink: 0; display: flex; flex-direction: column; background: {{sidebarBg}}; border-right: 1px solid {{border}}; overflow-y: auto;">
+      <div style="padding: 12px;">
+        <button style="width: 100%; display: flex; align-items: center; gap: 8px; font: inherit; font-size: 12px; font-weight: 600; color: #e6e6e6; background: {{inputBg}}; border: 1px solid {{border}}; border-radius: 7px; padding: 8px 10px; cursor: pointer;">
+          <span>📁</span><span>Open project…</span>
+        </button>
+      </div>
+
+      <div style="padding: 4px 8px 10px;">
+        <div style="color: #6e6e73; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 8px 6px;">Recent</div>
+        <div style="display: flex; flex-direction: column; gap: 1px;">
+          <button style="display: flex; width: 100%; text-align: left; font: inherit; font-size: 12px; color: #cccccc; background: transparent; border: none; border-radius: 6px; padding: 7px 8px; cursor: pointer;">kibzi</button>
+          <button style="display: flex; width: 100%; text-align: left; font: inherit; font-size: 12px; color: #cccccc; background: transparent; border: none; border-radius: 6px; padding: 7px 8px; cursor: pointer;">docpipe</button>
+        </div>
+      </div>
+
+      <div style="padding: 4px 8px 10px;">
+        <div style="color: #6e6e73; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 8px 6px;">Sessions</div>
+        <div style="display: flex; flex-direction: column; gap: 1px;">
+          <button style="display: flex; width: 100%; text-align: left; font: inherit; font-size: 12px; font-weight: 600; color: {{accent}}; background: {{accentSoft}}; border: none; border-radius: 6px; padding: 7px 8px; cursor: default;">Fix the auth middleware</button>
+          <button style="display: flex; width: 100%; text-align: left; font: inherit; font-size: 12px; color: #cccccc; background: transparent; border: none; border-radius: 6px; padding: 7px 8px; cursor: pointer;">Add rate limiting</button>
+          <button style="display: flex; width: 100%; text-align: left; font: inherit; font-size: 12px; color: #cccccc; background: transparent; border: none; border-radius: 6px; padding: 7px 8px; cursor: pointer;">Refactor the queue worker</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0;">
+
+      <!-- Transcript -->
+      <div style="flex: 1; overflow-y: auto; padding: 22px 28px 10px; display: flex; flex-direction: column; gap: 11px; background: {{bg}};">
+
+        <div style="display: flex; justify-content: flex-end;">
+          <div style="max-width: 70%; padding: 9px 13px; border-radius: 11px; border-bottom-right-radius: 3px; background: {{userBubble}}; color: #e8e8ea; line-height: 1.5;">fix the failing auth middleware tests</div>
+        </div>
+
+        <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: {{accent}}; font-weight: 600; padding: 1px 2px;">→ reading src/middleware/auth.ts</div>
+        <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #7a7a7f; padding: 1px 2px;">&nbsp;&nbsp;✓ read (0.2s)</div>
+        <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #7a7a7f; padding: 1px 2px;">&nbsp;&nbsp;~ src/middleware/auth.ts &nbsp;(+6 −2)</div>
+
+        <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; background: {{codeBg}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 10px; margin-left: 14px; white-space: pre-wrap; line-height: 1.5;"><span style="color: #7a7a7f;">@@ -14,7 +14,7 @@ export function verifyToken(req) {</span>
+<span style="color: #e06c6c;">-  if (!token) return next();</span>
+<span style="color: #6bc27a;">+  if (!token) return res.status(401).json({ error: "missing token" });</span></div>
+
+        <div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; color: #6bc27a; font-weight: 700; padding: 3px 2px;">tests passed: 14 passed, 0 failed</div>
+
+        <div style="display: flex;">
+          <div style="max-width: 70%; padding: 9px 13px; border-radius: 11px; border-bottom-left-radius: 3px; background: {{assistantBubble}}; border: 1px solid {{border}}; color: #e6e6e6; line-height: 1.55;">Fixed — the middleware was letting requests through when the token was missing instead of rejecting them. Added the <code style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.92em; background: {{codeBg}}; border: 1px solid {{border}}; border-radius: 4px; padding: 1px 5px;">401</code> response and all 14 tests pass now.</div>
+        </div>
+
+      </div>
+
+      <!-- Composer -->
+      <div style="padding: 10px 16px 6px; background: {{bg}};">
+        <div style="background: {{inputBg}}; border: 1px solid {{border}}; border-radius: 13px; padding: 9px 11px 7px;">
+          <div style="font-size: 13px; color: #6e6e73; padding: 2px 2px 8px;">Describe what you want, e.g. "fix the failing auth tests"… (/ for commands)</div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="display: flex; background: {{bg}}; border: 1px solid {{border}}; border-radius: 7px; padding: 2px;">
+              <button style="font: inherit; font-size: 11px; font-weight: 600; color: #1b1b1b; background: {{accent}}; border: none; border-radius: 5px; padding: 4px 10px;">Execute</button>
+              <button style="font: inherit; font-size: 11px; font-weight: 600; color: #8a8a8f; background: transparent; border: none; border-radius: 5px; padding: 4px 10px;">Plan</button>
+              <button style="font: inherit; font-size: 11px; font-weight: 600; color: #8a8a8f; background: transparent; border: none; border-radius: 5px; padding: 4px 10px;">Review</button>
+            </div>
+            <div style="flex: 1; font-size: 11px; color: #6e6e73; text-align: center;">Enter to send · Shift+Enter for a new line · / for commands</div>
+            <button style="font: inherit; font-size: 12px; font-weight: 700; color: #1b1b1b; background: {{accent}}; border: none; border-radius: 8px; padding: 6px 15px;">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div style="display: flex; align-items: center; gap: 6px; padding: 6px 16px 10px; font-size: 11px;">
+        <span style="color: #6bc27a; background: {{bg}}; border: 1px solid #2a4a30; border-radius: 999px; padding: 3px 10px;">Qwen3-4B Q4_K_M</span>
+        <span style="color: #8a8a8f; background: {{bg}}; border: 1px solid {{border}}; border-radius: 999px; padding: 3px 10px;">workspace</span>
+        <span style="color: #8a8a8f; background: {{bg}}; border: 1px solid {{border}}; border-radius: 999px; padding: 3px 10px;">2.1k / 32.8k ctx</span>
+        <div style="flex: 1;"></div>
+        <span style="color: #6e6e73;">ready</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{
+  "accent": {"editor": "color", "default": "#d78a5f", "options": ["#d78a5f", "#6fb3e0", "#9b8cf2", "#d9b35a"]},
+  "bg": {"editor": "color", "default": "#1a1a1d"},
+  "toolbarBg": {"editor": "color", "default": "#232327"},
+  "sidebarBg": {"editor": "color", "default": "#1f1f22"},
+  "border": {"editor": "color", "default": "#303034"},
+  "inputBg": {"editor": "color", "default": "#232327"},
+  "codeBg": {"editor": "color", "default": "#141416"},
+  "userBubble": {"editor": "color", "default": "#2a3542"},
+  "assistantBubble": {"editor": "color", "default": "#1f1f22"},
+  "$preview": {"width": 1440, "height": 900}
+}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#d78a5f';
+    return {
+      accent,
+      accentSoft: accent + '26',
+      bg: this.props.bg ?? '#1a1a1d',
+      toolbarBg: this.props.toolbarBg ?? '#232327',
+      sidebarBg: this.props.sidebarBg ?? '#1f1f22',
+      border: this.props.border ?? '#303034',
+      inputBg: this.props.inputBg ?? '#232327',
+      codeBg: this.props.codeBg ?? '#141416',
+      userBubble: this.props.userBubble ?? '#2a3542',
+      assistantBubble: this.props.assistantBubble ?? '#1f1f22',
+    };
+  }
+}
+</script>
+</body>
+</html>

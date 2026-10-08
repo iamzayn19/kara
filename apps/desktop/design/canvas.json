@@ -1,0 +1,15 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-08T18:10:00Z" },
+  "title": "Kara desktop — dark theme redesign",
+  "launch": { "view": "focused", "file": "Editor.dc.html" },
+  "pages": [],
+  "boards": {
+    "Editor.dc.html": { "x": 0, "y": 0, "w": 1600, "h": 950, "expand": "fill", "title": "Kara — editor + chat" },
+    "Diff.dc.html": { "x": 1720, "y": 0, "w": 1600, "h": 950, "expand": "fill", "title": "Kara — side-by-side diff + chat" },
+    "Voice.dc.html": { "x": 0, "y": 1070, "w": 1000, "h": 820, "title": "Kara's voice — Supergirl / Krypton" }
+  },
+  "order": ["Editor.dc.html", "Diff.dc.html", "Voice.dc.html"],
+  "notes": {},
+  "designSystems": []
+}

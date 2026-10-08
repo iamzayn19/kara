@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kara — side-by-side diff + chat</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; font-family: -apple-system, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .ln { width: 40px; flex-shrink: 0; text-align: right; padding-right: 8px; color: #55555a; user-select: none; }
+</style>
+</helmet>
+
+<div style="width: 100%; min-width: 1300px; height: 950px; box-sizing: border-box; display: flex; flex-direction: column; background: {{bg}}; color: #cccccc; font-size: 13px; overflow: hidden;">
+
+  <!-- Titlebar -->
+  <div style="height: 38px; flex-shrink: 0; display: flex; align-items: center; padding: 0 14px; background: {{titleBg}}; border-bottom: 1px solid {{border}};">
+    <div style="display: flex; gap: 8px; margin-right: 16px;">
+      <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57;"></div>
+      <div style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e;"></div>
+      <div style="width: 12px; height: 12px; border-radius: 50%; background: #28c840;"></div>
+    </div>
+    <div style="width: 16px; height: 16px; border-radius: 5px; background: {{accent}};"></div>
+    <span style="font-weight: 650; font-size: 12.5px; color: #ffffff; margin-left: 7px;">Kara</span>
+    <span style="font-size: 11.5px; color: #7a7a7f; margin-left: 10px;">navigate-be</span>
+    <div style="flex: 1;"></div>
+    <span style="font-size: 11px; color: #6bc27a; background: {{bg}}; border: 1px solid #2a4a30; border-radius: 999px; padding: 2px 9px; margin-right: 8px;">Qwen3-4B</span>
+    <button style="width: 24px; height: 24px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 12px; cursor: pointer;">◐</button>
+    <button style="width: 24px; height: 24px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 12px; cursor: pointer;">⚙</button>
+  </div>
+
+  <div style="flex: 1; display: flex; min-height: 0;">
+
+    <!-- File explorer, changed files marked -->
+    <div style="width: 220px; flex-shrink: 0; display: flex; flex-direction: column; background: {{sidebarBg}}; border-right: 1px solid {{border}}; overflow-y: auto; padding: 10px 0;">
+      <div style="padding: 0 14px 8px; color: #7a7a7f; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Explorer</div>
+      <div class="mono" style="font-size: 12.5px; line-height: 1.9;">
+        <div style="padding: 1px 14px; color: #cccccc;">▾ navigate-be</div>
+        <div style="padding: 1px 14px 1px 28px; color: #cccccc;">▾ src</div>
+        <div style="padding: 1px 14px 1px 42px; color: #cccccc;">▾ middleware</div>
+        <div style="display: flex; align-items: center; padding: 1px 14px 1px 56px; background: {{accentSoft}}; color: {{accent}}; border-left: 2px solid {{accent}}; margin-left: -2px;"><span style="flex: 1;">auth.ts</span><span style="font-size: 10px;">M</span></div>
+        <div style="padding: 1px 14px 1px 56px; color: #9a9aa0;">logger.ts</div>
+        <div style="padding: 1px 14px 1px 42px; color: #9a9aa0;">▾ routes</div>
+        <div style="display: flex; align-items: center; padding: 1px 14px 1px 56px; color: #9a9aa0;"><span style="flex: 1;">api.ts</span><span style="font-size: 10px; color: #d9b35a;">M</span></div>
+        <div style="padding: 1px 14px 1px 56px; color: #9a9aa0;">users.ts</div>
+        <div style="padding: 1px 14px 1px 28px; color: #cccccc;">▾ tests</div>
+        <div style="display: flex; align-items: center; padding: 1px 14px 1px 42px; color: #9a9aa0;"><span style="flex: 1;">auth.test.ts</span><span style="font-size: 10px; color: #6bc27a;">U</span></div>
+      </div>
+    </div>
+
+    <!-- Side-by-side diff -->
+    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0; border-right: 1px solid {{border}};">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid {{border}}; background: {{titleBg}};">
+        <span class="mono" style="font-size: 12.5px; color: #e6e6e6;">src/middleware/auth.ts</span>
+        <span style="font-size: 11px; color: #6bc27a;">+6</span>
+        <span style="font-size: 11px; color: #e06c6c;">−2</span>
+        <div style="flex: 1;"></div>
+        <button style="font: inherit; font-size: 11.5px; font-weight: 600; color: #6bc27a; background: {{bg}}; border: 1px solid #2a4a30; border-radius: 6px; padding: 5px 12px; cursor: pointer;">Accept</button>
+        <button style="font: inherit; font-size: 11.5px; font-weight: 600; color: #e06c6c; background: {{bg}}; border: 1px solid #4a2a2a; border-radius: 6px; padding: 5px 12px; cursor: pointer;">Reject</button>
+      </div>
+
+      <div style="flex: 1; display: flex; overflow: hidden;">
+        <!-- Before -->
+        <div style="flex: 1; overflow: auto; border-right: 1px solid {{border}};">
+          <div style="padding: 4px 10px; font-size: 10.5px; font-weight: 700; color: #7a7a7f; background: {{titleBg}}; text-transform: uppercase; letter-spacing: 0.5px;">Before</div>
+          <div class="mono" style="font-size: 12px; line-height: 1.65;">
+            <div style="display: flex;"><span class="ln">11</span><span style="color: #9a9aa0;">export function verifyToken(req, res, next) {</span></div>
+            <div style="display: flex;"><span class="ln">12</span><span style="color: #9a9aa0;">&nbsp;&nbsp;const token = req.headers.authorization;</span></div>
+            <div style="display: flex; background: #3a2222;"><span class="ln" style="color: #8a4a4a;">13</span><span style="color: #e8a0a0;">&nbsp;&nbsp;if (!token) return next();</span></div>
+            <div style="display: flex;"><span class="ln">14</span><span style="color: #9a9aa0;">&nbsp;&nbsp;try {</span></div>
+            <div style="display: flex;"><span class="ln">15</span><span style="color: #9a9aa0;">&nbsp;&nbsp;&nbsp;&nbsp;req.user = jwt.verify(token, SECRET);</span></div>
+            <div style="display: flex;"><span class="ln">16</span><span style="color: #9a9aa0;">&nbsp;&nbsp;&nbsp;&nbsp;next();</span></div>
+            <div style="display: flex;"><span class="ln">17</span><span style="color: #9a9aa0;">&nbsp;&nbsp;} catch {</span></div>
+            <div style="display: flex; background: #3a2222;"><span class="ln" style="color: #8a4a4a;">18</span><span style="color: #e8a0a0;">&nbsp;&nbsp;&nbsp;&nbsp;next();</span></div>
+            <div style="display: flex;"><span class="ln">19</span><span style="color: #9a9aa0;">&nbsp;&nbsp;}</span></div>
+            <div style="display: flex;"><span class="ln">20</span><span style="color: #9a9aa0;">}</span></div>
+          </div>
+        </div>
+        <!-- After -->
+        <div style="flex: 1; overflow: auto;">
+          <div style="padding: 4px 10px; font-size: 10.5px; font-weight: 700; color: #7a7a7f; background: {{titleBg}}; text-transform: uppercase; letter-spacing: 0.5px;">After</div>
+          <div class="mono" style="font-size: 12px; line-height: 1.65;">
+            <div style="display: flex;"><span class="ln">11</span><span style="color: #9a9aa0;">export function verifyToken(req, res, next) {</span></div>
+            <div style="display: flex;"><span class="ln">12</span><span style="color: #9a9aa0;">&nbsp;&nbsp;const token = req.headers.authorization;</span></div>
+            <div style="display: flex; background: #1f3322;"><span class="ln" style="color: #4a6a4a;">13</span><span style="color: #a8dcae;">&nbsp;&nbsp;if (!token) {</span></div>
+            <div style="display: flex; background: #1f3322;"><span class="ln" style="color: #4a6a4a;">14</span><span style="color: #a8dcae;">&nbsp;&nbsp;&nbsp;&nbsp;return res.status(401).json({ error: "missing token" });</span></div>
+            <div style="display: flex; background: #1f3322;"><span class="ln" style="color: #4a6a4a;">15</span><span style="color: #a8dcae;">&nbsp;&nbsp;}</span></div>
+            <div style="display: flex;"><span class="ln">16</span><span style="color: #9a9aa0;">&nbsp;&nbsp;try {</span></div>
+            <div style="display: flex;"><span class="ln">17</span><span style="color: #9a9aa0;">&nbsp;&nbsp;&nbsp;&nbsp;req.user = jwt.verify(token, SECRET);</span></div>
+            <div style="display: flex;"><span class="ln">18</span><span style="color: #9a9aa0;">&nbsp;&nbsp;&nbsp;&nbsp;next();</span></div>
+            <div style="display: flex;"><span class="ln">19</span><span style="color: #9a9aa0;">&nbsp;&nbsp;} catch {</span></div>
+            <div style="display: flex; background: #1f3322;"><span class="ln" style="color: #4a6a4a;">20</span><span style="color: #a8dcae;">&nbsp;&nbsp;&nbsp;&nbsp;res.status(401).json({ error: "invalid token" });</span></div>
+            <div style="display: flex;"><span class="ln">21</span><span style="color: #9a9aa0;">&nbsp;&nbsp;}</span></div>
+            <div style="display: flex;"><span class="ln">22</span><span style="color: #9a9aa0;">}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-top: 1px solid {{border}}; background: {{titleBg}};">
+        <span style="font-size: 11px; color: #7a7a7f;">2 of 3 files</span>
+        <div style="flex: 1;"></div>
+        <button style="font: inherit; font-size: 11px; font-weight: 600; color: #6bc27a; background: {{bg}}; border: 1px solid #2a4a30; border-radius: 6px; padding: 4px 11px; cursor: pointer;">Accept all</button>
+        <button style="font: inherit; font-size: 11px; font-weight: 600; color: #e06c6c; background: {{bg}}; border: 1px solid #4a2a2a; border-radius: 6px; padding: 4px 11px; cursor: pointer;">Reject all</button>
+      </div>
+    </div>
+
+    <!-- Chat panel, Claude-Code-style (same composer as Editor.dc.html) -->
+    <div style="width: 420px; flex-shrink: 0; display: flex; flex-direction: column; background: {{sidebarBg}};">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid {{border}};">
+        <div style="width: 16px; height: 16px; border-radius: 4px; background: {{accent}}; flex-shrink: 0;"></div>
+        <span style="font-weight: 650; font-size: 12.5px; color: #e6e6e6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Fix the auth middleware</span>
+        <div style="flex: 1;"></div>
+        <button style="width: 24px; height: 24px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; cursor: pointer;" aria-label="Bookmark">🔖</button>
+        <button style="width: 24px; height: 24px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; cursor: pointer;" aria-label="History">🕐</button>
+        <button style="width: 24px; height: 24px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; cursor: pointer;" aria-label="New session">＋</button>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; padding: 16px 16px 10px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 10.5px; color: #5a5a5f; text-align: right;">6:04 PM</div>
+        <div style="display: flex; justify-content: flex-end;">
+          <div style="max-width: 88%; padding: 9px 13px; border-radius: 13px; border-bottom-right-radius: 4px; background: {{userBubble}}; color: #e8e8ea; line-height: 1.5; font-size: 12.5px;">fix the failing auth middleware tests</div>
+        </div>
+        <div class="mono" style="font-size: 11.5px; color: #6bc27a; font-weight: 700;">tests passed: 14 passed, 0 failed</div>
+        <div style="font-size: 12.5px; line-height: 1.6; color: #d4d4d8;">Review the diff on the left — accept per file, or all at once.</div>
+      </div>
+
+      <div style="padding: 8px 12px 10px;">
+        <div style="background: {{inputBg}}; border: 1px solid {{accent}}; border-radius: 14px; padding: 10px 12px 8px;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <div style="flex: 1; font-size: 12.5px; color: #6e6e73; padding-top: 1px;">Ask Kara anything, or describe a change…</div>
+            <button style="width: 22px; height: 22px; border-radius: 6px; border: none; background: transparent; color: #7a7a7f; cursor: pointer; flex-shrink: 0;" aria-label="Voice input">🎤</button>
+          </div>
+          <div style="height: 1px; background: {{border}}; margin: 9px 0 8px;"></div>
+          <div style="display: flex; align-items: center; gap: 9px;">
+            <button style="width: 22px; height: 22px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 13px; cursor: pointer;" aria-label="Attach a file">＋</button>
+            <button style="width: 22px; height: 22px; border-radius: 6px; border: none; background: transparent; color: #8a8a8f; font-size: 12px; cursor: pointer;" aria-label="Slash commands / terminal">[/]</button>
+            <span style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #7a7a7f;">🕐 59m</span>
+            <div style="flex: 1;"></div>
+            <button style="display: flex; align-items: center; gap: 5px; font: inherit; font-size: 11px; color: #d9b35a; background: transparent; border: 1px solid #4a3f28; border-radius: 999px; padding: 4px 10px; cursor: pointer;">⚠ Ask every time</button>
+            <button style="width: 30px; height: 30px; border-radius: 999px; border: none; background: {{accent}}; color: #1b1b1b; font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0;" aria-label="Send">↑</button>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; padding: 7px 4px 0;">
+          <span style="font-size: 11px; color: #9a9aa0; background: {{bg}}; border: 1px solid {{border}}; border-radius: 999px; padding: 3px 10px;">Qwen3-4B</span>
+          <span style="font-size: 11px; color: #9a9aa0; background: {{bg}}; border: 1px solid {{border}}; border-radius: 999px; padding: 3px 10px;">Fast</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{
+  "accent": {"editor": "color", "default": "#d78a5f", "options": ["#d78a5f", "#6fb3e0", "#9b8cf2", "#d9b35a"]},
+  "bg": {"editor": "color", "default": "#181819"},
+  "titleBg": {"editor": "color", "default": "#232327"},
+  "sidebarBg": {"editor": "color", "default": "#1e1e20"},
+  "border": {"editor": "color", "default": "#2c2c30"},
+  "inputBg": {"editor": "color", "default": "#232327"},
+  "userBubble": {"editor": "color", "default": "#2a3542"},
+  "assistantBubble": {"editor": "color", "default": "#232327"},
+  "$preview": {"width": 1600, "height": 950}
+}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#d78a5f';
+    return {
+      accent,
+      accentSoft: accent + '22',
+      bg: this.props.bg ?? '#181819',
+      titleBg: this.props.titleBg ?? '#232327',
+      sidebarBg: this.props.sidebarBg ?? '#1e1e20',
+      border: this.props.border ?? '#2c2c30',
+      inputBg: this.props.inputBg ?? '#232327',
+      userBubble: this.props.userBubble ?? '#2a3542',
+      assistantBubble: this.props.assistantBubble ?? '#232327',
+    };
+  }
+}
+</script>
+</body>
+</html>

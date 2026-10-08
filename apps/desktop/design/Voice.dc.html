@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kara's voice — Supergirl / Krypton</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; font-family: -apple-system, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+</style>
+</helmet>
+
+<div style="width: 1000px; height: 820px; box-sizing: border-box; padding: 36px 40px; background: {{bg}}; color: #cccccc; overflow: auto;">
+
+  <div style="font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Kara's voice</div>
+  <div style="font-size: 13px; color: #8a8a8f; margin-bottom: 28px;">Kara is named for Supergirl (Kara Zor-El) — the working/status copy leans on that instead of generic "thinking…", and the activity timeline's neutral color is a Kryptonian crystal blue instead of plain gray. Semantic colors (green = success, red = error, amber = warning) stay exactly what they mean — only the flavor text and the idle/neutral tint change.</div>
+
+  <div style="font-size: 12px; font-weight: 700; color: #7a7a7f; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">While a turn is running (rotates, replaces "Kara is working…")</div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-bottom: 28px;">
+    <div class="mono" style="font-size: 12.5px; color: {{krypton}}; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⠹ Flying in…</div>
+    <div class="mono" style="font-size: 12.5px; color: {{krypton}}; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⠹ X-raying the code…</div>
+    <div class="mono" style="font-size: 12.5px; color: {{krypton}}; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⠹ Super-speeding through it…</div>
+    <div class="mono" style="font-size: 12.5px; color: {{krypton}}; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⠹ Listening in close…</div>
+    <div class="mono" style="font-size: 12.5px; color: {{krypton}}; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⠹ Scanning the repo…</div>
+    <div class="mono" style="font-size: 12.5px; color: {{krypton}}; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⠹ Channeling the House of El…</div>
+    <div class="mono" style="font-size: 12.5px; color: {{krypton}}; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⠹ Warming up heat vision…</div>
+    <div class="mono" style="font-size: 12.5px; color: {{krypton}}; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⠹ Orbiting the problem…</div>
+  </div>
+
+  <div style="font-size: 12px; font-weight: 700; color: #7a7a7f; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">On finish (replaces plain "done")</div>
+  <div style="display: flex; gap: 10px; margin-bottom: 28px;">
+    <div class="mono" style="font-size: 12.5px; color: #6bc27a; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">✓ Stuck the landing.</div>
+    <div class="mono" style="font-size: 12.5px; color: #e06c6c; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">✗ Kryptonite in the code — stopped.</div>
+    <div class="mono" style="font-size: 12.5px; color: #d9b35a; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 8px; padding: 8px 12px;">⚠ Grounded — needs a hand.</div>
+  </div>
+
+  <div style="font-size: 12px; font-weight: 700; color: #7a7a7f; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Activity timeline — dot + connector colors</div>
+  <div style="display: flex; flex-direction: column; gap: 2px; background: {{bg2}}; border: 1px solid {{border}}; border-radius: 10px; padding: 16px 18px; margin-bottom: 20px;">
+    <div style="display: flex; gap: 12px;">
+      <div style="display: flex; flex-direction: column; align-items: center; width: 10px;">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: {{krypton}};"></div>
+        <div style="width: 2px; flex: 1; background: {{krypton}}; min-height: 18px;"></div>
+      </div>
+      <div class="mono" style="font-size: 12px; color: {{krypton}};">reading src/middleware/auth.ts</div>
+    </div>
+    <div style="display: flex; gap: 12px;">
+      <div style="display: flex; flex-direction: column; align-items: center; width: 10px;">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: #6bc27a;"></div>
+        <div style="width: 2px; flex: 1; background: #6bc27a; min-height: 18px;"></div>
+      </div>
+      <div class="mono" style="font-size: 12px; color: #6bc27a;">tests passed: 14/14</div>
+    </div>
+    <div style="display: flex; gap: 12px;">
+      <div style="display: flex; flex-direction: column; align-items: center; width: 10px;">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: #e06c6c;"></div>
+      </div>
+      <div class="mono" style="font-size: 12px; color: #e06c6c;">build failed — type error</div>
+    </div>
+  </div>
+
+  <div style="font-size: 12px; font-weight: 700; color: #7a7a7f; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Palette</div>
+  <div style="display: flex; gap: 16px;">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+      <div style="width: 48px; height: 48px; border-radius: 12px; background: {{krypton}};"></div>
+      <div style="font-size: 10.5px; color: #9a9aa0; text-align: center;">Kryptonian<br>crystal blue<br>(neutral/active)</div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+      <div style="width: 48px; height: 48px; border-radius: 12px; background: #6bc27a;"></div>
+      <div style="font-size: 10.5px; color: #9a9aa0; text-align: center;">success<br>(unchanged)</div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+      <div style="width: 48px; height: 48px; border-radius: 12px; background: #e06c6c;"></div>
+      <div style="font-size: 10.5px; color: #9a9aa0; text-align: center;">error<br>(unchanged)</div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+      <div style="width: 48px; height: 48px; border-radius: 12px; background: #d9b35a;"></div>
+      <div style="font-size: 10.5px; color: #9a9aa0; text-align: center;">warning<br>(unchanged)</div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+      <div style="width: 48px; height: 48px; border-radius: 12px; background: {{accent}};"></div>
+      <div style="font-size: 10.5px; color: #9a9aa0; text-align: center;">Kara's own mark<br>(not Krypton — stays as-is)</div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{
+  "accent": {"editor": "color", "default": "#d78a5f"},
+  "krypton": {"editor": "color", "default": "#4fd8e0", "options": ["#4fd8e0", "#5bc8f2", "#7fd4e8"]},
+  "bg": {"editor": "color", "default": "#181819"},
+  "bg2": {"editor": "color", "default": "#1e1e20"},
+  "border": {"editor": "color", "default": "#2c2c30"},
+  "$preview": {"width": 1000, "height": 820}
+}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#d78a5f',
+      krypton: this.props.krypton ?? '#4fd8e0',
+      bg: this.props.bg ?? '#181819',
+      bg2: this.props.bg2 ?? '#1e1e20',
+      border: this.props.border ?? '#2c2c30',
+    };
+  }
+}
+</script>
+</body>
+</html>
