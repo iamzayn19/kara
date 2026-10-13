@@ -263,6 +263,18 @@ body.platform-macos #toolbar {
   border-bottom-color: var(--accent);
 }
 
+.tab-count {
+  display: inline-block;
+  margin-left: 5px;
+  background: var(--accent);
+  color: #1b1b1b;
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
 .sidebar-panel.hidden {
   display: none;
 }

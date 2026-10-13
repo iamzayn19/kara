@@ -25,6 +25,7 @@ const sidebarTabs = document.querySelectorAll<HTMLButtonElement>(".sidebar-tab")
 const sidebarPanelProject = document.querySelector<HTMLElement>("#sidebar-panel-project")!;
 const sidebarPanelFiles = document.querySelector<HTMLElement>("#sidebar-panel-files")!;
 const fileTree = document.querySelector<HTMLElement>("#file-tree")!;
+const filesBadge = document.querySelector<HTMLElement>("#files-badge")!;
 const editorTabsEl = document.querySelector<HTMLElement>("#editor-tabs")!;
 const editorContainer = document.querySelector<HTMLElement>("#editor-container")!;
 const composerWrap = document.querySelector<HTMLElement>("#composer-wrap")!;
@@ -1051,6 +1052,7 @@ async function startWorkspace(workspace: string) {
     setProjectControlsEnabled(true);
     startSessionTimer();
     void updateContextPill();
+    void refreshTreeBadgesIfVisible();
     try {
       localStorage.setItem(LAST_WORKSPACE_KEY, currentWorkspace);
     } catch {
@@ -1124,6 +1126,8 @@ function resetEditorTabs() {
   editorContainer.classList.add("hidden");
   fileTree.innerHTML = "";
   changedPaths = new Map();
+  filesBadge.textContent = "";
+  filesBadge.classList.add("hidden");
 }
 
 /** Clicking the project name shows recent projects first (VS Code's "Open
@@ -1352,9 +1356,16 @@ function applyBadges() {
 /** Called after each turn — refreshes badges without disturbing the tree's
  * expanded state, but only if there's actually a tree on screen to update. */
 async function refreshTreeBadgesIfVisible() {
-  if (sidebarPanelFiles.classList.contains("hidden") || !fileTree.hasChildNodes()) return;
+  if (!currentWorkspace) return;
   await loadChangedPaths();
-  applyBadges();
+  // The count on the Files tab itself updates regardless of which sidebar
+  // panel is showing — that's the whole point, noticing without switching
+  // tabs. The actual tree rows only get touched if they're on screen.
+  filesBadge.textContent = String(changedPaths.size);
+  filesBadge.classList.toggle("hidden", changedPaths.size === 0);
+  if (!sidebarPanelFiles.classList.contains("hidden") && fileTree.hasChildNodes()) {
+    applyBadges();
+  }
 }
 
 async function fsListDir(path: string): Promise<{ name: string; path: string; isDir: boolean }[]> {
