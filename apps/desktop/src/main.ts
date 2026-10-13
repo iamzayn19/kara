@@ -5,7 +5,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { showFile, showDiff, monacoThemeFor, setMonacoTheme } from "./editor";
+// Dynamically imported on first use (see loadEditorModule below), not at
+// the top level — Monaco is a multi-MB dependency that has no reason to
+// load on every launch for someone who never opens a file.
+type EditorModule = typeof import("./editor");
+let editorModule: EditorModule | undefined;
+async function loadEditorModule(): Promise<EditorModule> {
+  if (!editorModule) editorModule = await import("./editor");
+  return editorModule;
+}
 
 const transcript = document.querySelector<HTMLElement>("#transcript")!;
 const emptyState = document.querySelector<HTMLElement>("#empty-state")!;
@@ -130,7 +138,9 @@ function effectiveTheme(): "light" | "dark" {
  * wants to follow the OS instead. */
 function toggleTheme() {
   setTheme(effectiveTheme() === "light" ? "dark" : "light");
-  setMonacoTheme(monacoThemeFor(effectiveTheme()));
+  // Only touch Monaco if it's already loaded — toggling theme shouldn't
+  // force-load a multi-MB editor bundle for someone who never opened a file.
+  if (editorModule) editorModule.setMonacoTheme(editorModule.monacoThemeFor(effectiveTheme()));
 }
 
 // ── Transcript rendering ──────────────────────────────────────────
@@ -848,7 +858,7 @@ async function openSettings() {
     btn.textContent = label;
     btn.addEventListener("click", () => {
       setTheme(value);
-      setMonacoTheme(monacoThemeFor(effectiveTheme()));
+      if (editorModule) editorModule.setMonacoTheme(editorModule.monacoThemeFor(effectiveTheme()));
       switcher.querySelectorAll(".theme-opt").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
     });
@@ -1468,7 +1478,7 @@ function renderEditorTabs() {
   }
 }
 
-function activateTab(id: string) {
+async function activateTab(id: string) {
   activeTabId = id;
   renderEditorTabs();
   const isChat = id === "chat";
@@ -1478,6 +1488,7 @@ function activateTab(id: string) {
   if (isChat) return;
   const tab = openTabs.find((t) => t.id === id);
   if (!tab) return;
+  const { showFile, showDiff, monacoThemeFor } = await loadEditorModule();
   const theme = monacoThemeFor(effectiveTheme());
   if (tab.kind === "file") {
     showFile(editorContainer, tab.path, tab.content as string, theme);
