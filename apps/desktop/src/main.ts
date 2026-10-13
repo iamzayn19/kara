@@ -494,6 +494,7 @@ function handleEvent(e: any) {
         activity(`${e.usage.prompt_tokens} tokens in, ${e.usage.completion_tokens} out`, "dim");
       }
       void updateContextPill();
+      void refreshTreeBadgesIfVisible();
       break;
   }
 }
@@ -1122,6 +1123,7 @@ function resetEditorTabs() {
   composerWrap.classList.remove("hidden");
   editorContainer.classList.add("hidden");
   fileTree.innerHTML = "";
+  changedPaths = new Map();
 }
 
 /** Clicking the project name shows recent projects first (VS Code's "Open
@@ -1331,6 +1333,30 @@ async function loadFileTree() {
   }
 }
 
+/** Re-syncs badges on already-rendered rows in place, so expanded folders
+ * don't collapse — unlike loadFileTree(), this doesn't refetch structure. */
+function applyBadges() {
+  for (const row of fileTree.querySelectorAll<HTMLElement>(".tree-row")) {
+    const path = row.dataset.path;
+    if (!path) continue;
+    row.querySelector(".tree-badge")?.remove();
+    const kind = changedPaths.get(path);
+    if (!kind) continue;
+    const badge = document.createElement("span");
+    badge.className = "tree-badge " + (kind === "+" ? "added" : "modified");
+    badge.textContent = kind;
+    row.appendChild(badge);
+  }
+}
+
+/** Called after each turn — refreshes badges without disturbing the tree's
+ * expanded state, but only if there's actually a tree on screen to update. */
+async function refreshTreeBadgesIfVisible() {
+  if (sidebarPanelFiles.classList.contains("hidden") || !fileTree.hasChildNodes()) return;
+  await loadChangedPaths();
+  applyBadges();
+}
+
 async function fsListDir(path: string): Promise<{ name: string; path: string; isDir: boolean }[]> {
   const r: any = await invoke("kara_request", { method: "fs/list", params: { path } });
   return r.entries ?? [];
@@ -1347,6 +1373,7 @@ function renderTreeLevel(container: HTMLElement, entries: { name: string; path: 
     const name = document.createElement("span");
     name.className = "tree-name";
     name.textContent = entry.name;
+    row.dataset.path = entry.path;
     row.appendChild(icon);
     row.appendChild(name);
 
