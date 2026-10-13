@@ -1296,10 +1296,16 @@ async function loadFileTree() {
     fileTree.appendChild(empty);
     return;
   }
+  const loading = document.createElement("div");
+  loading.className = "sidebar-empty";
+  loading.textContent = "Loading…";
+  fileTree.appendChild(loading);
   try {
     const entries = await fsListDir("");
+    fileTree.innerHTML = "";
     renderTreeLevel(fileTree, entries, 0);
   } catch (e: any) {
+    fileTree.innerHTML = "";
     const err = document.createElement("div");
     err.className = "sidebar-empty";
     err.textContent = String(e?.message ?? e);
@@ -1338,9 +1344,14 @@ function renderTreeLevel(container: HTMLElement, entries: { name: string; path: 
           return;
         }
         childContainer = document.createElement("div");
+        childContainer.className = "sidebar-empty";
+        childContainer.style.paddingLeft = `${20 + depth * 14}px`;
+        childContainer.textContent = "Loading…";
         row.insertAdjacentElement("afterend", childContainer);
         try {
           const children = await fsListDir(entry.path);
+          childContainer.className = "";
+          childContainer.removeAttribute("style");
           renderTreeLevel(childContainer, children, depth + 1);
         } catch (e: any) {
           childContainer.textContent = String(e?.message ?? e);
