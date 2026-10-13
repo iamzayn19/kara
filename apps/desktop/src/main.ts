@@ -1242,6 +1242,12 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       toggleSidebar();
       break;
+    case "w":
+      if (activeTabId !== "chat") {
+        e.preventDefault();
+        closeTab(activeTabId);
+      }
+      break;
   }
 });
 
