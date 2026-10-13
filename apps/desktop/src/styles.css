@@ -301,9 +301,24 @@ body.platform-macos #toolbar {
 }
 
 .tree-row .tree-name {
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tree-badge {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.tree-badge.modified {
+  color: var(--warn);
+}
+
+.tree-badge.added {
+  color: var(--ok);
 }
 
 /* ── Editor tabs + viewer (replaces chat view when a file is open) ── */

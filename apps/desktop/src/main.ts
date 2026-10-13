@@ -1287,6 +1287,24 @@ sidebarTabs.forEach((tab) => {
 
 const treeIcon = (isDir: boolean, expanded = false) => (isDir ? (expanded ? "▾" : "▸") : "·");
 
+/** path -> "M" (modified) | "+" (new), from session/changes — the same
+ * data the "open diff" action already uses. Refreshed once per tree load;
+ * stale between turns until the tree is reopened, which is an acceptable
+ * trade for not re-walking the tree on every turn_finished. */
+let changedPaths = new Map<string, string>();
+
+async function loadChangedPaths() {
+  changedPaths = new Map();
+  try {
+    const r: any = await invoke("kara_request", { method: "session/changes", params: {} });
+    for (const f of r.kara ?? []) {
+      changedPaths.set(f.path, f.before ? "M" : "+");
+    }
+  } catch {
+    /* no active session yet, or nothing changed — badges just stay empty */
+  }
+}
+
 async function loadFileTree() {
   fileTree.innerHTML = "";
   if (!currentWorkspace) {
@@ -1301,7 +1319,7 @@ async function loadFileTree() {
   loading.textContent = "Loading…";
   fileTree.appendChild(loading);
   try {
-    const entries = await fsListDir("");
+    const [entries] = await Promise.all([fsListDir(""), loadChangedPaths()]);
     fileTree.innerHTML = "";
     renderTreeLevel(fileTree, entries, 0);
   } catch (e: any) {
@@ -1331,6 +1349,14 @@ function renderTreeLevel(container: HTMLElement, entries: { name: string; path: 
     name.textContent = entry.name;
     row.appendChild(icon);
     row.appendChild(name);
+
+    const changeKind = changedPaths.get(entry.path);
+    if (changeKind) {
+      const badge = document.createElement("span");
+      badge.className = "tree-badge " + (changeKind === "+" ? "added" : "modified");
+      badge.textContent = changeKind;
+      row.appendChild(badge);
+    }
 
     if (entry.isDir) {
       let expanded = false;
