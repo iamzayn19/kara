@@ -29,6 +29,10 @@ tauri-plugin-window-state = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["process", "io-util", "rt", "sync", "macros"] }
+# Real PTY (not just a piped child process) so an interactive shell inside
+# Kara behaves like a real terminal — line editing, job control, color,
+# resize all work because the shell actually sees a tty.
+portable-pty = "0.8"
 # The same JSON-RPC message framing `kara serve --stdio` and the VS Code
 # extension already speak; the desktop app is a third client of the same
 # protocol, not a reimplementation.

@@ -1,12 +1,16 @@
 mod rpc;
+mod terminal;
 
 use kara_protocol::jsonrpc::RpcError;
 use rpc::Session;
 use serde_json::Value;
+use std::sync::Arc;
 use tauri::{AppHandle, State};
+use terminal::Terminal;
 
 struct AppState {
     session: Session,
+    terminal: Arc<Terminal>,
 }
 
 fn to_err(e: RpcError) -> String {
@@ -51,6 +55,21 @@ fn kara_home_dir() -> Option<String> {
     rpc::dirs_home()
 }
 
+#[tauri::command]
+fn terminal_spawn(app: AppHandle, state: State<'_, AppState>, cwd: String) -> Result<(), String> {
+    state.terminal.spawn(app, cwd)
+}
+
+#[tauri::command]
+fn terminal_write(state: State<'_, AppState>, data: String) -> Result<(), String> {
+    state.terminal.write(&data)
+}
+
+#[tauri::command]
+fn terminal_resize(state: State<'_, AppState>, rows: u16, cols: u16) -> Result<(), String> {
+    state.terminal.resize(rows, cols)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -59,6 +78,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(AppState {
             session: Session::default(),
+            terminal: Arc::new(Terminal::default()),
         })
         .invoke_handler(tauri::generate_handler![
             kara_start,
@@ -66,7 +86,10 @@ pub fn run() {
             kara_notify,
             kara_respond,
             kara_stop,
-            kara_home_dir
+            kara_home_dir,
+            terminal_spawn,
+            terminal_write,
+            terminal_resize
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
