@@ -1320,3 +1320,21 @@ body.platform-macos #toolbar {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Unsaved file: a dot in place of the close button until hovered. */
+.editor-tab.dirty .tab-close {
+  font-size: 0;
+}
+
+.editor-tab.dirty .tab-close::before {
+  content: "●";
+  font-size: 10px;
+}
+
+.editor-tab.dirty:hover .tab-close {
+  font-size: inherit;
+}
+
+.editor-tab.dirty:hover .tab-close::before {
+  content: none;
+}

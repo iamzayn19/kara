@@ -78,16 +78,28 @@ export function monacoThemeFor(effective: "light" | "dark"): string {
 
 let viewer: monaco.editor.IStandaloneCodeEditor | undefined;
 
-/** A single read-only file viewer, mounted once and reused across files
- * (disposing and recreating Monaco per file is unnecessary churn). */
-export function showFile(container: HTMLElement, path: string, content: string, theme: string, line?: number) {
-  const language = languageForPath(path);
+/** One model per open file, kept across tab switches so unsaved edits and
+ * undo history survive clicking away and back. */
+const fileModels = new Map<string, monaco.editor.ITextModel>();
+
+export function showFile(
+  container: HTMLElement,
+  path: string,
+  content: string,
+  theme: string,
+  opts: { line?: number; readOnly?: boolean; onChange?: () => void } = {},
+) {
+  let model = fileModels.get(path);
+  if (!model) {
+    model = monaco.editor.createModel(content, languageForPath(path));
+    if (opts.onChange) model.onDidChangeContent(opts.onChange);
+    fileModels.set(path, model);
+  }
   if (!viewer) {
     viewer = monaco.editor.create(container, {
-      value: content,
-      language,
+      model,
       theme,
-      readOnly: true,
+      readOnly: !!opts.readOnly,
       automaticLayout: true,
       minimap: { enabled: false },
       fontSize: 12.5,
@@ -96,16 +108,27 @@ export function showFile(container: HTMLElement, path: string, content: string, 
       renderLineHighlight: "none",
     });
   } else {
-    const model = monaco.editor.createModel(content, language);
-    const old = viewer.getModel();
     viewer.setModel(model);
-    old?.dispose();
+    viewer.updateOptions({ readOnly: !!opts.readOnly });
     monaco.editor.setTheme(theme);
   }
-  if (line) {
-    viewer.revealLineInCenter(line);
-    viewer.setSelection(new monaco.Selection(line, 1, line, viewer.getModel()!.getLineMaxColumn(line)));
+  if (opts.line) {
+    viewer.revealLineInCenter(opts.line);
+    viewer.setSelection(new monaco.Selection(opts.line, 1, opts.line, model.getLineMaxColumn(opts.line)));
   }
+  if (!opts.readOnly) viewer.focus();
+}
+
+export function fileContent(path: string): string | undefined {
+  return fileModels.get(path)?.getValue();
+}
+
+export function closeFileModel(path: string) {
+  const model = fileModels.get(path);
+  if (!model) return;
+  if (viewer?.getModel() === model) viewer.setModel(null);
+  model.dispose();
+  fileModels.delete(path);
 }
 
 let diffViewer: monaco.editor.IStandaloneDiffEditor | undefined;

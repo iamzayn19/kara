@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 // Dynamically imported on first use (see loadEditorModule below), not at
 // the top level — Monaco is a multi-MB dependency that has no reason to
 // load on every launch for someone who never opens a file.
@@ -1147,6 +1147,7 @@ async function openWorkspace(dir: string) {
 }
 
 function resetEditorTabs() {
+  for (const t of openTabs) if (t.kind === "file") editorModule?.closeFileModel(t.path);
   openTabs.length = 0;
   activeTabId = "chat";
   renderEditorTabs();
@@ -1289,6 +1290,10 @@ window.addEventListener("keydown", (e) => {
     case "j":
       e.preventDefault();
       toggleTerminal();
+      break;
+    case "s":
+      e.preventDefault();
+      void saveActiveTab();
       break;
     case "w":
       if (activeTabId !== "chat") {
@@ -1601,6 +1606,10 @@ interface OpenTab {
   kind: "file" | "diff";
   path: string;
   content?: { before: string; after: string } | string;
+  /** fs/read's content hash, sent back on save to detect on-disk changes. */
+  version?: string;
+  readOnly?: boolean;
+  dirty?: boolean;
 }
 
 const openTabs: OpenTab[] = [];
@@ -1619,6 +1628,7 @@ function renderEditorTabs() {
     btn.className = "editor-tab" + (activeTabId === tab.id ? " active" : "");
     const label = document.createElement("span");
     label.textContent = tab.label;
+    if (tab.dirty) btn.classList.add("dirty");
     const close = document.createElement("span");
     close.className = "tab-close";
     close.textContent = "✕";
@@ -1646,19 +1656,58 @@ async function activateTab(id: string, line?: number) {
   const { showFile, showDiff, monacoThemeFor } = await loadEditorModule();
   const theme = monacoThemeFor(effectiveTheme());
   if (tab.kind === "file") {
-    showFile(editorContainer, tab.path, tab.content as string, theme, line);
+    showFile(editorContainer, tab.path, tab.content as string, theme, {
+      line,
+      readOnly: tab.readOnly,
+      onChange: () => {
+        if (tab.dirty) return;
+        tab.dirty = true;
+        renderEditorTabs();
+      },
+    });
   } else {
     const c = tab.content as { before: string; after: string };
     showDiff(editorContainer, tab.path, c.before, c.after, theme);
   }
 }
 
-function closeTab(id: string) {
+async function closeTab(id: string) {
   const idx = openTabs.findIndex((t) => t.id === id);
   if (idx === -1) return;
-  openTabs.splice(idx, 1);
+  const tab = openTabs[idx];
+  if (tab.dirty) {
+    const discard = await ask(`${tab.label} has unsaved changes. Close it and discard them?`, {
+      title: "Unsaved changes",
+      kind: "warning",
+      okLabel: "Discard",
+      cancelLabel: "Keep editing",
+    });
+    if (!discard) return;
+  }
+  openTabs.splice(openTabs.indexOf(tab), 1);
+  if (tab.kind === "file") editorModule?.closeFileModel(tab.path);
   if (activeTabId === id) activateTab("chat");
   else renderEditorTabs();
+}
+
+async function saveActiveTab() {
+  const tab = openTabs.find((t) => t.id === activeTabId);
+  if (!tab || tab.kind !== "file" || tab.readOnly || !tab.dirty || !editorModule) return;
+  const content = editorModule.fileContent(tab.path);
+  if (content === undefined) return;
+  try {
+    const r: any = await invoke("kara_request", {
+      method: "fs/write",
+      params: { path: tab.path, content, expectedVersion: tab.version },
+    });
+    tab.version = r.version;
+    tab.content = content;
+    // Only clear the dot if nothing was typed while the save was in flight.
+    tab.dirty = editorModule.fileContent(tab.path) !== content;
+    renderEditorTabs();
+  } catch (e: any) {
+    activity(`Couldn't save ${tab.path}: ${e?.message ?? e}`, "err");
+  }
 }
 
 async function openFileTab(path: string, line?: number) {
@@ -1674,7 +1723,16 @@ async function openFileTab(path: string, line?: number) {
       return;
     }
     const label = path.split("/").pop() ?? path;
-    openTabs.push({ id, label, kind: "file", path, content: r.content ?? "" });
+    openTabs.push({
+      id,
+      label: r.truncated ? `${label} (read-only, truncated)` : label,
+      kind: "file",
+      path,
+      content: r.content ?? "",
+      version: r.version,
+      // Saving a truncated view would cut the real file short.
+      readOnly: !!r.truncated,
+    });
     activateTab(id, line);
   } catch (e: any) {
     activity(`error: ${e?.message ?? e}`, "err");
