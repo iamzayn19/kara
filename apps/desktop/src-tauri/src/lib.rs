@@ -18,23 +18,40 @@ fn to_err(e: RpcError) -> String {
 }
 
 #[tauri::command]
-async fn kara_start(app: AppHandle, state: State<'_, AppState>, workspace: String) -> Result<Value, String> {
+async fn kara_start(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    workspace: String,
+) -> Result<Value, String> {
     state.session.start(app, workspace).await
 }
 
 #[tauri::command]
-async fn kara_request(state: State<'_, AppState>, method: String, params: Value) -> Result<Value, String> {
+async fn kara_request(
+    state: State<'_, AppState>,
+    method: String,
+    params: Value,
+) -> Result<Value, String> {
     state.session.request(&method, params).await.map_err(to_err)
 }
 
 #[tauri::command]
-async fn kara_notify(state: State<'_, AppState>, method: String, params: Value) -> Result<(), String> {
+async fn kara_notify(
+    state: State<'_, AppState>,
+    method: String,
+    params: Value,
+) -> Result<(), String> {
     state.session.notify(&method, params).await.map_err(to_err)
 }
 
 /// Answer a server->client request (currently only `permission/request`).
 #[tauri::command]
-async fn kara_respond(state: State<'_, AppState>, id: Value, decision: Option<Value>, error: Option<String>) -> Result<(), String> {
+async fn kara_respond(
+    state: State<'_, AppState>,
+    id: Value,
+    decision: Option<Value>,
+    error: Option<String>,
+) -> Result<(), String> {
     let result = match error {
         Some(msg) => Err(RpcError::new(-32000, msg)),
         None => Ok(decision.unwrap_or(Value::Null)),

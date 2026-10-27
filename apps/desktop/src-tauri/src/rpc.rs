@@ -11,11 +11,11 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
-use tokio::sync::Mutex as AsyncMutex;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::oneshot;
+use tokio::sync::Mutex as AsyncMutex;
 
 type PendingMap = Arc<Mutex<HashMap<u64, oneshot::Sender<Result<Value, RpcError>>>>>;
 
@@ -82,11 +82,7 @@ fn which_in(name: &str, path_var: &str) -> Option<std::path::PathBuf> {
 impl Session {
     /// Start `kara serve --stdio` for `workspace` and begin relaying its
     /// output to the window as `kara://event` / `kara://log` events.
-    pub async fn start(
-        &self,
-        app: AppHandle,
-        workspace: String,
-    ) -> Result<Value, String> {
+    pub async fn start(&self, app: AppHandle, workspace: String) -> Result<Value, String> {
         self.stop().await;
         // No silent fallback to the home directory: confirmed by actually
         // running this that it means indexing the user's entire home
@@ -157,9 +153,8 @@ impl Session {
         let (tx, rx) = oneshot::channel();
         self.pending.lock().unwrap().insert(id, tx);
         self.write(&Message::request(id, method, params)).await?;
-        rx.await.unwrap_or_else(|_| {
-            Err(RpcError::new(-32000, "Kara exited before responding"))
-        })
+        rx.await
+            .unwrap_or_else(|_| Err(RpcError::new(-32000, "Kara exited before responding")))
     }
 
     /// Send a one-way notification (no response expected), e.g. cancel.
@@ -168,7 +163,11 @@ impl Session {
     }
 
     /// Answer a server->client request (currently only `permission/request`).
-    pub async fn respond(&self, id: Value, result: Result<Value, RpcError>) -> Result<(), RpcError> {
+    pub async fn respond(
+        &self,
+        id: Value,
+        result: Result<Value, RpcError>,
+    ) -> Result<(), RpcError> {
         self.write(&Message::response(id, result)).await
     }
 
