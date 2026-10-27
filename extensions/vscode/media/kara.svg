@@ -1,4 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M4 5l8 14 8-14"/>
-  <path d="M9 5l3 5.5L15 5"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <mask id="notch">
+      <rect width="24" height="24" fill="#fff"/>
+      <rect x="14" y="14" width="5.5" height="5.5" rx="1.2" fill="#000"/>
+    </mask>
+  </defs>
+  <g mask="url(#notch)"><rect x="5.5" y="5.5" width="13" height="13" rx="1.6" transform="rotate(45 12 12)" fill="currentColor"/></g>
 </svg>
