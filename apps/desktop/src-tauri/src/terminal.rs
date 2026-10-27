@@ -27,7 +27,12 @@ impl Terminal {
     pub fn spawn(&self, app: AppHandle, cwd: String) -> Result<(), String> {
         let pty_system = native_pty_system();
         let pair = pty_system
-            .openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
             .map_err(|e| e.to_string())?;
 
         let mut cmd = CommandBuilder::new(default_shell());
@@ -74,7 +79,12 @@ impl Terminal {
         let guard = self.master.lock().unwrap();
         match guard.as_ref() {
             Some(m) => m
-                .resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+                .resize(PtySize {
+                    rows,
+                    cols,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                })
                 .map_err(|e| e.to_string()),
             None => Err("no terminal session running".to_string()),
         }
@@ -94,9 +104,18 @@ mod tests {
     #[test]
     fn pty_runs_a_real_shell_command() {
         let pair = native_pty_system()
-            .openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
             .unwrap();
-        let mut cmd = if cfg!(windows) { CommandBuilder::new("cmd.exe") } else { CommandBuilder::new("/bin/sh") };
+        let mut cmd = if cfg!(windows) {
+            CommandBuilder::new("cmd.exe")
+        } else {
+            CommandBuilder::new("/bin/sh")
+        };
         cmd.cwd(std::env::temp_dir());
         let mut child = pair.slave.spawn_command(cmd).unwrap();
         drop(pair.slave);
@@ -107,25 +126,37 @@ mod tests {
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
             while let Ok(n) = reader.read(&mut buf) {
-                if n == 0 || tx.send(String::from_utf8_lossy(&buf[..n]).into_owned()).is_err() {
+                if n == 0
+                    || tx
+                        .send(String::from_utf8_lossy(&buf[..n]).into_owned())
+                        .is_err()
+                {
                     break;
                 }
             }
         });
 
         // Arithmetic so the match can only come from the shell's output, not
-        // from the tty echoing our own input back.
-        writer.write_all(b"echo kara-$((40+2))\r").unwrap();
+        // from the tty echoing our own input back. cmd.exe has no $((...)).
+        let (input, expected): (&[u8], &str) = if cfg!(windows) {
+            (b"set /a 6*7\r\n", "42")
+        } else {
+            (b"echo kara-$((6*7))\r", "kara-42")
+        };
+        writer.write_all(input).unwrap();
 
         let mut collected = String::new();
         let deadline = Instant::now() + Duration::from_secs(10);
-        while !collected.contains("kara-42") && Instant::now() < deadline {
+        while !collected.contains(expected) && Instant::now() < deadline {
             if let Ok(chunk) = rx.recv_timeout(Duration::from_millis(200)) {
                 collected.push_str(&chunk);
             }
         }
         let _ = child.kill();
 
-        assert!(collected.contains("kara-42"), "shell never ran the command; saw: {collected:?}");
+        assert!(
+            collected.contains(expected),
+            "shell never ran the command; saw: {collected:?}"
+        );
     }
 }
