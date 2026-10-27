@@ -189,6 +189,7 @@ impl Server {
             methods::FS_READ => self.fs_read(params).await,
             methods::FS_SEARCH => self.fs_search(params).await,
             methods::FS_WRITE => self.fs_write(params).await,
+            methods::FS_FILES => self.fs_files().await,
             methods::SELECT_MODEL => {
                 let me = self.clone();
                 tokio::spawn(async move {
@@ -710,6 +711,24 @@ impl Server {
     /// One file's content for the editor's viewer — capped and
     /// binary-checked, not a structured tool call; same trust-boundary
     /// note as fs_list.
+    /// Every file in the project (gitignore-aware, sorted, relative paths)
+    /// for the desktop app's quick open; matching happens client-side so
+    /// typing doesn't round-trip.
+    async fn fs_files(&self) -> Result<Value, RpcError> {
+        const LIMIT: usize = 20_000;
+        let guard = self.session.lock().await;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        let root = s.app.root.clone();
+        drop(guard);
+        let (files, truncated) =
+            tokio::task::spawn_blocking(move || kara_context::search::find_files(&root, "", LIMIT))
+                .await
+                .map_err(internal)?;
+        Ok(json!({ "files": files, "truncated": truncated }))
+    }
+
     /// Project-wide text search for the desktop app's search panel. Literal
     /// and case-insensitive by default, like an editor's find-in-files.
     async fn fs_search(&self, params: Value) -> Result<Value, RpcError> {

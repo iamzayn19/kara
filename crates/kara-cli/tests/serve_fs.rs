@@ -189,3 +189,23 @@ fn search_is_literal_and_case_insensitive_by_default() {
 
     assert!(rpc.call("fs/search", json!({"query": ""})).is_err());
 }
+
+#[test]
+fn files_lists_the_project_respecting_gitignore() {
+    let (ws, home) = project();
+    std::fs::write(ws.path().join(".gitignore"), "build/\n").unwrap();
+    std::fs::create_dir(ws.path().join("build")).unwrap();
+    std::fs::write(ws.path().join("build/out.bin"), "x").unwrap();
+    std::fs::write(ws.path().join("src/b.rs"), "x").unwrap();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+
+    let r = rpc.call("fs/files", json!({})).unwrap();
+    let files: Vec<&str> = r["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    assert_eq!(files, vec![".gitignore", "src/a.txt", "src/b.rs"]);
+    assert_eq!(r["truncated"], false);
+}
