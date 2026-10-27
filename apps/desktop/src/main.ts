@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
+import { fuzzyFilter } from "./fuzzy";
 // Dynamically imported on first use (see loadEditorModule below), not at
 // the top level — Monaco is a multi-MB dependency that has no reason to
 // load on every launch for someone who never opens a file.
@@ -76,6 +77,9 @@ let spinnerTimer: number | undefined;
 let spinnerRow: HTMLElement | undefined;
 let spinnerFrame = 0;
 let availableCommands: { name: string; description: string }[] = [];
+/** Cached fs/files result; dropped when the project changes or Kara
+ * reports changed files at the end of a turn. */
+let projectFiles: string[] | undefined;
 let cmdMenuIndex = 0;
 let permissionsMode = "";
 let turnMode: "execute" | "plan" | "review" = "execute";
@@ -505,6 +509,7 @@ function handleEvent(e: any) {
       break;
     case "turn_finished":
       pendingAssistant = undefined;
+      if (e.changed_files?.length) projectFiles = undefined;
       pendingPlan = e.outcome === "awaiting_approval";
       if (e.changed_files?.length) {
         activity("Changed:", "accent");
@@ -1161,6 +1166,7 @@ function resetEditorTabs() {
   searchSeq++;
   searchResults.replaceChildren();
   searchSummary.textContent = "";
+  projectFiles = undefined;
 }
 
 /** Clicking the project name shows recent projects first (VS Code's "Open
@@ -1264,6 +1270,11 @@ btnSlash.addEventListener("click", () => {
 window.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey;
   if (!mod) return;
+  if (e.key.toLowerCase() === "p") {
+    e.preventDefault();
+    void openPalette(e.shiftKey ? "commands" : "files");
+    return;
+  }
   if (e.shiftKey && e.key.toLowerCase() === "f") {
     e.preventDefault();
     if (sidebar.classList.contains("collapsed")) toggleSidebar();
@@ -1819,3 +1830,193 @@ async function boot() {
 }
 
 boot();
+
+// ── Quick open (Cmd+P) and command palette (Shift+Cmd+P) ─────────
+
+interface PaletteItem {
+  label: string;
+  detail?: string;
+  run: () => void;
+}
+
+const paletteBackdrop = document.querySelector<HTMLElement>("#palette-backdrop")!;
+const paletteInput = document.querySelector<HTMLInputElement>("#palette-input")!;
+const paletteList = document.querySelector<HTMLUListElement>("#palette-list")!;
+
+let paletteSelected = 0;
+let paletteRows: PaletteItem[] = [];
+
+function paletteCommands(): PaletteItem[] {
+  const mode = (m: string) => () => document.querySelector<HTMLButtonElement>(`.mode-opt[data-mode="${m}"]`)?.click();
+  const cmds: PaletteItem[] = [
+    { label: "Toggle terminal", detail: "⌘J", run: () => void toggleTerminal() },
+    { label: "Find in files", detail: "⇧⌘F", run: () => showSidebarPanel("search") },
+    { label: "Show file explorer", run: () => showSidebarPanel("files") },
+    { label: "Toggle sidebar", detail: "⌘B", run: toggleSidebar },
+    { label: "Toggle light/dark theme", run: toggleTheme },
+    { label: "Save file", detail: "⌘S", run: () => void saveActiveTab() },
+    { label: "New session", detail: "⌘N", run: () => void newSession() },
+    { label: "Open project…", detail: "⌘O", run: () => void pickProject() },
+    { label: "Settings", detail: "⌘,", run: () => void openSettings() },
+    { label: "Undo Kara's last change", run: () => void undo() },
+    { label: "Mode: Execute", detail: "understand, edit, test, review", run: mode("execute") },
+    { label: "Mode: Plan", detail: "read-only, propose a plan", run: mode("plan") },
+    { label: "Mode: Review", detail: "read-only risk review", run: mode("review") },
+  ];
+  for (const c of availableCommands) {
+    cmds.push({
+      label: c.name,
+      detail: c.description,
+      run: () => {
+        activateTab("chat");
+        input.value = c.name + " ";
+        autosize();
+        input.focus();
+      },
+    });
+  }
+  return cmds;
+}
+
+async function openPalette(kind: "files" | "commands") {
+  if (kind === "files" && !currentWorkspace) kind = "commands";
+  paletteBackdrop.classList.remove("hidden");
+  paletteInput.value = kind === "commands" ? ">" : "";
+  paletteInput.placeholder = "Search files by name (type > for commands)";
+  paletteInput.focus();
+  renderPalette();
+  if (kind === "files" && !projectFiles) {
+    try {
+      const r: any = await invoke("kara_request", { method: "fs/files", params: {} });
+      projectFiles = r.files ?? [];
+    } catch (e: any) {
+      projectFiles = [];
+      activity(`Couldn't list project files: ${e?.message ?? e}`, "err");
+    }
+    renderPalette();
+  }
+}
+
+function closePalette() {
+  paletteBackdrop.classList.add("hidden");
+}
+
+function highlighted(text: string, positions: number[]): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  const hit = new Set(positions);
+  let run = "";
+  let runHit = false;
+  const flush = () => {
+    if (!run) return;
+    if (runHit) {
+      const b = document.createElement("b");
+      b.textContent = run;
+      frag.appendChild(b);
+    } else frag.appendChild(document.createTextNode(run));
+    run = "";
+  };
+  for (let i = 0; i < text.length; i++) {
+    if (hit.has(i) !== runHit) {
+      flush();
+      runHit = hit.has(i);
+    }
+    run += text[i];
+  }
+  flush();
+  return frag;
+}
+
+function renderPalette() {
+  const raw = paletteInput.value;
+  const commandMode = raw.startsWith(">");
+  const query = commandMode ? raw.slice(1).trim() : raw.trim();
+  paletteList.replaceChildren();
+  paletteRows = [];
+
+  if (commandMode) {
+    for (const { item, match } of fuzzyFilter(query, paletteCommands(), (c) => c.label, 50)) {
+      paletteRows.push(item);
+      appendPaletteRow(highlighted(item.label, match.positions), item.detail);
+    }
+  } else if (!projectFiles) {
+    appendPaletteMessage("Loading files…");
+  } else {
+    for (const { item, match } of fuzzyFilter(query, projectFiles, (f) => f, 50)) {
+      paletteRows.push({ label: item, run: () => void openFileTab(item) });
+      const slash = item.lastIndexOf("/");
+      const name = highlighted(item.slice(slash + 1), match.positions.filter((i) => i > slash).map((i) => i - slash - 1));
+      appendPaletteRow(name, slash > 0 ? item.slice(0, slash) : undefined);
+    }
+  }
+  if (!paletteRows.length && (commandMode || projectFiles)) appendPaletteMessage(commandMode ? "No matching commands" : "No matching files");
+  paletteSelected = 0;
+  updatePaletteSelection();
+}
+
+function appendPaletteRow(label: DocumentFragment, detail?: string) {
+  const index = paletteRows.length - 1;
+  const li = document.createElement("li");
+  li.className = "palette-row";
+  li.setAttribute("role", "option");
+  const l = document.createElement("span");
+  l.className = "palette-label";
+  l.appendChild(label);
+  li.appendChild(l);
+  if (detail) {
+    const d = document.createElement("span");
+    d.className = "palette-detail";
+    d.textContent = detail;
+    li.appendChild(d);
+  }
+  li.addEventListener("mousemove", () => {
+    if (paletteSelected === index) return;
+    paletteSelected = index;
+    updatePaletteSelection();
+  });
+  li.addEventListener("click", () => runPaletteRow(index));
+  paletteList.appendChild(li);
+}
+
+function appendPaletteMessage(text: string) {
+  const li = document.createElement("li");
+  li.className = "palette-empty";
+  li.textContent = text;
+  paletteList.appendChild(li);
+}
+
+function updatePaletteSelection() {
+  paletteList.querySelectorAll<HTMLElement>(".palette-row").forEach((el, i) => {
+    const on = i === paletteSelected;
+    el.classList.toggle("selected", on);
+    el.setAttribute("aria-selected", String(on));
+    if (on) el.scrollIntoView({ block: "nearest" });
+  });
+}
+
+function runPaletteRow(index: number) {
+  const item = paletteRows[index];
+  if (!item) return;
+  closePalette();
+  item.run();
+}
+
+paletteInput.addEventListener("input", renderPalette);
+paletteInput.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!paletteRows.length) return;
+    const step = e.key === "ArrowDown" ? 1 : -1;
+    paletteSelected = (paletteSelected + step + paletteRows.length) % paletteRows.length;
+    updatePaletteSelection();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    runPaletteRow(paletteSelected);
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    closePalette();
+  }
+});
+paletteBackdrop.addEventListener("mousedown", (e) => {
+  if (e.target === paletteBackdrop) closePalette();
+});
+
