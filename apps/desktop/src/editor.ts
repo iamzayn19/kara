@@ -80,7 +80,7 @@ let viewer: monaco.editor.IStandaloneCodeEditor | undefined;
 
 /** A single read-only file viewer, mounted once and reused across files
  * (disposing and recreating Monaco per file is unnecessary churn). */
-export function showFile(container: HTMLElement, path: string, content: string, theme: string) {
+export function showFile(container: HTMLElement, path: string, content: string, theme: string, line?: number) {
   const language = languageForPath(path);
   if (!viewer) {
     viewer = monaco.editor.create(container, {
@@ -101,6 +101,10 @@ export function showFile(container: HTMLElement, path: string, content: string, 
     viewer.setModel(model);
     old?.dispose();
     monaco.editor.setTheme(theme);
+  }
+  if (line) {
+    viewer.revealLineInCenter(line);
+    viewer.setSelection(new monaco.Selection(line, 1, line, viewer.getModel()!.getLineMaxColumn(line)));
   }
 }
 

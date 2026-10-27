@@ -30,6 +30,7 @@
           <div id="sidebar-tabs" role="tablist">
             <button class="sidebar-tab active" data-panel="project">Project</button>
             <button class="sidebar-tab" data-panel="files">Files<span id="files-badge" class="tab-count hidden"></span></button>
+            <button class="sidebar-tab" data-panel="search" title="Search in project (⇧⌘F)">Search</button>
           </div>
 
           <div id="sidebar-panel-project" class="sidebar-panel">
@@ -51,6 +52,16 @@
 
           <div id="sidebar-panel-files" class="sidebar-panel hidden">
             <div id="file-tree" class="sidebar-list"></div>
+          </div>
+
+          <div id="sidebar-panel-search" class="sidebar-panel hidden">
+            <div id="search-box">
+              <input id="search-input" type="text" placeholder="Search in project" spellcheck="false" />
+              <button id="search-case" class="search-toggle" title="Match case">Aa</button>
+              <button id="search-regex" class="search-toggle" title="Use regular expression">.*</button>
+            </div>
+            <div id="search-summary"></div>
+            <div id="search-results" class="sidebar-list"></div>
           </div>
         </aside>
 

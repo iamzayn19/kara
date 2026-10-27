@@ -42,6 +42,12 @@ const sidebarTabs = document.querySelectorAll<HTMLButtonElement>(".sidebar-tab")
 const sidebarPanelProject = document.querySelector<HTMLElement>("#sidebar-panel-project")!;
 const sidebarPanelFiles = document.querySelector<HTMLElement>("#sidebar-panel-files")!;
 const fileTree = document.querySelector<HTMLElement>("#file-tree")!;
+const sidebarPanelSearch = document.querySelector<HTMLElement>("#sidebar-panel-search")!;
+const searchInput = document.querySelector<HTMLInputElement>("#search-input")!;
+const searchCaseBtn = document.querySelector<HTMLButtonElement>("#search-case")!;
+const searchRegexBtn = document.querySelector<HTMLButtonElement>("#search-regex")!;
+const searchSummary = document.querySelector<HTMLElement>("#search-summary")!;
+const searchResults = document.querySelector<HTMLElement>("#search-results")!;
 const filesBadge = document.querySelector<HTMLElement>("#files-badge")!;
 const editorTabsEl = document.querySelector<HTMLElement>("#editor-tabs")!;
 const editorContainer = document.querySelector<HTMLElement>("#editor-container")!;
@@ -1151,6 +1157,9 @@ function resetEditorTabs() {
   changedPaths = new Map();
   filesBadge.textContent = "";
   filesBadge.classList.add("hidden");
+  searchSeq++;
+  searchResults.replaceChildren();
+  searchSummary.textContent = "";
 }
 
 /** Clicking the project name shows recent projects first (VS Code's "Open
@@ -1254,6 +1263,12 @@ btnSlash.addEventListener("click", () => {
 window.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey;
   if (!mod) return;
+  if (e.shiftKey && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    if (sidebar.classList.contains("collapsed")) toggleSidebar();
+    showSidebarPanel("search");
+    return;
+  }
   switch (e.key.toLowerCase()) {
     case "n":
       e.preventDefault();
@@ -1328,15 +1343,116 @@ setTheme(currentTheme());
 
 // ── Sidebar tabs: Project (recent/sessions) vs Files (explorer) ─────
 
+function showSidebarPanel(panel: string) {
+  sidebarTabs.forEach((t) => t.classList.toggle("active", t.dataset.panel === panel));
+  sidebarPanelProject.classList.toggle("hidden", panel !== "project");
+  sidebarPanelFiles.classList.toggle("hidden", panel !== "files");
+  sidebarPanelSearch.classList.toggle("hidden", panel !== "search");
+  if (panel === "files" && !fileTree.hasChildNodes()) void loadFileTree();
+  if (panel === "search") {
+    searchInput.focus();
+    searchInput.select();
+  }
+}
+
 sidebarTabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    const panel = tab.dataset.panel;
-    sidebarTabs.forEach((t) => t.classList.toggle("active", t === tab));
-    sidebarPanelProject.classList.toggle("hidden", panel !== "project");
-    sidebarPanelFiles.classList.toggle("hidden", panel !== "files");
-    if (panel === "files" && !fileTree.hasChildNodes()) void loadFileTree();
-  });
+  tab.addEventListener("click", () => showSidebarPanel(tab.dataset.panel ?? "project"));
 });
+
+// ── Find in files ────────────────────────────────────────────────
+
+let searchSeq = 0;
+let searchTimer: number | undefined;
+
+async function runSearch() {
+  const query = searchInput.value;
+  const seq = ++searchSeq;
+  if (!query || !currentWorkspace) {
+    searchResults.replaceChildren();
+    searchSummary.textContent = "";
+    return;
+  }
+  searchSummary.textContent = "Searching…";
+  try {
+    const r: any = await invoke("kara_request", {
+      method: "fs/search",
+      params: {
+        query,
+        caseSensitive: searchCaseBtn.classList.contains("active"),
+        regex: searchRegexBtn.classList.contains("active"),
+      },
+    });
+    if (seq !== searchSeq) return; // a newer keystroke already superseded this
+    renderSearchResults(r);
+  } catch (e: any) {
+    if (seq !== searchSeq) return;
+    searchResults.replaceChildren();
+    searchSummary.textContent = String(e?.message ?? e);
+  }
+}
+
+function renderSearchResults(r: { matches: { path: string; line: number; text: string }[]; files_with_matches: number; truncated: boolean }) {
+  const byFile = new Map<string, { line: number; text: string }[]>();
+  for (const m of r.matches) {
+    if (!byFile.has(m.path)) byFile.set(m.path, []);
+    byFile.get(m.path)!.push(m);
+  }
+  const n = r.matches.length;
+  searchSummary.textContent = n
+    ? `${n}${r.truncated ? "+" : ""} result${n === 1 ? "" : "s"} in ${byFile.size} file${byFile.size === 1 ? "" : "s"}`
+    : "No results";
+  const frag = document.createDocumentFragment();
+  for (const [path, hits] of byFile) {
+    const header = document.createElement("div");
+    header.className = "search-file";
+    header.title = path;
+    const name = document.createElement("span");
+    name.className = "search-file-name";
+    name.textContent = path.split("/").pop() ?? path;
+    const dir = document.createElement("span");
+    dir.className = "search-file-dir";
+    dir.textContent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+    const count = document.createElement("span");
+    count.className = "search-file-count";
+    count.textContent = String(hits.length);
+    header.append(name, dir, count);
+    frag.appendChild(header);
+    for (const hit of hits) {
+      const row = document.createElement("button");
+      row.className = "search-hit";
+      row.title = `${path}:${hit.line}`;
+      const ln = document.createElement("span");
+      ln.className = "search-hit-line";
+      ln.textContent = String(hit.line);
+      const text = document.createElement("span");
+      text.className = "search-hit-text";
+      text.textContent = hit.text.trim();
+      row.append(ln, text);
+      row.addEventListener("click", () => void openFileTab(path, hit.line));
+      frag.appendChild(row);
+    }
+  }
+  searchResults.replaceChildren(frag);
+}
+
+function scheduleSearch() {
+  window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(runSearch, 200);
+}
+
+searchInput.addEventListener("input", scheduleSearch);
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    window.clearTimeout(searchTimer);
+    void runSearch();
+  }
+});
+for (const btn of [searchCaseBtn, searchRegexBtn]) {
+  btn.addEventListener("click", () => {
+    btn.classList.toggle("active");
+    void runSearch();
+  });
+}
 
 // ── File explorer ────────────────────────────────────────────────
 
@@ -1517,7 +1633,7 @@ function renderEditorTabs() {
   }
 }
 
-async function activateTab(id: string) {
+async function activateTab(id: string, line?: number) {
   activeTabId = id;
   renderEditorTabs();
   const isChat = id === "chat";
@@ -1530,7 +1646,7 @@ async function activateTab(id: string) {
   const { showFile, showDiff, monacoThemeFor } = await loadEditorModule();
   const theme = monacoThemeFor(effectiveTheme());
   if (tab.kind === "file") {
-    showFile(editorContainer, tab.path, tab.content as string, theme);
+    showFile(editorContainer, tab.path, tab.content as string, theme, line);
   } else {
     const c = tab.content as { before: string; after: string };
     showDiff(editorContainer, tab.path, c.before, c.after, theme);
@@ -1545,10 +1661,10 @@ function closeTab(id: string) {
   else renderEditorTabs();
 }
 
-async function openFileTab(path: string) {
+async function openFileTab(path: string, line?: number) {
   const id = `file:${path}`;
   if (openTabs.some((t) => t.id === id)) {
-    activateTab(id);
+    activateTab(id, line);
     return;
   }
   try {
@@ -1559,7 +1675,7 @@ async function openFileTab(path: string) {
     }
     const label = path.split("/").pop() ?? path;
     openTabs.push({ id, label, kind: "file", path, content: r.content ?? "" });
-    activateTab(id);
+    activateTab(id, line);
   } catch (e: any) {
     activity(`error: ${e?.message ?? e}`, "err");
   }
