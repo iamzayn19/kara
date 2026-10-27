@@ -78,7 +78,11 @@ fn extract_zip(archive: &Path, dest: &Path) -> anyhow::Result<()> {
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
         let Some(rel) = file.enclosed_name() else {
-            anyhow::bail!("zip entry {} escapes the destination", file.name());
+            let name = file
+                .name()
+                .map(|n| n.into_owned())
+                .unwrap_or_else(|_| "<undecodable name>".into());
+            anyhow::bail!("zip entry {name} escapes the destination");
         };
         let target = safe_join(dest, &rel)?;
         if file.is_dir() {
@@ -173,5 +177,55 @@ mod tests {
             z.finish().unwrap();
         }
         assert!(extract(g.path(), dest.path()).is_err());
+    }
+
+    // RUSTSEC-2026-0367: setuid/setgid bits from an archive must never
+    // reach the extracted runtime binary.
+    #[cfg(unix)]
+    #[test]
+    fn zip_strips_setuid_and_setgid_bits() {
+        use std::os::unix::fs::PermissionsExt;
+        let f = tempfile::Builder::new().suffix(".zip").tempfile().unwrap();
+        {
+            let mut z = zip::ZipWriter::new(f.reopen().unwrap());
+            let opts = zip::write::SimpleFileOptions::default().unix_permissions(0o755);
+            z.start_file("bin/llama-server", opts).unwrap();
+            z.write_all(b"exe").unwrap();
+            z.finish().unwrap();
+        }
+        // The zip writer refuses to store special bits, so patch them into
+        // the central directory entry's external attributes the way a
+        // hand-crafted archive would carry them.
+        let mut bytes = std::fs::read(f.path()).unwrap();
+        let cd = bytes.windows(4).position(|w| w == b"PK\x01\x02").unwrap();
+        let attrs: u32 = (0o100000 | 0o6755) << 16;
+        bytes[cd + 38..cd + 42].copy_from_slice(&attrs.to_le_bytes());
+        std::fs::write(f.path(), &bytes).unwrap();
+        let dest = tempfile::tempdir().unwrap();
+        extract(f.path(), dest.path()).unwrap();
+        let mode = std::fs::metadata(dest.path().join("bin/llama-server"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o7000, 0, "special bits survived: {mode:o}");
+        assert_eq!(mode & 0o777, 0o755);
+    }
+
+    // RUSTSEC-2026-0368/0369: a symlink entry pointing outside the
+    // destination must not become a real symlink anything is written through.
+    #[cfg(unix)]
+    #[test]
+    fn zip_symlink_entries_are_not_created_as_links() {
+        let f = tempfile::Builder::new().suffix(".zip").tempfile().unwrap();
+        {
+            let mut z = zip::ZipWriter::new(f.reopen().unwrap());
+            z.add_symlink("lib", "/etc", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            z.finish().unwrap();
+        }
+        let dest = tempfile::tempdir().unwrap();
+        extract(f.path(), dest.path()).unwrap();
+        let meta = std::fs::symlink_metadata(dest.path().join("lib")).unwrap();
+        assert!(!meta.file_type().is_symlink());
     }
 }
