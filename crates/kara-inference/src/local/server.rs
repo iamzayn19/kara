@@ -110,7 +110,9 @@ pub async fn find_running(dir: &Path, model_path: &Path) -> Option<String> {
         if path.extension().and_then(|x| x.to_str()) != Some("pid") {
             continue;
         }
-        let Ok(bytes) = std::fs::read(&path) else { continue };
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
         let Ok(rec) = serde_json::from_slice::<PidRecord>(&bytes) else {
             continue;
         };
@@ -121,10 +123,16 @@ pub async fn find_running(dir: &Path, model_path: &Path) -> Option<String> {
         if recorded != model_path {
             continue;
         }
-        if sys.process(sysinfo::Pid::from_u32(rec.server_pid)).is_none() {
+        if sys
+            .process(sysinfo::Pid::from_u32(rec.server_pid))
+            .is_none()
+        {
             continue;
         }
-        let client = match reqwest::Client::builder().timeout(Duration::from_secs(2)).build() {
+        let client = match reqwest::Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+        {
             Ok(c) => c,
             Err(_) => continue,
         };
@@ -508,7 +516,10 @@ mod tests {
         // Stand-ins: a real alive process (for the pid check) and a tiny
         // HTTP responder (for the /health check) — no real llama-server
         // needed to test the dedup logic itself.
-        let mut alive = std::process::Command::new("sleep").arg("5").spawn().unwrap();
+        let mut alive = std::process::Command::new("sleep")
+            .arg("5")
+            .spawn()
+            .unwrap();
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         std::thread::spawn(move || {

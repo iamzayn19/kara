@@ -463,7 +463,9 @@ async fn resolve_local(req: ResolveRequest<'_>) -> anyhow::Result<InferenceSessi
     // starting close together (two windows, the CLI plus the desktop app,
     // a restart racing a still-shutting-down previous run) each loading
     // their own multi-GB copy of the same model at once.
-    if let Some(base_url) = crate::local::server::find_running(&req.paths.logs_dir(), &store.path_for(&spec)).await {
+    if let Some(base_url) =
+        crate::local::server::find_running(&req.paths.logs_dir(), &store.path_for(&spec)).await
+    {
         let provider = OpenAiCompatProvider::new(&base_url, &spec.id)
             .with_label("local")
             .with_context_length(Some(ctx));
@@ -491,9 +493,12 @@ async fn resolve_local(req: ResolveRequest<'_>) -> anyhow::Result<InferenceSessi
     // machine under memory pressure right now (another Kara process already
     // holding a model in RAM, another app, swap) still got a fresh
     // multi-GB `llama-server` thrown at it and hung.
-    if let Some(msg) =
-        memory_gate_message(&spec.id, spec.memory_needed(ctx), hw.available_ram, hw.total_ram)
-    {
+    if let Some(msg) = memory_gate_message(
+        &spec.id,
+        spec.memory_needed(ctx),
+        hw.available_ram,
+        hw.total_ram,
+    ) {
         return Ok(InferenceSession::none(msg));
     }
 
@@ -572,7 +577,10 @@ mod tests {
         let (spec, ctx, _) =
             choose_model(&config, &Registry::builtin(), &hw, None).expect("should resolve");
         assert_eq!(spec.id, "qwen3-4b-q4_k_m");
-        assert_eq!(ctx, spec.min_context, "should shrink to the smallest context, not default_context");
+        assert_eq!(
+            ctx, spec.min_context,
+            "should shrink to the smallest context, not default_context"
+        );
         assert_ne!(ctx, spec.default_context);
     }
 
@@ -593,7 +601,10 @@ mod tests {
         // Technically more than `needed`, but inside the headroom: refuse.
         let msg = memory_gate_message("m", one_gb, one_gb + (one_gb / 10), plenty_total).unwrap();
         assert!(msg.contains("another Kara session"), "{msg}");
-        assert!(msg.contains("kara config set inference.model auto"), "{msg}");
+        assert!(
+            msg.contains("kara config set inference.model auto"),
+            "{msg}"
+        );
     }
 
     #[test]
@@ -603,8 +614,12 @@ mod tests {
         // call on a 100MB model.
         let tiny_model = 100u64 << 20;
         let plenty_total = 64 << 30;
-        assert!(memory_gate_message("m", tiny_model, tiny_model + (400 << 20), plenty_total).is_some());
-        assert!(memory_gate_message("m", tiny_model, tiny_model + (600 << 20), plenty_total).is_none());
+        assert!(
+            memory_gate_message("m", tiny_model, tiny_model + (400 << 20), plenty_total).is_some()
+        );
+        assert!(
+            memory_gate_message("m", tiny_model, tiny_model + (600 << 20), plenty_total).is_none()
+        );
     }
 
     #[test]

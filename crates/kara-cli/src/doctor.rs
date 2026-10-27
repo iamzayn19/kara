@@ -103,7 +103,10 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
         row("model", &inf.model);
     }
 
-    println!("\n{}", crate::theme::console_accent().apply_to("Local inference (optional)"));
+    println!(
+        "\n{}",
+        crate::theme::console_accent().apply_to("Local inference (optional)")
+    );
     row(
         "runtime",
         status.runtime.clone().unwrap_or_else(|| {
@@ -142,7 +145,10 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
         }
     }
 
-    println!("\n{}", crate::theme::console_accent().apply_to("Repository"));
+    println!(
+        "\n{}",
+        crate::theme::console_accent().apply_to("Repository")
+    );
     row("root", app.root.display());
     row("git", yes_no(kara_context::git::is_repo(&app.root)));
     let langs: Vec<String> = app
@@ -174,7 +180,10 @@ pub fn print_doctor(app: &App, _rt: &tokio::runtime::Runtime) {
         );
     }
 
-    println!("\n{}", crate::theme::console_accent().apply_to("Configuration"));
+    println!(
+        "\n{}",
+        crate::theme::console_accent().apply_to("Configuration")
+    );
     row("config file", display_path(&app.paths.config_file()));
     row("permissions", app.config.permissions.mode.as_str());
     row("telemetry", style("none (Kara has no telemetry)").green());

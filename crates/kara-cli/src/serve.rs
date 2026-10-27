@@ -733,10 +733,11 @@ impl Server {
         };
         let root = s.app.root.clone();
         drop(guard);
-        let result = tokio::task::spawn_blocking(move || kara_context::search::grep(&root, &query, &opts))
-            .await
-            .map_err(internal)?
-            .map_err(|e| invalid(format!("invalid pattern: {e}")))?;
+        let result =
+            tokio::task::spawn_blocking(move || kara_context::search::grep(&root, &query, &opts))
+                .await
+                .map_err(internal)?
+                .map_err(|e| invalid(format!("invalid pattern: {e}")))?;
         Ok(json!(result))
     }
 
@@ -758,7 +759,9 @@ impl Server {
         let bytes = tokio::fs::read(&file).await.map_err(internal)?;
         let version = Self::content_version(&bytes);
         if kara_context::looks_binary(&bytes) {
-            return Ok(json!({ "binary": true, "content": null, "truncated": false, "version": version }));
+            return Ok(
+                json!({ "binary": true, "content": null, "truncated": false, "version": version }),
+            );
         }
         let truncated = bytes.len() > MAX_BYTES;
         let slice = &bytes[..bytes.len().min(MAX_BYTES)];

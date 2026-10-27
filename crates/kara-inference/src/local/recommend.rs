@@ -250,7 +250,10 @@ mod tests {
         let r = recommend(&Registry::builtin(), &mac(4));
         match r.model {
             Some(m) => {
-                assert_eq!(m.id, "qwen3-1.7b-q4_k_m", "a 4 GB machine should only ever get the smallest model");
+                assert_eq!(
+                    m.id, "qwen3-1.7b-q4_k_m",
+                    "a 4 GB machine should only ever get the smallest model"
+                );
                 assert_eq!(r.placement, Some(Placement::Full));
             }
             None => {

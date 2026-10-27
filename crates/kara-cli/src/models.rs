@@ -182,14 +182,15 @@ pub async fn start_inference(
 
 pub fn print_list(app: &App) {
     let (entries, summary) = kara_inference::local::catalog(&app.paths, &app.models);
-    println!("{}", crate::theme::console_accent().apply_to("Local models (optional)"));
+    println!(
+        "{}",
+        crate::theme::console_accent().apply_to("Local models (optional)")
+    );
     for e in &entries {
         let mark = if e.recommended {
             style("★ recommended").green().to_string()
         } else if e.fits {
-            crate::theme::console_krypton()
-                .apply_to("fits")
-                .to_string()
+            crate::theme::console_krypton().apply_to("fits").to_string()
         } else {
             style("too large").dim().to_string()
         };
