@@ -123,6 +123,7 @@ jobs:
       # Typecheck + production bundle; also produces dist/, which the
       # Tauri backend embeds at compile time.
       - run: npm run build
+      - run: npm test
       - run: cargo fmt --check
         working-directory: apps/desktop/src-tauri
       - run: cargo clippy --all-targets --locked -- -D warnings
