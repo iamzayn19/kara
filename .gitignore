@@ -25,3 +25,7 @@ __pycache__/
 # Release packaging output
 /dist/
 /packaging-out/
+
+# Desktop app: CLI copied in at build time (see binaries/README.md)
+apps/desktop/src-tauri/binaries/kara
+apps/desktop/src-tauri/binaries/kara.exe

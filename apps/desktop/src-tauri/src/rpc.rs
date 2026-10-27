@@ -44,7 +44,7 @@ impl Default for Session {
 fn locate_kara_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
     let name = if cfg!(windows) { "kara.exe" } else { "kara" };
     if let Ok(resource_dir) = app.path().resource_dir() {
-        let bundled = resource_dir.join(name);
+        let bundled = resource_dir.join("binaries").join(name);
         if bundled.is_file() {
             return Some(bundled);
         }
