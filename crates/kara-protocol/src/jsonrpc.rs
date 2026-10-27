@@ -30,6 +30,7 @@ pub mod methods {
     // single-level like a real file explorer, never a full-tree walk.
     pub const FS_LIST: &str = "fs/list";
     pub const FS_READ: &str = "fs/read";
+    pub const FS_SEARCH: &str = "fs/search";
 
     // server -> client notifications
     pub const EVENT: &str = "event";

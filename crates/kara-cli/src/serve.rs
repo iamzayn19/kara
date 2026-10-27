@@ -187,6 +187,7 @@ impl Server {
             methods::MODELS => self.models().await,
             methods::FS_LIST => self.fs_list(params).await,
             methods::FS_READ => self.fs_read(params).await,
+            methods::FS_SEARCH => self.fs_search(params).await,
             methods::SELECT_MODEL => {
                 let me = self.clone();
                 tokio::spawn(async move {
@@ -708,6 +709,36 @@ impl Server {
     /// One file's content for the editor's viewer — capped and
     /// binary-checked, not a structured tool call; same trust-boundary
     /// note as fs_list.
+    /// Project-wide text search for the desktop app's search panel. Literal
+    /// and case-insensitive by default, like an editor's find-in-files.
+    async fn fs_search(&self, params: Value) -> Result<Value, RpcError> {
+        let guard = self.session.lock().await;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        let query = params
+            .get("query")
+            .and_then(Value::as_str)
+            .filter(|q| !q.is_empty())
+            .ok_or_else(|| invalid("query is required"))?
+            .to_string();
+        let flag = |k: &str| params.get(k).and_then(Value::as_bool).unwrap_or(false);
+        let opts = kara_context::search::GrepOptions {
+            regex: flag("regex"),
+            case_insensitive: !flag("caseSensitive"),
+            whole_word: flag("wholeWord"),
+            max_matches: 500,
+            ..Default::default()
+        };
+        let root = s.app.root.clone();
+        drop(guard);
+        let result = tokio::task::spawn_blocking(move || kara_context::search::grep(&root, &query, &opts))
+            .await
+            .map_err(internal)?
+            .map_err(|e| invalid(format!("invalid pattern: {e}")))?;
+        Ok(json!(result))
+    }
+
     async fn fs_read(&self, params: Value) -> Result<Value, RpcError> {
         const MAX_BYTES: usize = 2_000_000;
         let guard = self.session.lock().await;
