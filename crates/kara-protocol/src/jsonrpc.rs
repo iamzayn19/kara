@@ -31,6 +31,7 @@ pub mod methods {
     pub const FS_LIST: &str = "fs/list";
     pub const FS_READ: &str = "fs/read";
     pub const FS_SEARCH: &str = "fs/search";
+    pub const FS_WRITE: &str = "fs/write";
 
     // server -> client notifications
     pub const EVENT: &str = "event";

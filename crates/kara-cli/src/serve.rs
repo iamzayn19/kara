@@ -188,6 +188,7 @@ impl Server {
             methods::FS_LIST => self.fs_list(params).await,
             methods::FS_READ => self.fs_read(params).await,
             methods::FS_SEARCH => self.fs_search(params).await,
+            methods::FS_WRITE => self.fs_write(params).await,
             methods::SELECT_MODEL => {
                 let me = self.clone();
                 tokio::spawn(async move {
@@ -755,8 +756,9 @@ impl Server {
             return Err(invalid("not a file"));
         }
         let bytes = tokio::fs::read(&file).await.map_err(internal)?;
+        let version = Self::content_version(&bytes);
         if kara_context::looks_binary(&bytes) {
-            return Ok(json!({ "binary": true, "content": null, "truncated": false }));
+            return Ok(json!({ "binary": true, "content": null, "truncated": false, "version": version }));
         }
         let truncated = bytes.len() > MAX_BYTES;
         let slice = &bytes[..bytes.len().min(MAX_BYTES)];
@@ -764,7 +766,54 @@ impl Server {
             "binary": false,
             "content": String::from_utf8_lossy(slice),
             "truncated": truncated,
+            "version": version,
         }))
+    }
+
+    /// Change-detection fingerprint of a file's bytes. A content hash rather
+    /// than mtime: two writes inside the same timestamp tick would otherwise
+    /// look identical.
+    fn content_version(bytes: &[u8]) -> String {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        bytes.hash(&mut h);
+        format!("{:016x}-{}", h.finish(), bytes.len())
+    }
+
+    /// Save from the desktop editor. Only overwrites existing files, and
+    /// refuses if the file changed on disk since the editor read it
+    /// (`expectedVersion`, from fs/read), so a save can't silently clobber an edit Kara
+    /// made in the meantime.
+    async fn fs_write(&self, params: Value) -> Result<Value, RpcError> {
+        let guard = self.session.lock().await;
+        let s = guard
+            .as_ref()
+            .ok_or_else(|| invalid("call initialize first"))?;
+        let rel = params
+            .get("path")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("path is required"))?;
+        let content = params
+            .get("content")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("content is required"))?;
+        let root = s.app.root.clone();
+        drop(guard);
+        let file = Self::safe_join(&root, rel)?;
+        if !file.is_file() {
+            return Err(invalid("not a file"));
+        }
+        if let Some(expected) = params.get("expectedVersion").and_then(Value::as_str) {
+            let current = tokio::fs::read(&file).await.map_err(internal)?;
+            if Self::content_version(&current) != expected {
+                return Err(RpcError::new(
+                    -32001,
+                    format!("{rel} changed on disk since it was opened; reopen it before saving"),
+                ));
+            }
+        }
+        tokio::fs::write(&file, content).await.map_err(internal)?;
+        Ok(json!({ "version": Self::content_version(content.as_bytes()) }))
     }
 
     async fn local_context(
