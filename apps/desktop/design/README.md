@@ -6,6 +6,14 @@ hardcoded sample content, not the real frontend).
 
 Canvas: https://claude.ai/artifact/J1UkajB5NjUEDKeiDMrbx6
 
+**Color theme — House of El (chosen):**
+- `themes/` — the same window in seven palettes, from the canvas at
+  https://claude.ai/artifact/31XcST9nZGwwk1tLRv5QxV. `HouseOfEl.dc.html`
+  is the one shipped: red `#ef4b55` accent, blue `#5b8cff` for the user
+  and activity, blue-black neutrals. `Main.dc.html` there is the shared
+  window the others import with their own colors. The color values in
+  the layout mockups below predate this and are superseded by it.
+
 **Current / approved direction:**
 - `Editor.dc.html` — file explorer, code editor with syntax highlighting,
   Claude-Code-style chat panel on the right (mic, attach, slash commands,

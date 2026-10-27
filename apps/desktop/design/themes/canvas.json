@@ -1,0 +1,21 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-27T12:00:00Z" },
+  "title": "Kara color themes",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1200, "h": 760, "title": "1 · Current (clay orange)" },
+    "Neon.dc.html": { "x": 1280, "y": 0, "w": 1200, "h": 760, "title": "2 · Kryptonite Neon" },
+    "NeonGraphite.dc.html": { "x": 2560, "y": 0, "w": 1200, "h": 760, "title": "3 · Neon on Graphite" },
+    "Crystal.dc.html": { "x": 3840, "y": 0, "w": 1200, "h": 760, "title": "4 · Krypton Crystal" },
+    "HouseOfEl.dc.html": { "x": 0, "y": 880, "w": 1200, "h": 760, "title": "5 · House of El (red + blue)" },
+    "YellowSun.dc.html": { "x": 1280, "y": 880, "w": 1200, "h": 760, "title": "6 · Yellow Sun" },
+    "Mono.dc.html": { "x": 2560, "y": 880, "w": 1200, "h": 760, "title": "7 · Graphite Mono" }
+  },
+  "order": ["Main.dc.html", "Neon.dc.html", "NeonGraphite.dc.html", "Crystal.dc.html", "HouseOfEl.dc.html", "YellowSun.dc.html", "Mono.dc.html"],
+  "notes": {
+    "title": { "x": 0, "y": -300, "text": "Kara — pick a color theme", "kind": "title1", "maxW": 5040 }
+  },
+  "designSystems": []
+}
