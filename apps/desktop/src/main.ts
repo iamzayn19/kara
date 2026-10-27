@@ -15,6 +15,15 @@ async function loadEditorModule(): Promise<EditorModule> {
   return editorModule;
 }
 
+// Same lazy-load pattern for the terminal panel (xterm.js) — no reason to
+// pay for it unless the user actually opens a shell.
+type TerminalModule = typeof import("./terminal");
+let terminalModule: TerminalModule | undefined;
+async function loadTerminalModule(): Promise<TerminalModule> {
+  if (!terminalModule) terminalModule = await import("./terminal");
+  return terminalModule;
+}
+
 const transcript = document.querySelector<HTMLElement>("#transcript")!;
 const emptyState = document.querySelector<HTMLElement>("#empty-state")!;
 const emptyText = document.querySelector<HTMLElement>("#empty-text")!;
@@ -36,6 +45,10 @@ const fileTree = document.querySelector<HTMLElement>("#file-tree")!;
 const filesBadge = document.querySelector<HTMLElement>("#files-badge")!;
 const editorTabsEl = document.querySelector<HTMLElement>("#editor-tabs")!;
 const editorContainer = document.querySelector<HTMLElement>("#editor-container")!;
+const terminalPanel = document.querySelector<HTMLElement>("#terminal-panel")!;
+const terminalMount = document.querySelector<HTMLElement>("#terminal-mount")!;
+const btnTerminal = document.querySelector<HTMLButtonElement>("#btn-terminal")!;
+const btnTerminalClose = document.querySelector<HTMLButtonElement>("#btn-terminal-close")!;
 const composerWrap = document.querySelector<HTMLElement>("#composer-wrap")!;
 const btnProject = document.querySelector<HTMLButtonElement>("#btn-project")!;
 const btnSettings = document.querySelector<HTMLButtonElement>("#btn-settings")!;
@@ -1258,6 +1271,10 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       toggleSidebar();
       break;
+    case "j":
+      e.preventDefault();
+      toggleTerminal();
+      break;
     case "w":
       if (activeTabId !== "chat") {
         e.preventDefault();
@@ -1271,6 +1288,28 @@ function toggleSidebar() {
   sidebar.classList.toggle("collapsed");
 }
 btnSidebar.addEventListener("click", toggleSidebar);
+
+async function toggleTerminal() {
+  const opening = terminalPanel.classList.contains("hidden");
+  if (opening) {
+    terminalPanel.classList.remove("hidden");
+    const { openTerminal } = await loadTerminalModule();
+    await openTerminal(terminalMount, currentWorkspace || (await invoke<string | null>("kara_home_dir")) || ".");
+  } else {
+    terminalPanel.classList.add("hidden");
+  }
+}
+
+function closeTerminal() {
+  terminalPanel.classList.add("hidden");
+}
+
+btnTerminal.addEventListener("click", toggleTerminal);
+btnTerminalClose.addEventListener("click", closeTerminal);
+
+window.addEventListener("resize", () => {
+  if (!terminalPanel.classList.contains("hidden")) terminalModule?.fitTerminal();
+});
 
 // ── Boot ──────────────────────────────────────────────────────────
 
