@@ -18,7 +18,7 @@ export async function openTerminal(container: HTMLElement, cwd: string) {
     term = new Terminal({
       fontSize: 12.5,
       fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-      theme: { background: "#121213", foreground: "#d8d8dc" },
+      theme: { background: "#0a0b0f", foreground: "#ececf2", cursor: "#ef4b55", selectionBackground: "#5b8cff44" },
       cursorBlink: true,
     });
     fitAddon = new FitAddon();

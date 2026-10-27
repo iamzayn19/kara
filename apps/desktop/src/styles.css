@@ -1,55 +1,62 @@
-/* Kara desktop theme — same palette as the full-screen CLI
-   (crates/kara-cli/src/theme.rs): amber accent, blue for the user,
-   green/red/amber for ok/error/warning. Distinctly Kara, not a clone of
-   any other product's chrome — same structure (toolbar, bubbles, status
-   bar), own look. */
+/* Kara desktop theme — "House of El": Supergirl's suit. Red is the
+   accent (actions, the active tab, send), blue is the user and the
+   activity timeline. Status colors (ok/err/warn) stay semantic and are
+   deliberately not tied to the brand pair. */
 
 :root {
-  --accent: #d78a5f;
-  --accent-soft: #d78a5f22;
-  --user: #6fb3e0;
-  --user-soft: #6fb3e01c;
+  --accent: #ef4b55;
+  --accent-soft: #ef4b5524;
+  /* Text and icons drawn on an --accent background. */
+  --on-accent: #ffffff;
+  --user: #5b8cff;
+  --user-soft: #5b8cff1c;
   --ok: #6bc27a;
   --err: #e06c6c;
   --warn: #d9b35a;
-  /* Kryptonian crystal blue — the activity timeline's neutral/active tint,
-     standing in for plain gray. Status colors above (ok/err/warn) are
-     untouched; this is flavor, not a semantic change. */
-  --krypton: #4fd8e0;
-  --dim: #8a8a8f;
-  --bg: #181819;
-  --bg-raised: #232327;
-  --bg-sunken: #121213;
-  --fg: #eaeaec;
-  --border: #2c2c30;
+  /* Kryptonian blue — the activity timeline's neutral/active tint,
+     standing in for plain gray. */
+  --krypton: #5b8cff;
+  --dim: #8c8fa3;
+  --bg: #0e0f14;
+  --bg-raised: #171923;
+  --bg-sunken: #0a0b0f;
+  --fg: #ececf2;
+  --border: #252836;
   --radius: 10px;
 }
 
-/* OS preference, unless overridden below. */
+/* Light: the same red and blue, darkened enough to read on white, over
+   cool neutral grays. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --accent-soft: #d78a5f22;
-    --user-soft: #6fb3e01c;
-    --bg: #faf8f5;
+    --accent: #d42f3a;
+    --accent-soft: #d42f3a1a;
+    --user: #2f62d9;
+    --user-soft: #2f62d914;
+    --krypton: #2f62d9;
+    --bg: #f7f8fa;
     --bg-raised: #ffffff;
-    --bg-sunken: #f1efe9;
-    --fg: #1c1d22;
-    --border: #e4e0da;
-    --dim: #8a8a8a;
+    --bg-sunken: #eef0f4;
+    --fg: #16171d;
+    --border: #dfe2ea;
+    --dim: #5f6375;
   }
 }
 
 /* Manual override from the theme toggle, either direction, regardless of
    OS preference. */
 :root[data-theme="light"] {
-  --accent-soft: #d78a5f22;
-  --user-soft: #6fb3e01c;
-  --bg: #faf8f5;
+  --accent: #d42f3a;
+  --accent-soft: #d42f3a1a;
+  --user: #2f62d9;
+  --user-soft: #2f62d914;
+  --krypton: #2f62d9;
+  --bg: #f7f8fa;
   --bg-raised: #ffffff;
-  --bg-sunken: #f1efe9;
-  --fg: #1c1d22;
-  --border: #e4e0da;
-  --dim: #8a8a8a;
+  --bg-sunken: #eef0f4;
+  --fg: #16171d;
+  --border: #dfe2ea;
+  --dim: #5f6375;
 }
 
 * {
@@ -267,7 +274,7 @@ body.platform-macos #toolbar {
   display: inline-block;
   margin-left: 5px;
   background: var(--accent);
-  color: #1b1b1b;
+  color: var(--on-accent);
   border-radius: 999px;
   padding: 0 6px;
   font-size: 10px;
@@ -725,7 +732,7 @@ body.platform-macos #toolbar {
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  color: #1b1b1b;
+  color: var(--on-accent);
   background: var(--accent);
   border: none;
   border-radius: 7px;
@@ -842,7 +849,7 @@ body.platform-macos #toolbar {
 
 .mode-opt.active {
   background: var(--accent);
-  color: #1b1b1b;
+  color: var(--on-accent);
 }
 
 #theme-switch {
@@ -873,7 +880,7 @@ body.platform-macos #toolbar {
 
 .theme-opt.active {
   background: var(--accent);
-  color: #1b1b1b;
+  color: var(--on-accent);
 }
 
 #send {
@@ -881,7 +888,7 @@ body.platform-macos #toolbar {
   height: 30px;
   flex-shrink: 0;
   background: var(--accent);
-  color: #1b1b1b;
+  color: var(--on-accent);
   border: none;
   border-radius: 999px;
   font: inherit;
