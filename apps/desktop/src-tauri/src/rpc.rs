@@ -231,38 +231,50 @@ fn route_incoming(app: &AppHandle, pending: &PendingMap, line: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::io::Write;
+    use std::path::PathBuf;
 
-    #[cfg(unix)]
-    fn make_executable(path: &std::path::Path) {
-        use std::os::unix::fs::PermissionsExt;
-        let mut f = fs::File::create(path).unwrap();
-        f.write_all(b"#!/bin/sh\n").unwrap();
-        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+    const EXE: &str = if cfg!(windows) { "kara.exe" } else { "kara" };
+
+    /// A PATH string with the platform's own separator (`;` on Windows).
+    fn path_of(dirs: &[PathBuf]) -> String {
+        std::env::join_paths(dirs)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
     }
 
-    #[cfg(unix)]
+    fn make_executable(path: &std::path::Path) {
+        std::fs::write(path, b"#!/bin/sh\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+    }
+
     #[test]
     fn which_in_finds_an_executable_on_the_path() {
         let dir = tempfile::tempdir().unwrap();
-        let bin = dir.path().join("kara");
+        let bin = dir.path().join(EXE);
         make_executable(&bin);
-        let path_var = format!("/nonexistent:{}:/also/nonexistent", dir.path().display());
-        assert_eq!(which_in("kara", &path_var), Some(bin));
+        let missing = std::env::temp_dir().join("kara-no-such-dir");
+        let path_var = path_of(&[missing.clone(), dir.path().to_path_buf(), missing]);
+        assert_eq!(which_in(EXE, &path_var), Some(bin));
     }
 
     #[test]
     fn which_in_returns_none_when_not_found() {
         let dir = tempfile::tempdir().unwrap();
-        let path_var = format!("{}:/nonexistent", dir.path().display());
-        assert_eq!(which_in("kara", &path_var), None);
+        let path_var = path_of(&[dir.path().to_path_buf()]);
+        assert_eq!(which_in(EXE, &path_var), None);
     }
 
     #[test]
     fn which_in_skips_directories_that_dont_exist() {
         // Every PATH entry is bogus; must not panic, just return None.
-        assert_eq!(which_in("kara", "/no/such/dir:/another/bad/one"), None);
+        let bogus = std::env::temp_dir().join("kara-no-such-dir");
+        let path_var = path_of(&[bogus.join("a"), bogus.join("b")]);
+        assert_eq!(which_in(EXE, &path_var), None);
     }
 
     #[test]
