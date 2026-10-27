@@ -122,7 +122,7 @@ impl Transcript {
                 inner.suppress = false;
                 inner.thinking_shown = false;
                 inner.lines.push(Line::from(vec![
-                    Span::styled("→ ", theme::accent_dim()),
+                    Span::styled("→ ", theme::krypton()),
                     Span::raw(summary.clone()),
                 ]));
                 inner.tool_open = true;
@@ -212,7 +212,7 @@ impl Transcript {
                 for s in steps {
                     let (mark, style) = match s.status {
                         StepStatus::Done => ("[x]", theme::ok()),
-                        StepStatus::InProgress => ("[>]", theme::accent_dim()),
+                        StepStatus::InProgress => ("[>]", theme::krypton()),
                         StepStatus::Skipped => ("[-]", theme::dim()),
                         StepStatus::Pending => ("[ ]", theme::dim()),
                     };

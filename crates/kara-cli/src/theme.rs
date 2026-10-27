@@ -5,8 +5,12 @@
 
 use ratatui::style::{Color, Modifier, Style};
 
-pub const ACCENT: Color = Color::Rgb(0xd7, 0x8a, 0x5f); // warm amber: Kara's own lines, borders
-pub const USER: Color = Color::Rgb(0x6f, 0xb3, 0xe0); // cool blue: what you typed
+// "House of El" (Supergirl's suit), shared with the desktop app: red is
+// Kara's own mark, input border and calls to action; blue is what you
+// typed and the live activity lines, so red never reads as an error.
+pub const ACCENT: Color = Color::Rgb(0xef, 0x4b, 0x55);
+pub const USER: Color = Color::Rgb(0x5b, 0x8c, 0xff);
+pub const KRYPTON: Color = Color::Rgb(0x5b, 0x8c, 0xff);
 pub const OK: Color = Color::Rgb(0x6b, 0xc2, 0x7a);
 pub const ERR: Color = Color::Rgb(0xe0, 0x6c, 0x6c);
 pub const WARN: Color = Color::Rgb(0xd9, 0xb3, 0x5a);
@@ -20,6 +24,10 @@ pub fn accent() -> Style {
 }
 pub fn accent_dim() -> Style {
     Style::default().fg(ACCENT)
+}
+/// Live activity (tool calls, the step in progress).
+pub fn krypton() -> Style {
+    Style::default().fg(KRYPTON)
 }
 pub fn user() -> Style {
     Style::default().fg(USER).add_modifier(Modifier::BOLD)
@@ -59,5 +67,13 @@ pub fn hunk() -> Style {
 /// (`console` crate) output paths: permission prompts and slash commands
 /// that drop out of the full-screen UI. One color, two rendering libraries.
 pub fn console_accent() -> console::Style {
-    console::Style::new().color256(173).bold()
+    console::Style::new().color256(ACCENT_256).bold()
+}
+
+/// Nearest xterm-256 color to `ACCENT`, for the `console` crate paths.
+pub const ACCENT_256: u8 = 203;
+
+/// `KRYPTON` for the `console` crate paths (xterm-256 #69 ≈ #5f87ff).
+pub fn console_krypton() -> console::Style {
+    console::Style::new().color256(69)
 }

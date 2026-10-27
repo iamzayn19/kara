@@ -187,8 +187,7 @@ pub fn print_list(app: &App) {
         let mark = if e.recommended {
             style("★ recommended").green().to_string()
         } else if e.fits {
-            console::Style::new()
-                .color256(173)
+            crate::theme::console_krypton()
                 .apply_to("fits")
                 .to_string()
         } else {
