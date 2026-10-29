@@ -6,6 +6,7 @@
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 
@@ -13,6 +14,10 @@ use tauri::{AppHandle, Emitter};
 pub struct Terminal {
     writer: Mutex<Option<Box<dyn Write + Send>>>,
     master: Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>,
+    killer: Mutex<Option<Box<dyn portable_pty::ChildKiller + Send + Sync>>>,
+    /// Id of the current shell. Output and exit events carry it so the
+    /// window can ignore a shell that was replaced (e.g. on project switch).
+    generation: AtomicU64,
 }
 
 fn default_shell() -> String {
@@ -24,7 +29,10 @@ fn default_shell() -> String {
 }
 
 impl Terminal {
-    pub fn spawn(&self, app: AppHandle, cwd: String) -> Result<(), String> {
+    /// Starts a shell in `cwd`, replacing any running one; returns its id.
+    pub fn spawn(&self, app: AppHandle, cwd: String) -> Result<u64, String> {
+        self.kill();
+        let id = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         let pty_system = native_pty_system();
         let pair = pty_system
             .openpty(PtySize {
@@ -47,6 +55,7 @@ impl Terminal {
 
         *self.writer.lock().unwrap() = Some(writer);
         *self.master.lock().unwrap() = Some(pair.master);
+        *self.killer.lock().unwrap() = Some(child.clone_killer());
 
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
@@ -58,17 +67,29 @@ impl Terminal {
                         pending.extend_from_slice(&buf[..n]);
                         let chunk = take_utf8(&mut pending);
                         if !chunk.is_empty() {
-                            let _ = app.emit("kara://terminal-output", chunk);
+                            let _ = app.emit(
+                                "kara://terminal-output",
+                                serde_json::json!({ "id": id, "data": chunk }),
+                            );
                         }
                     }
                     Err(_) => break,
                 }
             }
             let _ = child.wait();
-            let _ = app.emit("kara://terminal-exit", ());
+            let _ = app.emit("kara://terminal-exit", serde_json::json!({ "id": id }));
         });
 
-        Ok(())
+        Ok(id)
+    }
+
+    /// Stops the running shell, if any.
+    pub fn kill(&self) {
+        if let Some(mut k) = self.killer.lock().unwrap().take() {
+            let _ = k.kill();
+        }
+        self.writer.lock().unwrap().take();
+        self.master.lock().unwrap().take();
     }
 
     pub fn write(&self, data: &str) -> Result<(), String> {

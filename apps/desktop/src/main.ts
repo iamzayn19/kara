@@ -1149,6 +1149,11 @@ async function openWorkspace(dir: string) {
   pendingPlan = false;
   resetEditorTabs();
   await startWorkspace(dir);
+  // A shell started in the old project would stay there.
+  if (terminalModule) {
+    await terminalModule.stopTerminal();
+    if (!terminalPanel.classList.contains("hidden")) await terminalModule.openTerminal(terminalMount, currentWorkspace || dir);
+  }
 }
 
 function resetEditorTabs() {

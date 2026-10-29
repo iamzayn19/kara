@@ -10,8 +10,12 @@ import { listen } from "@tauri-apps/api/event";
 let term: Terminal | undefined;
 let fitAddon: FitAddon | undefined;
 let spawned = false;
-let unlistenOutput: (() => void) | undefined;
-let unlistenExit: (() => void) | undefined;
+/** Id of the running shell, and the highest id that was stopped on
+ * purpose: events from those are ignored. Filtering on "not stopped"
+ * rather than "is current" keeps a new shell's first output, which can
+ * arrive before terminal_spawn returns its id. */
+let currentId = 0;
+let stoppedUpTo = 0;
 
 export async function openTerminal(container: HTMLElement, cwd: string) {
   if (!term) {
@@ -28,10 +32,11 @@ export async function openTerminal(container: HTMLElement, cwd: string) {
       invoke("terminal_write", { data }).catch(() => {});
     });
 
-    unlistenOutput = await listen<string>("kara://terminal-output", (e) => {
-      term?.write(e.payload);
+    await listen<{ id: number; data: string }>("kara://terminal-output", (e) => {
+      if (e.payload.id > stoppedUpTo) term?.write(e.payload.data);
     });
-    unlistenExit = await listen("kara://terminal-exit", () => {
+    await listen<{ id: number }>("kara://terminal-exit", (e) => {
+      if (e.payload.id <= stoppedUpTo) return;
       term?.write("\r\n[process exited — reopen the panel for a new shell]\r\n");
       spawned = false;
     });
@@ -39,9 +44,12 @@ export async function openTerminal(container: HTMLElement, cwd: string) {
   fitAddon?.fit();
   if (!spawned) {
     spawned = true;
-    await invoke("terminal_spawn", { cwd }).catch((e) => {
+    try {
+      currentId = await invoke<number>("terminal_spawn", { cwd });
+    } catch (e) {
+      spawned = false;
       term?.write(`\r\nfailed to start shell: ${e}\r\n`);
-    });
+    }
     reportSize();
   }
 }
@@ -56,11 +64,12 @@ function reportSize() {
   invoke("terminal_resize", { rows: term.rows, cols: term.cols }).catch(() => {});
 }
 
-export function disposeTerminal() {
-  unlistenOutput?.();
-  unlistenExit?.();
-  term?.dispose();
-  term = undefined;
-  fitAddon = undefined;
+/** Stops the shell (e.g. the project changed) and clears the screen; the
+ * next openTerminal starts a fresh one in its cwd. */
+export async function stopTerminal() {
+  if (!spawned) return;
   spawned = false;
+  stoppedUpTo = Math.max(stoppedUpTo, currentId);
+  term?.reset();
+  await invoke("terminal_kill").catch(() => {});
 }

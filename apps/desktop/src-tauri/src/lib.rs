@@ -73,8 +73,13 @@ fn kara_home_dir() -> Option<String> {
 }
 
 #[tauri::command]
-fn terminal_spawn(app: AppHandle, state: State<'_, AppState>, cwd: String) -> Result<(), String> {
+fn terminal_spawn(app: AppHandle, state: State<'_, AppState>, cwd: String) -> Result<u64, String> {
     state.terminal.spawn(app, cwd)
+}
+
+#[tauri::command]
+fn terminal_kill(state: State<'_, AppState>) {
+    state.terminal.kill();
 }
 
 #[tauri::command]
@@ -105,6 +110,7 @@ pub fn run() {
             kara_stop,
             kara_home_dir,
             terminal_spawn,
+            terminal_kill,
             terminal_write,
             terminal_resize
         ])
