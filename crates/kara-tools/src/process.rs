@@ -24,8 +24,13 @@ const CAPTURE_LIMIT: usize = 4 * 1024 * 1024;
 pub fn shell_command(cmd: &str) -> tokio::process::Command {
     #[cfg(windows)]
     {
+        // Passed raw: Rust's argument quoting follows the C runtime's rules,
+        // which cmd.exe doesn't use, so any command containing quotes
+        // (`pytest -k "a and b"`, `git commit -m "msg"`) reached cmd with
+        // backslash-escaped quotes. With /S, cmd strips exactly the outer
+        // pair and runs the rest as typed.
         let mut c = tokio::process::Command::new("cmd");
-        c.arg("/C").arg(cmd);
+        c.arg("/S").arg("/C").raw_arg(format!("\"{cmd}\""));
         c
     }
     #[cfg(not(windows))]
@@ -171,6 +176,22 @@ mod tests {
         assert_eq!(r.exit_code, Some(3));
         assert_eq!(r.stdout.trim(), "out");
         assert_eq!(r.stderr.trim(), "err");
+    }
+
+    #[tokio::test]
+    async fn quoted_arguments_reach_the_program_intact() {
+        let d = tempfile::tempdir().unwrap();
+        let r = run_shell(
+            r#"git -c "user.name=Kara Test" config user.name && echo done"#,
+            d.path(),
+            Duration::from_secs(20),
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(r.exit_code, Some(0), "{}", r.stderr);
+        let lines: Vec<&str> = r.stdout.lines().map(str::trim).collect();
+        assert_eq!(lines, ["Kara Test", "done"]);
     }
 
     #[cfg(unix)]
