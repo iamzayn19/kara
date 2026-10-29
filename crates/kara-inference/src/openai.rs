@@ -26,6 +26,9 @@ pub struct OpenAiCompatProvider {
     context_length: Option<u32>,
 }
 
+/// Limit for `GET /models`; see `list_models`.
+pub const LIST_MODELS_TIMEOUT: Duration = Duration::from_secs(8);
+
 impl OpenAiCompatProvider {
     pub fn new(base_url: &str, model: &str) -> Self {
         let client = reqwest::Client::builder()
@@ -63,8 +66,15 @@ impl OpenAiCompatProvider {
     }
 
     /// List model ids served by the endpoint (`GET /models`).
+    ///
+    /// Bounded, unlike generation: it runs at startup, and a server that
+    /// accepts the connection but never answers would otherwise leave the
+    /// editor stuck at "starting" forever.
     pub async fn list_models(&self) -> anyhow::Result<Vec<String>> {
-        let mut req = self.client.get(format!("{}/models", self.base_url));
+        let mut req = self
+            .client
+            .get(format!("{}/models", self.base_url))
+            .timeout(LIST_MODELS_TIMEOUT);
         if let Some(k) = &self.api_key {
             req = req.bearer_auth(k);
         }
