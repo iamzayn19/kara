@@ -19,10 +19,17 @@ client for permission decisions.
 | `session/changes` | `{}` | `{kara: [{path, before, after, diff}], user: [paths]}`, meaning Kara's changes and the user's other uncommitted files |
 | `session/undo` | `{}` | `{batch_id, restored, conflicts, errors}` |
 | `session/new` | `{}` | `{session}` |
+| `session/list` | `{}` | `{current, sessions: [{id, updated, model, title, turns}]}` for this repository |
+| `session/resume` | `{id}` | `{session}`; `-32001` (busy) while a prompt runs |
 | `session/command` | `{name, args?}` with name `clear`, `compact`, `permissions`, `revert`, `privacy` or `matrix` | command-specific JSON |
 | `doctor` | `{}` | hardware, memory budget, recommendation, llama.cpp location |
 | `models/list` | `{}` | `{models: [{id, name, sizeBytes, license, source, revision, installed, fits, reason, memoryNeeded, recommended}], summary}` |
 | `models/select` | `{id \| "auto", download: bool}` | the new model info. With `download: true` the client asserts that the user consented to the download. |
+| `fs/list` | `{path?}` (relative; empty for the root) | `{entries: [{name, path, isDir}]}`: one level, gitignore-aware, folders first |
+| `fs/read` | `{path}` | `{binary, content, truncated, version}`; text over 2 MB is truncated; `version` is a content hash for `fs/write` |
+| `fs/write` | `{path, content, expectedVersion?}` | `{version}`. Existing files inside the workspace only; with `expectedVersion`, error `-32001` if the file changed on disk since that read |
+| `fs/search` | `{query, regex?, caseSensitive?, wholeWord?}` | `{matches: [{path, line, text}], files_with_matches, files_searched, truncated}`; literal and case-insensitive by default, at most 500 matches |
+| `fs/files` | `{}` | `{files: [path], truncated}`: every file, gitignore-aware, sorted, at most 20,000 |
 | `shutdown` | `{}` | `null`, then the process exits after stopping the model runtime |
 
 `context` for prompts:
@@ -34,6 +41,10 @@ client for permission decisions.
   "diagnostics": [{"file": "src/auth.ts", "line": 12, "severity": "error", "message": "..."}]
 }
 ```
+
+`fs/*` paths are relative to the workspace root and use `/`; any path that
+resolves outside the workspace (including through `..` or symlinks) is
+refused.
 
 Only one prompt runs at a time. A second one gets error `-32001` (busy).
 Prompts without a model get `-32002` (model unavailable).
