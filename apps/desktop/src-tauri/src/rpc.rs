@@ -38,11 +38,25 @@ impl Default for Session {
     }
 }
 
-/// Find the `kara` binary: next to this app bundle first (for a packaged
-/// `.dmg`/`.exe` that ships its own copy), else on `PATH` (a dev build or a
-/// machine that already has the CLI installed, e.g. via Homebrew/winget).
+/// Find the `kara` binary: `KARA_BIN` if set; in a debug build the
+/// repository's own `target/debug` build (so `tauri dev` never talks to a
+/// stale copy); then the copy shipped inside the app bundle; then `PATH`.
 fn locate_kara_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
     let name = if cfg!(windows) { "kara.exe" } else { "kara" };
+    if let Some(p) = std::env::var_os("KARA_BIN").map(std::path::PathBuf::from) {
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    #[cfg(debug_assertions)]
+    {
+        let dev = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../target/debug")
+            .join(name);
+        if dev.is_file() {
+            return Some(dev);
+        }
+    }
     if let Ok(resource_dir) = app.path().resource_dir() {
         let bundled = resource_dir.join("binaries").join(name);
         if bundled.is_file() {
