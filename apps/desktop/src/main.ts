@@ -39,6 +39,7 @@ const sendBtn = document.querySelector<HTMLButtonElement>("#send")!;
 const sessionState = document.querySelector<HTMLElement>("#session-state")!;
 const modelPill = document.querySelector<HTMLButtonElement>("#model-pill")!;
 const gitPill = document.querySelector<HTMLElement>("#git-pill")!;
+const cursorPos = document.querySelector<HTMLElement>("#cursor-pos")!;
 const permPill = document.querySelector<HTMLButtonElement>("#perm-pill")!;
 const contextPill = document.querySelector<HTMLButtonElement>("#context-pill")!;
 const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
@@ -1784,10 +1785,14 @@ async function activateTab(id: string, line?: number) {
   transcript.classList.toggle("hidden", !isChat);
   composerWrap.classList.toggle("hidden", !isChat);
   editorContainer.classList.toggle("hidden", isChat);
+  cursorPos.classList.toggle("hidden", !openTabs.some((t) => t.id === id && t.kind === "file"));
   if (isChat) return;
   const tab = openTabs.find((t) => t.id === id);
   if (!tab) return;
-  const { showFile, showDiff, monacoThemeFor } = await loadEditorModule();
+  const { showFile, showDiff, monacoThemeFor, onCursorChange } = await loadEditorModule();
+  onCursorChange((line, col) => {
+    cursorPos.textContent = `Ln ${line}, Col ${col}`;
+  });
   const theme = monacoThemeFor(effectiveTheme());
   if (tab.kind === "file") {
     showFile(editorContainer, tab.path, tab.content as string, theme, {

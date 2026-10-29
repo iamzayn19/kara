@@ -77,6 +77,12 @@ export function monacoThemeFor(effective: "light" | "dark"): string {
 }
 
 let viewer: monaco.editor.IStandaloneCodeEditor | undefined;
+let onCursor: ((line: number, col: number) => void) | undefined;
+
+/** Called with the 1-based cursor position whenever it moves in a file. */
+export function onCursorChange(cb: (line: number, col: number) => void) {
+  onCursor = cb;
+}
 
 /** One model per open file, kept across tab switches so unsaved edits and
  * undo history survive clicking away and back. */
@@ -107,6 +113,7 @@ export function showFile(
       scrollBeyondLastLine: false,
       renderLineHighlight: "none",
     });
+    viewer.onDidChangeCursorPosition((e) => onCursor?.(e.position.lineNumber, e.position.column));
   } else {
     viewer.setModel(model);
     viewer.updateOptions({ readOnly: !!opts.readOnly });
@@ -117,6 +124,8 @@ export function showFile(
     viewer.setSelection(new monaco.Selection(opts.line, 1, opts.line, model.getLineMaxColumn(opts.line)));
   }
   if (!opts.readOnly) viewer.focus();
+  const pos = viewer.getPosition();
+  if (pos) onCursor?.(pos.lineNumber, pos.column);
 }
 
 /** Replaces an open file's text after it changed on disk, keeping the

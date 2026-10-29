@@ -1547,3 +1547,10 @@ body.drop-target #app {
   margin: 1px 0;
   outline: none;
 }
+
+#cursor-pos {
+  color: var(--dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  margin-right: 10px;
+}
