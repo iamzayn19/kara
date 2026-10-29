@@ -1,8 +1,10 @@
 [package]
 name = "kara-desktop"
 version = "0.1.0"
-description = "Kara: your code, your machine, your AI"
-authors = ["Kara contributors"]
+description = "Kara desktop app: a local-first coding agent"
+authors = ["Muhammad Zain Ul Abidin (iamzayn19)"]
+license = "Apache-2.0"
+repository = "https://github.com/iamzayn19/kara"
 edition = "2021"
 
 # Standalone from the main `kara` workspace (different dependency set,

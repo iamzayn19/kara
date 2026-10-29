@@ -30,6 +30,13 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Muhammad Zain Ul Abidin (iamzayn19)",
+    "copyright": "Copyright 2026 Muhammad Zain Ul Abidin. Apache-2.0.",
+    "category": "DeveloperTool",
+    "homepage": "https://github.com/iamzayn19/kara",
+    "license": "Apache-2.0",
+    "shortDescription": "Kara runs on your machine. Intelligence runs wherever your compute is.",
+    "longDescription": "Kara is a local-first coding agent. Describe a task in plain language; Kara searches the repository, reads the relevant code, edits it, runs the tests and shows you the diff. No account, no subscription, no telemetry.",
     "resources": ["binaries/*"],
     "macOS": {
       "signingIdentity": "-"
