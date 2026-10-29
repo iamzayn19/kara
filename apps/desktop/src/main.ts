@@ -1134,6 +1134,14 @@ async function startWorkspace(workspace: string) {
     engineVersion = info?.karaVersion ?? "";
     modelPill.textContent = info?.model?.available ? info.model.label : "no model";
     modelPill.className = info?.model?.available ? "pill ready" : "pill warn";
+    // Why there's no model (memory too tight, nothing installed, endpoint
+    // unreachable) and what to do about it, from Kara Core.
+    const guidance: string | undefined = info?.model?.available ? undefined : info?.model?.guidance;
+    modelPill.title = guidance ?? "Choose a model";
+    if (guidance) {
+      activity(guidance, "warn");
+      activity("In this app: click the model pill to download one, or Settings → Where inference runs to use another machine or a model server.", "dim");
+    }
     permissionsMode = info?.permissionsMode ?? "";
     permPill.textContent = permPillLabel(permissionsMode);
     availableCommands = info?.commands ?? [];
