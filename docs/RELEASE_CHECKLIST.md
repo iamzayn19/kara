@@ -47,6 +47,26 @@ needs a green run on GitHub.
 | Full clean-machine installation tested | ✅ | Linux aarch64: fresh `ubuntu:24.04` container. macOS: install and first run on this Mac with Kara data moved aside. Windows 11 ARM64: GitHub `windows-11-arm` runner runs the real `scripts/install.ps1` (run 37459873003): checksum verified, `kara --version`, `privacy`, `doctor` and the no-model first run all pass. All install paths were checked from a local release-shaped mirror; the public GitHub Release download is re-checked after publishing |
 | GitHub CI green on Linux, macOS and Windows | ✅ | all jobs green on 06fb176 (run 37438226296) |
 
+## Desktop app and installers (unreleased)
+
+Status as of 2026-10-30. "CI" means `.github/workflows/ci.yml` (desktop
+job) or `desktop-installers.yml` enforces it.
+
+| Check | Status | Evidence |
+|---|---|---|
+| Frontend typechecks, bundles, unit tests pass | ✅ CI | `desktop` job on Linux, macOS, Windows: `npm run build`, `npm test` |
+| Backend fmt, clippy (warnings denied), tests incl. real PTY | ✅ CI | `desktop` job, all three platforms |
+| File RPCs end to end (read, write conflict, search, files, path escape) | ✅ local · ✅ CI | `crates/kara-cli/tests/serve_fs.rs`; conflict test confirmed to fail with the check disabled |
+| Windows shell commands with quotes | ✅ CI | `quoted_arguments_reach_the_program_intact`, `test (windows-latest)` on 38f825d (run 40952814733) |
+| `.dmg` Apple Silicon: builds, mounts, strict codesign passes, bundled CLI runs | ✅ CI · ✅ local | run 40951337032; locally mounted with `-nobrowse`, app launches under the hardened runtime |
+| `.dmg` Intel: same checks | ✅ CI | run 40951337032 (`macos-15-intel`) |
+| Windows `.exe`: silent install, bundled `kara.exe` runs from the install dir | ✅ CI | run 40951337032 |
+| Windows `.msi` builds | ✅ CI | run 40951337032; install not automated yet |
+| Linux `.deb` installs via apt, bundled CLI runs; `.AppImage` builds | ✅ CI | run 40951337032 |
+| Developer ID signing / notarization (macOS), Authenticode (Windows) | ❌ | needs paid certificates; builds show a first-run prompt (README) |
+| Click-through of the app on each platform | ⏳ | [MANUAL_TEST_PLAN.md](MANUAL_TEST_PLAN.md) |
+| Real-model session from the desktop app | ⏳ | manual test plan 3.1–3.7; CLI real-model runs are recorded above |
+
 ## README command log
 
 Run with the release binary on 2026-10-05:
