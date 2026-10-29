@@ -24,6 +24,16 @@ All notable changes are documented here. The format follows
 - Desktop installers: `.dmg` (Apple Silicon and Intel), `.exe`/`.msi` and
   `.deb`/`.AppImage`, each bundling its own `kara` CLI, built and
   install-tested by the `Desktop installers` workflow. Unsigned for now.
+- Desktop file tree: new file, new folder, rename and Move to Trash /
+  Recycle Bin (recoverable), copy path and reveal in Finder / File
+  Explorer; open a project by dropping its folder on the window.
+- Desktop editor: open tabs follow changes on disk (reloaded when clean,
+  warned when edited), diff tabs refresh after each turn, save all
+  (Cmd/Ctrl+Alt+S), Ctrl+Tab between tabs, reopen closed tab
+  (Cmd/Ctrl+Shift+T), cursor position and git branch in the status bar.
+- Desktop Settings: choose where inference runs (this machine, another
+  Kara machine, or Ollama / LM Studio / vLLM / an OpenAI-compatible
+  server), app and engine versions, and the logs folder.
 - Full-screen terminal UI for `kara` (ratatui).
 - Editor protocol: `session/list`, `session/resume`, `fs/list`, `fs/read`,
   `fs/search`, `fs/write` and `fs/files` (see docs/PROTOCOL.md).
@@ -38,6 +48,25 @@ All notable changes are documented here. The format follows
   CPU threads by core count so weak machines stay responsive.
 - The desktop app never falls back to the home directory as a project;
   it waits for a folder to be chosen.
+
+### Fixed
+
+- Desktop: file tree, editor, search and save no longer wait for a
+  running turn to finish.
+- Startup no longer hangs forever on a model server that accepts the
+  connection but never answers (8 s limit on the model list).
+- Desktop: asks before quitting (including Cmd+Q), switching projects or
+  closing tabs with unsaved edits; files that aren't UTF-8 open
+  read-only instead of being corrupted on save; opening a huge file
+  reads only its first 2 MB.
+- Desktop shortcuts work with non-Latin keyboard layouts (e.g. Urdu,
+  Arabic); the terminal panel keeps multi-byte characters intact,
+  follows the project and the theme, and opens PowerShell on Windows.
+- Windows: no console windows behind the desktop app or VS Code; shell
+  commands containing quotes now reach the program intact.
+- Terminal UI: Ctrl/Alt key combinations no longer type letters; shell
+  line-editing keys work.
+- The workspace declares its real minimum Rust version (1.89).
 
 ### Security
 
