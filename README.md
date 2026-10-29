@@ -157,6 +157,10 @@ side-by-side diffs, an integrated terminal (Cmd/Ctrl+J), find in files
 (Shift+Cmd/Ctrl+P). Each installer ships its own `kara` binary, so nothing
 else needs to be installed first.
 
+On a machine too small for a local model, Settings → *Where inference runs*
+points the app at another Kara machine you own or at a model server
+(Ollama, LM Studio, vLLM, or any OpenAI-compatible endpoint).
+
 Installers (`.dmg` for Apple Silicon and Intel Macs, `.exe`/`.msi` for
 Windows, `.deb`/`.AppImage` for Linux) come from the
 [Desktop installers](.github/workflows/desktop-installers.yml) workflow. They
