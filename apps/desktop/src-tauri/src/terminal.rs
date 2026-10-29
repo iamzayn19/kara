@@ -50,12 +50,16 @@ impl Terminal {
 
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
+            let mut pending = Vec::new();
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        let chunk = String::from_utf8_lossy(&buf[..n]).into_owned();
-                        let _ = app.emit("kara://terminal-output", chunk);
+                        pending.extend_from_slice(&buf[..n]);
+                        let chunk = take_utf8(&mut pending);
+                        if !chunk.is_empty() {
+                            let _ = app.emit("kara://terminal-output", chunk);
+                        }
                     }
                     Err(_) => break,
                 }
@@ -91,8 +95,63 @@ impl Terminal {
     }
 }
 
+/// Decodes as much of `pending` as forms complete UTF-8, leaving a
+/// character split across reads in place for the next one. Invalid bytes
+/// become U+FFFD as before.
+fn take_utf8(pending: &mut Vec<u8>) -> String {
+    let mut out = String::new();
+    loop {
+        match std::str::from_utf8(pending) {
+            Ok(s) => {
+                out.push_str(s);
+                pending.clear();
+                return out;
+            }
+            Err(e) => {
+                let valid = e.valid_up_to();
+                out.push_str(std::str::from_utf8(&pending[..valid]).unwrap());
+                match e.error_len() {
+                    // Incomplete sequence at the end: wait for more bytes.
+                    None => {
+                        pending.drain(..valid);
+                        return out;
+                    }
+                    Some(bad) => {
+                        out.push(char::REPLACEMENT_CHARACTER);
+                        pending.drain(..valid + bad);
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::take_utf8;
+
+    #[test]
+    fn utf8_split_across_reads_is_not_mangled() {
+        let text = "ok ✓ کارا ─┐ 🚀";
+        let bytes = text.as_bytes();
+        // Every possible split point, including inside each multi-byte char.
+        for cut in 0..=bytes.len() {
+            let mut pending = bytes[..cut].to_vec();
+            let mut got = take_utf8(&mut pending);
+            pending.extend_from_slice(&bytes[cut..]);
+            got.push_str(&take_utf8(&mut pending));
+            assert_eq!(got, text, "split at byte {cut}");
+            assert!(pending.is_empty());
+        }
+    }
+
+    #[test]
+    fn invalid_bytes_still_become_replacement_chars() {
+        let mut pending = b"a\xffb".to_vec();
+        assert_eq!(take_utf8(&mut pending), "a\u{fffd}b");
+        assert!(pending.is_empty());
+    }
+
     use portable_pty::{native_pty_system, CommandBuilder, PtySize};
     use std::io::{Read, Write};
     use std::sync::mpsc;
