@@ -1650,6 +1650,7 @@ async function renderTreeLevel(container: HTMLElement, entries: { name: string; 
     name.className = "tree-name";
     name.textContent = entry.name;
     row.dataset.path = entry.path;
+    row.dataset.depth = String(depth);
     row.appendChild(icon);
     row.appendChild(name);
 
@@ -2287,8 +2288,12 @@ function showTreeMenu(x: number, y: number, rel: string, isDir: boolean) {
   menu.className = "context-menu";
   menu.setAttribute("role", "menu");
   const reveal = navigator.platform.toLowerCase().includes("mac") ? "Reveal in Finder" : currentWorkspace.includes("\\") ? "Reveal in File Explorer" : "Reveal in file manager";
+  const folder = isDir ? rel : rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
   const items: [string, () => void | Promise<void>][] = [
     ...(isDir ? [] : ([["Open", () => openFileTab(rel)]] as [string, () => Promise<void>][])),
+    ["New file…", () => startTreeCreate(folder, "file")],
+    ["New folder…", () => startTreeCreate(folder, "dir")],
+    ["Rename…", () => startTreeRename(rel)],
     ["Copy path", () => navigator.clipboard.writeText(absolutePath(rel))],
     ["Copy relative path", () => navigator.clipboard.writeText(rel)],
     [reveal, () => revealItemInDir(absolutePath(rel))],
@@ -2350,4 +2355,91 @@ void getCurrentWebview().onDragDropEvent(async (event) => {
 void getCurrentWindow().onCloseRequested(async (event) => {
   if (!(await confirmDiscardUnsaved("Quit"))) event.preventDefault();
 });
+
+// ── File tree: new file / folder, rename ─────────────────────────
+
+/** An inline name box in the tree, like VS Code's: Enter commits, Esc or
+ * clicking away cancels. */
+function inlineNameInput(after: Element | null, parent: HTMLElement, depth: number, initial: string, commit: (name: string) => Promise<void>) {
+  const box = document.createElement("input");
+  box.className = "tree-input";
+  box.value = initial;
+  box.spellcheck = false;
+  box.style.marginLeft = `${6 + depth * 14}px`;
+  if (after) after.insertAdjacentElement("afterend", box);
+  else parent.prepend(box);
+  box.focus();
+  const dot = initial.lastIndexOf(".");
+  box.setSelectionRange(0, dot > 0 ? dot : initial.length);
+  let done = false;
+  const finish = async (ok: boolean) => {
+    if (done) return;
+    done = true;
+    const name = box.value.trim();
+    box.remove();
+    if (ok && name && name !== initial) {
+      try {
+        await commit(name);
+      } catch (e: any) {
+        activity(String(e?.message ?? e), "err");
+      }
+    }
+  };
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") void finish(true);
+    else if (e.key === "Escape") void finish(false);
+    e.stopPropagation();
+  });
+  box.addEventListener("blur", () => void finish(false));
+}
+
+const treeRow = (rel: string) => [...fileTree.querySelectorAll<HTMLElement>(".tree-row")].find((r) => r.dataset.path === rel);
+
+async function startTreeCreate(folder: string, kind: "file" | "dir") {
+  if (folder && !expandedDirs.has(folder)) {
+    treeRow(folder)?.click();
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  const anchor = folder ? treeRow(folder) ?? null : null;
+  const depth = anchor ? Number(anchor.dataset.depth ?? 0) + 1 : 0;
+  inlineNameInput(anchor, fileTree, depth, "", async (name) => {
+    const path = folder ? `${folder}/${name}` : name;
+    await invoke("kara_request", { method: "fs/create", params: { path, kind } });
+    await refreshFileTree();
+    if (kind === "file") await openFileTab(path);
+  });
+}
+
+function startTreeRename(rel: string) {
+  const row = treeRow(rel);
+  if (!row) return;
+  const name = rel.split("/").pop() ?? rel;
+  const parent = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
+  const affected = openTabs.filter((t) => t.kind === "file" && (t.path === rel || t.path.startsWith(rel + "/")));
+  if (affected.some((t) => t.dirty)) {
+    activity(`Save or close ${affected.find((t) => t.dirty)!.label} before renaming ${name}.`, "warn");
+    return;
+  }
+  row.style.display = "none";
+  inlineNameInput(row, fileTree, Number(row.dataset.depth ?? 0), name, async (newName) => {
+    const to = parent ? `${parent}/${newName}` : newName;
+    try {
+      await invoke("kara_request", { method: "fs/rename", params: { from: rel, to } });
+    } finally {
+      row.style.display = "";
+    }
+    // Reopen moved tabs under their new paths.
+    const reopen = affected.map((t) => to + t.path.slice(rel.length));
+    for (const t of affected) await closeTab(t.id);
+    if (expandedDirs.delete(rel)) expandedDirs.add(to);
+    await refreshFileTree();
+    for (const p of reopen) await openFileTab(p);
+  });
+  // A cancelled rename must bring the row back.
+  const box = row.nextElementSibling as HTMLInputElement | null;
+  box?.addEventListener("blur", () => (row.style.display = ""));
+  box?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") row.style.display = "";
+  });
+}
 
