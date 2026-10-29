@@ -30,6 +30,10 @@ itself, and start from a clean slate where a step says so.
 | 2.5 | No model configured and no local model | Clear guidance on how to get one; nothing downloads without asking |
 | 2.6 | Model pill → pick a local model that is not installed | Size, memory and license shown; download only after you confirm; progress bar; checksum verified |
 | 2.7 | Pick a model too large for the machine | Refused with the memory numbers, not loaded |
+| 2.8 | Settings → Where inference runs → A model server: Ollama (running), a model name, Save | Session restarts; status bar shows the Ollama model; `kara privacy` agrees |
+| 2.9 | Same with Other OpenAI-compatible server and an empty address | "This server needs its address", nothing saved |
+| 2.10 | Another Kara machine: address and token from `kara serve --inference` on a second machine; then a wrong token | Connects and restarts; the wrong token is refused with the server's message |
+| 2.11 | This machine → Use this machine | Back to local models |
 
 ## 3. Desktop app: chat and changes
 

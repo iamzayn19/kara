@@ -78,6 +78,8 @@ let spinnerTimer: number | undefined;
 let spinnerRow: HTMLElement | undefined;
 let spinnerFrame = 0;
 let availableCommands: { name: string; description: string }[] = [];
+/** `model.provider` from initialize: local, kara, ollama, lmstudio, vllm or openai_compat. */
+let inferenceProvider = "local";
 /** Cached fs/files result; dropped when the project changes or Kara
  * reports changed files at the end of a turn. */
 let projectFiles: string[] | undefined;
@@ -882,6 +884,8 @@ async function refreshSessionsSidebar() {
 async function openSettings() {
   openPanel("Settings");
 
+  renderInferenceSettings();
+
   const appearanceLabel = document.createElement("div");
   appearanceLabel.className = "panel-section-label";
   appearanceLabel.textContent = "Appearance";
@@ -1087,6 +1091,7 @@ async function startWorkspace(workspace: string) {
   try {
     const info: any = await invoke("kara_start", { workspace });
     currentWorkspace = info?.workspace ?? workspace;
+    inferenceProvider = info?.model?.provider ?? "local";
     modelPill.textContent = info?.model?.available ? info.model.label : "no model";
     modelPill.className = info?.model?.available ? "pill ready" : "pill warn";
     permissionsMode = info?.permissionsMode ?? "";
@@ -2059,4 +2064,135 @@ paletteInput.addEventListener("keydown", (e) => {
 paletteBackdrop.addEventListener("mousedown", (e) => {
   if (e.target === paletteBackdrop) closePalette();
 });
+
+// ── Settings: where inference runs ───────────────────────────────
+
+const SERVER_KINDS: [string, string, string][] = [
+  ["ollama", "Ollama", "http://127.0.0.1:11434/v1"],
+  ["lmstudio", "LM Studio", "http://127.0.0.1:1234/v1"],
+  ["vllm", "vLLM", "http://127.0.0.1:8000/v1"],
+  ["openai_compat", "Other OpenAI-compatible server", "https://…/v1"],
+];
+
+function field(labelText: string, el: HTMLInputElement | HTMLSelectElement): HTMLElement {
+  const wrap = document.createElement("label");
+  wrap.className = "settings-field";
+  const l = document.createElement("span");
+  l.textContent = labelText;
+  wrap.append(l, el);
+  return wrap;
+}
+
+function textInput(placeholder: string, type = "text"): HTMLInputElement {
+  const i = document.createElement("input");
+  i.type = type;
+  i.placeholder = placeholder;
+  i.spellcheck = false;
+  i.autocomplete = "off";
+  return i;
+}
+
+function renderInferenceSettings() {
+  const label = document.createElement("div");
+  label.className = "panel-section-label";
+  label.textContent = "Where inference runs";
+  panelBody.appendChild(label);
+
+  const status = document.createElement("div");
+  status.className = "settings-status";
+  const form = document.createElement("div");
+  form.className = "settings-form";
+
+  const isServer = SERVER_KINDS.some(([k]) => k === inferenceProvider);
+  const choices: [string, string, string, boolean][] = [
+    ["local", "This machine", "Local models managed by Kara (see the model picker).", inferenceProvider === "local"],
+    ["kara", "Another Kara machine", "A machine of yours running kara serve --inference.", inferenceProvider === "kara"],
+    ["server", "A model server", "Ollama, LM Studio, vLLM or any OpenAI-compatible server.", isServer],
+  ];
+  const rows: HTMLElement[] = [];
+  for (const [kind, title, meta, selected] of choices) {
+    const row = document.createElement("div");
+    row.className = "perm-option" + (selected ? " selected" : "");
+    const left = document.createElement("div");
+    const t = document.createElement("div");
+    t.className = "title";
+    t.textContent = title;
+    const m = document.createElement("div");
+    m.className = "meta";
+    m.textContent = meta;
+    left.append(t, m);
+    row.appendChild(left);
+    row.addEventListener("click", () => {
+      rows.forEach((r) => r.classList.toggle("selected", r === row));
+      showForm(kind);
+    });
+    rows.push(row);
+    panelBody.appendChild(row);
+  }
+  panelBody.append(form, status);
+
+  const apply = async (button: HTMLButtonElement, steps: () => Promise<string>) => {
+    button.disabled = true;
+    status.className = "settings-status";
+    status.textContent = "Working…";
+    try {
+      const msg = await steps();
+      status.textContent = msg.split("\n")[0] || "Saved.";
+      activity(status.textContent, "dim");
+      if (currentWorkspace) await startWorkspace(currentWorkspace);
+    } catch (e: any) {
+      status.className = "settings-status err";
+      status.textContent = String(e?.message ?? e);
+    } finally {
+      button.disabled = false;
+    }
+  };
+  const set = (key: string, value: string) => invoke<string>("kara_config_set", { key, value });
+
+  function showForm(kind: string) {
+    form.replaceChildren();
+    status.textContent = "";
+    const button = document.createElement("button");
+    button.className = "approve-btn";
+    if (kind === "local") {
+      button.textContent = "Use this machine";
+      button.addEventListener("click", () => void apply(button, () => set("inference.provider", "local")));
+      form.appendChild(button);
+    } else if (kind === "kara") {
+      const url = textInput("http://gpu-box:7878");
+      const token = textInput("printed by kara serve --inference", "password");
+      button.textContent = "Connect";
+      button.addEventListener("click", () => void apply(button, () => invoke<string>("kara_connect", { url: url.value, token: token.value })));
+      form.append(field("Address", url), field("Token", token), button);
+    } else {
+      const select = document.createElement("select");
+      for (const [k, name] of SERVER_KINDS) {
+        const o = document.createElement("option");
+        o.value = k;
+        o.textContent = name;
+        select.appendChild(o);
+      }
+      if (isServer) select.value = inferenceProvider;
+      const url = textInput("");
+      const model = textInput("as the server names it, e.g. qwen3:8b (empty: its first model)");
+      const syncPlaceholder = () => {
+        const kindInfo = SERVER_KINDS.find(([k]) => k === select.value)!;
+        url.placeholder = select.value === "openai_compat" ? kindInfo[2] : `${kindInfo[2]} (default)`;
+      };
+      select.addEventListener("change", syncPlaceholder);
+      syncPlaceholder();
+      button.textContent = "Save";
+      button.addEventListener("click", () =>
+        void apply(button, async () => {
+          if (select.value === "openai_compat" && !url.value.trim()) throw new Error("This server needs its address.");
+          await set("inference.provider", select.value);
+          await set("inference.endpoint", url.value.trim());
+          await set("inference.model", model.value.trim());
+          return `Inference now uses ${select.selectedOptions[0].textContent}.`;
+        }),
+      );
+      form.append(field("Server", select), field("Address", url), field("Model", model), button);
+    }
+  }
+}
 
