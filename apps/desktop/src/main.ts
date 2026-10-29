@@ -1253,6 +1253,7 @@ async function openWorkspace(dir: string) {
 function resetEditorTabs() {
   for (const t of openTabs) if (t.kind === "file") editorModule?.closeFileModel(t.path);
   openTabs.length = 0;
+  closedFiles.length = 0;
   activeTabId = "chat";
   renderEditorTabs();
   transcript.classList.remove("hidden");
@@ -1371,6 +1372,20 @@ btnSlash.addEventListener("click", () => {
 window.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey;
   if (!mod) return;
+  // Ctrl+Tab / Ctrl+Shift+Tab cycle tabs (Ctrl on every platform, as in VS Code).
+  if (e.key === "Tab" && e.ctrlKey) {
+    e.preventDefault();
+    const ids = ["chat", ...openTabs.map((t) => t.id)];
+    const i = ids.indexOf(activeTabId);
+    void activateTab(ids[(i + (e.shiftKey ? ids.length - 1 : 1)) % ids.length]);
+    return;
+  }
+  if (e.shiftKey && e.key.toLowerCase() === "t") {
+    e.preventDefault();
+    const path = closedFiles.pop();
+    if (path) void openFileTab(path);
+    return;
+  }
   if (e.key.toLowerCase() === "p") {
     e.preventDefault();
     void openPalette(e.shiftKey ? "commands" : "files");
@@ -1748,6 +1763,8 @@ interface OpenTab {
 }
 
 const openTabs: OpenTab[] = [];
+/** Recently closed file tabs, for Cmd/Ctrl+Shift+T. */
+const closedFiles: string[] = [];
 let activeTabId = "chat";
 
 function renderEditorTabs() {
@@ -1824,7 +1841,11 @@ async function closeTab(id: string) {
     if (!discard) return;
   }
   openTabs.splice(openTabs.indexOf(tab), 1);
-  if (tab.kind === "file") editorModule?.closeFileModel(tab.path);
+  if (tab.kind === "file") {
+    editorModule?.closeFileModel(tab.path);
+    closedFiles.push(tab.path);
+    if (closedFiles.length > 20) closedFiles.shift();
+  }
   if (activeTabId === id) activateTab("chat");
   else renderEditorTabs();
 }

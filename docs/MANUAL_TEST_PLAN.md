@@ -68,6 +68,7 @@ itself, and start from a clean slate where a step says so.
 | 4.5a | Open a file, ask Kara to change it; also edit it in another editor and switch back to Kara | The open tab updates to the new content each time, keeping its scroll position |
 | 4.5b | Same, but with your own unsaved edits in the tab | Your edits stay; a warning says it changed on disk; saving is refused (4.5) |
 | 4.6 | Close a tab with unsaved changes (Cmd/Ctrl+W) | Asks before discarding |
+| 4.6b | Open three files; Ctrl+Tab / Ctrl+Shift+Tab; close one, then Cmd/Ctrl+Shift+T | Cycles through Chat and the files both ways; the closed file comes back |
 | 4.6a | With an unsaved tab: close the window, press Cmd+Q (macOS), and open another project | Each asks first; Keep editing leaves everything as it was |
 | 4.7 | Cmd/Ctrl+J | Terminal panel opens in the project folder; `ls`, colors, arrow-key history and Ctrl+C work; resizing the window reflows it |
 | 4.8 | `exit` in the terminal, close and reopen the panel | A fresh shell |
