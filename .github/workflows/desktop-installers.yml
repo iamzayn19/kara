@@ -78,6 +78,21 @@ jobs:
           if (-not $kara) { Get-ChildItem "$env:LOCALAPPDATA/Kara" -Recurse | Select-Object FullName; throw "kara.exe not installed" }
           & $kara.FullName --version
           if ($LASTEXITCODE -ne 0) { throw "kara --version failed" }
+      # Remove the .exe install first so the .msi is checked on its own.
+      - name: Install and run (Windows .msi)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: apps/desktop/src-tauri/target/release/bundle
+        run: |
+          $uninstall = Get-ChildItem "$env:LOCALAPPDATA/Kara" -Filter uninstall.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($uninstall) { Start-Process $uninstall.FullName -ArgumentList "/S" -Wait }
+          $msi = Get-ChildItem msi/*.msi | Select-Object -First 1
+          $p = Start-Process msiexec.exe -ArgumentList "/i", "`"$($msi.FullName)`"", "/qn", "/l*v", "$env:RUNNER_TEMP/msi.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP/msi.log" -Tail 40; throw "msiexec failed: $($p.ExitCode)" }
+          $kara = Get-ChildItem "$env:ProgramFiles/Kara", "$env:LOCALAPPDATA/Programs/Kara" -Recurse -Filter kara.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $kara) { throw "kara.exe not installed by the .msi" }
+          & $kara.FullName --version
+          if ($LASTEXITCODE -ne 0) { throw "kara --version failed" }
       - name: Install and run (Linux .deb)
         if: runner.os == 'Linux'
         working-directory: apps/desktop/src-tauri/target/release/bundle
