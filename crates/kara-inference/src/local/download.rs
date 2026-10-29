@@ -266,6 +266,49 @@ mod tests {
         assert!(!part_path(&dest).exists());
     }
 
+    /// Cancelling mid-download stops promptly and keeps the partial file
+    /// so the next attempt resumes instead of starting over.
+    #[tokio::test]
+    async fn cancel_keeps_the_partial_file() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut s, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 8192];
+            let _ = s.read(&mut buf).await;
+            // Announce 1 MB, send 64 KB, then stall like a slow mirror.
+            s.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 1048576\r\n\r\n")
+                .await
+                .unwrap();
+            s.write_all(&vec![7u8; 65_536]).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("m.gguf");
+        let token = CancellationToken::new();
+        let t = token.clone();
+        // The user presses Cancel while the server is stalled.
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            t.cancel();
+        });
+        let started = std::time::Instant::now();
+        let err = download_verified(
+            &reqwest::Client::new(),
+            &format!("http://{addr}/file"),
+            &dest,
+            None,
+            &|_| {},
+            &token,
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, DownloadError::Cancelled), "{err}");
+        assert!(started.elapsed() < std::time::Duration::from_secs(10));
+        assert!(!dest.exists());
+        assert!(std::fs::metadata(part_path(&dest)).unwrap().len() > 0);
+    }
+
     #[tokio::test]
     async fn resumes_partial_download() {
         let body: Vec<u8> = (0..100_000u32).map(|i| (i % 13) as u8).collect();

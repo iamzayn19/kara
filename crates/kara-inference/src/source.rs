@@ -175,6 +175,9 @@ pub struct ResolveRequest<'a> {
     /// Overrides the configured source: "auto", a registry id (local), or
     /// `None` for the configuration's choice.
     pub model_override: Option<&'a str>,
+    /// Cancels a model or runtime download started by this request; the
+    /// partial file is kept for resuming.
+    pub cancel: Option<&'a CancellationToken>,
 }
 
 /// Resolve the configured inference source. Errors are only returned for
@@ -345,7 +348,10 @@ pub async fn ensure_runtime(
     hw: &HardwareInfo,
     consent: Consent,
     ui: &dyn SetupUi,
+    cancel: Option<&CancellationToken>,
 ) -> anyhow::Result<std::path::PathBuf> {
+    let no_cancel = CancellationToken::new();
+    let cancel = cancel.unwrap_or(&no_cancel);
     let mgr = LlamaCppManager::new(&paths.runtimes_dir());
     if let Some(found) = mgr.locate(&config.inference.local.server_path) {
         return Ok(found.binary().to_path_buf());
@@ -381,7 +387,7 @@ pub async fn ensure_runtime(
         .install(
             hw,
             &|_, p| ui.progress(&label, p.downloaded, p.total),
-            &CancellationToken::new(),
+            cancel,
         )
         .await;
     ui.progress_done(&label, rec.is_ok());
@@ -454,7 +460,8 @@ async fn resolve_local(req: ResolveRequest<'_>) -> anyhow::Result<InferenceSessi
                 remote_options()
             )));
         }
-        download_model(&store, &spec, req.ui, &CancellationToken::new()).await?;
+        let no_cancel = CancellationToken::new();
+        download_model(&store, &spec, req.ui, req.cancel.unwrap_or(&no_cancel)).await?;
     }
 
     // Reuse an already-running server for this exact model instead of
@@ -502,7 +509,8 @@ async fn resolve_local(req: ResolveRequest<'_>) -> anyhow::Result<InferenceSessi
         return Ok(InferenceSession::none(msg));
     }
 
-    let binary = ensure_runtime(req.config, req.paths, &hw, req.consent, req.ui).await?;
+    let binary =
+        ensure_runtime(req.config, req.paths, &hw, req.consent, req.ui, req.cancel).await?;
     let local = &req.config.inference.local;
     let accelerated = hw.metal || hw.cuda || hw.rocm || hw.vulkan;
     let opts = ServerOptions {
@@ -669,6 +677,7 @@ mod tests {
             consent: Consent::Never,
             ui: &SilentUi,
             model_override: None,
+            cancel: None,
         })
         .await
         .unwrap();
@@ -693,6 +702,7 @@ mod tests {
             consent: Consent::Never,
             ui: &SilentUi,
             model_override: None,
+            cancel: None,
         })
         .await
         .unwrap();

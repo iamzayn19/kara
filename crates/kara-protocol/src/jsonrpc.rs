@@ -22,6 +22,7 @@ pub mod methods {
     pub const DOCTOR: &str = "doctor";
     pub const MODELS: &str = "models/list";
     pub const SELECT_MODEL: &str = "models/select";
+    pub const CANCEL_DOWNLOAD: &str = "models/cancel";
 
     // client -> server: read-only file browsing for an editor's own file
     // explorer. Deliberately not the agent's tool-permission pipeline —

@@ -19,7 +19,7 @@ pub fn serve_inference(
         .parse()
         .map_err(|e| anyhow::anyhow!("invalid --listen address: {e}"))?;
     let ui = TerminalUi::default();
-    let mut session = rt.block_on(models::start_inference(&app, Consent::Ask, None, &ui))?;
+    let mut session = rt.block_on(models::start_inference(&app, Consent::Ask, None, &ui, None))?;
     let Some(upstream) = session.upstream.clone().filter(|_| session.is_available()) else {
         eprintln!(
             "No inference is available on this machine to share.\n{}",

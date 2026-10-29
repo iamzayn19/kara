@@ -254,7 +254,13 @@ pub(crate) fn build_session_with_sink(
     } else {
         Box::new(SilentUi)
     };
-    let runtime = match rt.block_on(models::start_inference(&app, consent, None, ui.as_ref())) {
+    let runtime = match rt.block_on(models::start_inference(
+        &app,
+        consent,
+        None,
+        ui.as_ref(),
+        None,
+    )) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("{} {e:#}", style("model:").yellow());

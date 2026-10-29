@@ -168,6 +168,7 @@ pub async fn start_inference(
     consent: Consent,
     model_override: Option<&str>,
     ui: &dyn SetupUi,
+    cancel: Option<&tokio_util::sync::CancellationToken>,
 ) -> anyhow::Result<InferenceSession> {
     source::resolve(ResolveRequest {
         config: &app.config,
@@ -176,6 +177,7 @@ pub async fn start_inference(
         consent,
         ui,
         model_override,
+        cancel,
     })
     .await
 }
@@ -266,6 +268,7 @@ pub fn run(
                 &hw,
                 if yes { Consent::Granted } else { Consent::Ask },
                 &ui,
+                None,
             ))?;
             Ok(0)
         }

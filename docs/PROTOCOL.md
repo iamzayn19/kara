@@ -34,6 +34,7 @@ client for permission decisions.
 | `fs/trash` | `{path}` | `{path}`: moves a file or folder inside the workspace to the OS trash (recoverable); a symlink is trashed, not its target |
 | `git/info` | `{}` | `{repo, branch, head, changed}`: current branch (null when detached), short HEAD, number of changed files |
 | `fs/files` | `{}` | `{files: [path], truncated}`: every file, gitignore-aware, sorted, at most 20,000 |
+| `models/cancel` | `{}` | `{cancelled}`: stops a download started by `models/select`; the partial file is kept and the next attempt resumes. `models/select` then fails with the cancellation |
 | `shutdown` | `{}` | `null`, then the process exits after stopping the model runtime |
 
 `context` for prompts:

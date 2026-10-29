@@ -97,6 +97,10 @@ struct Server {
     /// session lock for its whole turn, and the editor's file requests
     /// (tree, open, search, save) must not wait for that.
     root: Arc<std::sync::Mutex<Option<std::path::PathBuf>>>,
+    /// The download a running models/select may be doing. Outside
+    /// `session` because select_model holds that lock throughout, and
+    /// models/cancel must get through.
+    download_cancel: Arc<std::sync::Mutex<Option<CancellationToken>>>,
     cancel: Arc<std::sync::Mutex<Option<CancellationToken>>>,
     opts: Options,
 }
@@ -198,6 +202,16 @@ impl Server {
             methods::FS_RENAME => self.fs_rename(params).await,
             methods::FS_TRASH => self.fs_trash(params).await,
             methods::GIT_INFO => self.git_info().await,
+            methods::CANCEL_DOWNLOAD => {
+                let cancelled = match self.download_cancel.lock().unwrap().as_ref() {
+                    Some(t) => {
+                        t.cancel();
+                        true
+                    }
+                    None => false,
+                };
+                Ok(json!({ "cancelled": cancelled }))
+            }
             methods::SELECT_MODEL => {
                 let me = self.clone();
                 tokio::spawn(async move {
@@ -257,7 +271,7 @@ impl Server {
         let ui = RpcUi {
             peer: self.peer.clone(),
         };
-        let runtime = match models::start_inference(&app, Consent::Never, None, &ui).await {
+        let runtime = match models::start_inference(&app, Consent::Never, None, &ui, None).await {
             Ok(r) => r,
             Err(e) => {
                 self.peer.log("warning", format!("{e:#}"));
@@ -1064,9 +1078,12 @@ impl Server {
         let ui = RpcUi {
             peer: self.peer.clone(),
         };
-        let runtime = models::start_inference(&s.app, consent, Some(&id), &ui)
-            .await
-            .map_err(|e| RpcError::new(codes::MODEL_UNAVAILABLE, format!("{e:#}")))?;
+        let token = CancellationToken::new();
+        *self.download_cancel.lock().unwrap() = Some(token.clone());
+        let runtime = models::start_inference(&s.app, consent, Some(&id), &ui, Some(&token)).await;
+        *self.download_cancel.lock().unwrap() = None;
+        let runtime =
+            runtime.map_err(|e| RpcError::new(codes::MODEL_UNAVAILABLE, format!("{e:#}")))?;
         let provider: Arc<dyn InferenceProvider> = match &runtime.provider {
             Some(p) => p.clone(),
             None => Arc::new(NoModel(no_model_message())),
@@ -1136,6 +1153,7 @@ pub fn serve_stdio(rt: &tokio::runtime::Runtime, opts: &Options) -> anyhow::Resu
             peer: peer.clone(),
             session: Arc::new(Mutex::new(None)),
             root: Arc::new(std::sync::Mutex::new(None)),
+            download_cancel: Arc::new(std::sync::Mutex::new(None)),
             cancel: Arc::new(std::sync::Mutex::new(None)),
             opts: opts.clone(),
         });

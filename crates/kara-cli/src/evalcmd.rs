@@ -83,6 +83,7 @@ pub fn run(rt: &tokio::runtime::Runtime, opts: &Options, args: EvalArgs) -> anyh
             consent,
             opts.model.as_deref(),
             &ui,
+            None,
         ))?;
         if r.provider.is_none() {
             anyhow::bail!(

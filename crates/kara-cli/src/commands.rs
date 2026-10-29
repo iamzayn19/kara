@@ -236,6 +236,7 @@ fn model_cmd(s: &mut Session, rt: &tokio::runtime::Runtime, arg: &str) -> anyhow
         Consent::Ask,
         Some(requested),
         &TerminalUi::default(),
+        None,
     )) {
         Ok(new) => {
             let label = new.label.clone();
