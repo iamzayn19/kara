@@ -775,18 +775,29 @@ impl Server {
         if !file.is_file() {
             return Err(invalid("not a file"));
         }
-        let bytes = tokio::fs::read(&file).await.map_err(internal)?;
-        let version = Self::content_version(&bytes);
-        if kara_context::looks_binary(&bytes) {
-            return Ok(
-                json!({ "binary": true, "content": null, "truncated": false, "version": version }),
-            );
+        // Read at most one byte past the cap: opening a multi-GB log in the
+        // editor must not pull the whole file into memory.
+        let mut bytes = Vec::new();
+        {
+            use tokio::io::AsyncReadExt;
+            let f = tokio::fs::File::open(&file).await.map_err(internal)?;
+            f.take(MAX_BYTES as u64 + 1)
+                .read_to_end(&mut bytes)
+                .await
+                .map_err(internal)?;
         }
         let truncated = bytes.len() > MAX_BYTES;
-        let slice = &bytes[..bytes.len().min(MAX_BYTES)];
+        bytes.truncate(MAX_BYTES);
+        // Only a complete read can be saved back, so only it gets a version.
+        let version = (!truncated).then(|| Self::content_version(&bytes));
+        if kara_context::looks_binary(&bytes) {
+            return Ok(
+                json!({ "binary": true, "content": null, "truncated": truncated, "version": version }),
+            );
+        }
         Ok(json!({
             "binary": false,
-            "content": String::from_utf8_lossy(slice),
+            "content": String::from_utf8_lossy(&bytes),
             "truncated": truncated,
             "version": version,
         }))

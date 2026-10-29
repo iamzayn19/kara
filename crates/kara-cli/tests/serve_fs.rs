@@ -239,3 +239,23 @@ fn server_exits_when_the_client_goes_away() {
         .expect("kara serve still running 10s after its stdin closed");
     assert!(status.success(), "{status}");
 }
+
+#[test]
+fn read_caps_large_files_and_gives_them_no_version() {
+    let (ws, home) = project();
+    // About 3 MB of text: over the 2 MB cap.
+    let line = "0123456789abcdef".repeat(4) + "\n";
+    let big = line.repeat(3 * 1024 * 1024 / line.len() + 1);
+    std::fs::write(ws.path().join("big.log"), &big).unwrap();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+
+    let r = rpc.call("fs/read", json!({"path": "big.log"})).unwrap();
+    assert_eq!(r["truncated"], true);
+    assert_eq!(r["content"].as_str().unwrap().len(), 2_000_000);
+    // Truncated views are read-only: nothing to save back against.
+    assert!(r["version"].is_null());
+
+    let small = rpc.call("fs/read", json!({"path": "src/a.txt"})).unwrap();
+    assert_eq!(small["truncated"], false);
+    assert!(small["version"].is_string());
+}
