@@ -2058,6 +2058,9 @@ function paletteCommands(): PaletteItem[] {
     { label: "Undo Kara's last change", run: () => void undo() },
     { label: "Reopen closed tab", detail: "⇧⌘T", run: () => { const p = closedFiles.pop(); if (p) void openFileTab(p); } },
     ...activeFileCommands(),
+    ...recentWorkspaces()
+      .filter((p) => p !== currentWorkspace)
+      .map((p) => ({ label: `Open recent: ${p.split(/[\\/]/).filter(Boolean).pop() ?? p}`, detail: shortPath(p), run: () => void openWorkspace(p) })),
     { label: "Mode: Execute", detail: "understand, edit, test, review", run: mode("execute") },
     { label: "Mode: Plan", detail: "read-only, propose a plan", run: mode("plan") },
     { label: "Mode: Review", detail: "read-only risk review", run: mode("review") },
