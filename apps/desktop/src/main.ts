@@ -1849,13 +1849,14 @@ async function openFileTab(path: string, line?: number) {
     const label = path.split("/").pop() ?? path;
     openTabs.push({
       id,
-      label: r.truncated ? `${label} (read-only, truncated)` : label,
+      label: r.truncated ? `${label} (read-only, truncated)` : r.utf8 === false ? `${label} (read-only, not UTF-8)` : label,
       kind: "file",
       path,
       content: r.content ?? "",
       version: r.version,
-      // Saving a truncated view would cut the real file short.
-      readOnly: !!r.truncated,
+      // Saving would cut a truncated file short, or corrupt one in another
+      // encoding with the replacement characters it was shown with.
+      readOnly: !!r.truncated || r.utf8 === false,
     });
     activateTab(id, line);
   } catch (e: any) {

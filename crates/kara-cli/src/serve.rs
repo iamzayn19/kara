@@ -816,8 +816,14 @@ impl Server {
                 json!({ "binary": true, "content": null, "truncated": truncated, "version": version }),
             );
         }
+        // Not UTF-8 (e.g. Latin-1): shown with replacement characters, so
+        // saving that text back would corrupt the file. Editors open it
+        // read-only. (A truncated read can end mid-character; it's
+        // read-only anyway.)
+        let utf8 = truncated || std::str::from_utf8(&bytes).is_ok();
         Ok(json!({
             "binary": false,
+            "utf8": utf8,
             "content": String::from_utf8_lossy(&bytes),
             "truncated": truncated,
             "version": version,

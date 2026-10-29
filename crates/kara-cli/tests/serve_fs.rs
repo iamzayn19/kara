@@ -438,3 +438,15 @@ fn trash_moves_a_file_out_of_the_workspace() {
     assert!(!ws.path().join(&name).exists());
     assert!(ws.path().join("src/a.txt").exists());
 }
+
+#[test]
+fn read_flags_text_that_is_not_utf8() {
+    let (ws, home) = project();
+    // "café" in Latin-1: 0xE9 is not valid UTF-8 on its own.
+    std::fs::write(ws.path().join("latin1.txt"), b"caf\xe9\n").unwrap();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+    let r = rpc.call("fs/read", json!({"path": "latin1.txt"})).unwrap();
+    assert_eq!(r["utf8"], false);
+    let r = rpc.call("fs/read", json!({"path": "src/a.txt"})).unwrap();
+    assert_eq!(r["utf8"], true);
+}

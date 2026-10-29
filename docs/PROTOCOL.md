@@ -26,7 +26,7 @@ client for permission decisions.
 | `models/list` | `{}` | `{models: [{id, name, sizeBytes, license, source, revision, installed, fits, reason, memoryNeeded, recommended}], summary}` |
 | `models/select` | `{id \| "auto", download: bool}` | the new model info. With `download: true` the client asserts that the user consented to the download. |
 | `fs/list` | `{path?}` (relative; empty for the root) | `{entries: [{name, path, isDir}]}`: one level, gitignore-aware, folders first |
-| `fs/read` | `{path}` | `{binary, content, truncated, version}`; at most 2 MB is read (`truncated` if there was more); `version` is a content hash for `fs/write`, `null` for a truncated read |
+| `fs/read` | `{path}` | `{binary, utf8, content, truncated, version}`; `utf8: false` means the text was decoded lossily and must not be saved back; at most 2 MB is read (`truncated` if there was more); `version` is a content hash for `fs/write`, `null` for a truncated read |
 | `fs/write` | `{path, content, expectedVersion?}` | `{version}`. Existing files inside the workspace only; with `expectedVersion`, error `-32001` if the file changed on disk since that read |
 | `fs/search` | `{query, regex?, caseSensitive?, wholeWord?}` | `{matches: [{path, line, text}], files_with_matches, files_searched, truncated}`; literal and case-insensitive by default, at most 500 matches |
 | `fs/create` | `{path, kind?: "file" \| "dir"}` | `{path}`: a new empty file (default) or folder; the parent must exist; never overwrites |
