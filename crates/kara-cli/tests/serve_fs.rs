@@ -8,7 +8,7 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 struct Rpc {
     child: Child,
-    stdin: ChildStdin,
+    stdin: Option<ChildStdin>,
     stdout: BufReader<ChildStdout>,
     next_id: u64,
 }
@@ -31,7 +31,7 @@ impl Rpc {
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        let stdin = child.stdin.take().unwrap();
+        let stdin = child.stdin.take();
         let stdout = BufReader::new(child.stdout.take().unwrap());
         let mut rpc = Rpc {
             child,
@@ -49,8 +49,9 @@ impl Rpc {
         self.next_id += 1;
         let id = self.next_id;
         let msg = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
-        writeln!(self.stdin, "{msg}").unwrap();
-        self.stdin.flush().unwrap();
+        let stdin = self.stdin.as_mut().expect("stdin open");
+        writeln!(stdin, "{msg}").unwrap();
+        stdin.flush().unwrap();
         loop {
             let mut line = String::new();
             assert!(
@@ -66,6 +67,22 @@ impl Rpc {
                 None => Ok(v["result"].clone()),
             };
         }
+    }
+}
+
+impl Rpc {
+    /// Closes our end of the pipe, as a quitting client does, and waits up
+    /// to `timeout` for the server to exit.
+    fn close_and_wait(&mut self, timeout: std::time::Duration) -> Option<std::process::ExitStatus> {
+        drop(self.stdin.take());
+        let deadline = std::time::Instant::now() + timeout;
+        while std::time::Instant::now() < deadline {
+            if let Some(status) = self.child.try_wait().unwrap() {
+                return Some(status);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        None
     }
 }
 
@@ -208,4 +225,17 @@ fn files_lists_the_project_respecting_gitignore() {
         .collect();
     assert_eq!(files, vec![".gitignore", "src/a.txt", "src/b.rs"]);
     assert_eq!(r["truncated"], false);
+}
+
+/// When the editor or desktop app quits (or crashes), its end of the pipe
+/// closes; the server must stop its model runtime and exit rather than
+/// linger holding memory.
+#[test]
+fn server_exits_when_the_client_goes_away() {
+    let (ws, home) = project();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+    let status = rpc
+        .close_and_wait(std::time::Duration::from_secs(10))
+        .expect("kara serve still running 10s after its stdin closed");
+    assert!(status.success(), "{status}");
 }
