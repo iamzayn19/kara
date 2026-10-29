@@ -836,9 +836,10 @@ async function openModelPicker() {
       row.appendChild(left);
       row.addEventListener("click", async () => {
         if (!m.installed) {
-          const ok = window.confirm(
-            `Download ${m.name} ${m.quantization}?\n\nSize: ${formatBytes(m.sizeBytes)}\nMemory needed: about ${formatBytes(m.memoryNeeded ?? m.sizeBytes)}\nLicense: ${m.license}\n\nThe download is verified against a pinned SHA-256.`,
-          );
+          const ok = await ask(
+            `Size: ${formatBytes(m.sizeBytes)}\nMemory needed: about ${formatBytes(m.memoryNeeded ?? m.sizeBytes)}\nLicense: ${m.license}\n\nThe download is verified against a pinned SHA-256, and can be cancelled and resumed.`,
+            { title: `Download ${m.name} ${m.quantization}?`, kind: "info", okLabel: "Download", cancelLabel: "Not now" },
+          ).catch(() => false);
           if (!ok) return;
         }
         showDownloadProgress(m.installed ? `Starting ${m.name}…` : `Downloading ${m.name} ${m.quantization}…`);
@@ -2051,9 +2052,14 @@ async function boot() {
   await listen("kara://request", async (e: any) => {
     const { id, method, params } = e.payload;
     if (method === "permission/request") {
-      const allow = window.confirm(
-        `Kara wants to: ${params?.title ?? "do something"}\n\n${(params?.reasons ?? []).join("\n")}\n\nAllow once?`,
-      );
+      // The native dialog, not window.confirm: whether a webview's confirm
+      // works is up to the platform, and this gates every action in Ask mode.
+      const allow = await ask(`${params?.title ?? "Kara wants to do something"}\n\n${(params?.reasons ?? []).join("\n")}`, {
+        title: "Allow this once?",
+        kind: "warning",
+        okLabel: "Allow once",
+        cancelLabel: "Deny",
+      }).catch(() => false);
       await invoke("kara_respond", { id, decision: allow ? { decision: "allow_once" } : { decision: "deny" } });
     } else {
       await invoke("kara_respond", { id, error: `unsupported request ${method}` });
