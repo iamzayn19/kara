@@ -1482,6 +1482,10 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       openSettings();
       break;
+    case "/":
+      e.preventDefault();
+      openShortcuts();
+      break;
     case "o":
       e.preventDefault();
       pickProject();
@@ -2108,6 +2112,7 @@ function paletteCommands(): PaletteItem[] {
     { label: "New session", detail: "⌘N", run: () => void newSession() },
     { label: "Open project…", detail: "⌘O", run: () => void pickProject() },
     { label: "Settings", detail: "⌘,", run: () => void openSettings() },
+    { label: "Keyboard shortcuts", detail: "⌘/", run: openShortcuts },
     { label: "Undo Kara's last change", run: () => void undo() },
     { label: "Reopen closed tab", detail: "⇧⌘T", run: () => { const p = closedFiles.pop(); if (p) void openFileTab(p); } },
     ...activeFileCommands(),
@@ -2722,5 +2727,64 @@ async function refreshDiffTabs() {
     if (tab.id === activeTabId) void activateTab(tab.id);
   }
   renderEditorTabs();
+}
+
+// ── Keyboard shortcuts reference ─────────────────────────────────
+
+function openShortcuts() {
+  const mac = navigator.platform.toLowerCase().includes("mac");
+  const mod = mac ? "⌘" : "Ctrl+";
+  const alt = mac ? "⌥" : "Alt+";
+  const shift = mac ? "⇧" : "Shift+";
+  openPanel("Keyboard shortcuts");
+  const groups: [string, [string, string][]][] = [
+    ["Projects and sessions", [
+      [`${mod}O`, "Open a project"],
+      [`${mod}N`, "New session"],
+      [`${mod},`, "Settings"],
+      [`${mod}/`, "This list"],
+    ]],
+    ["Find and navigate", [
+      [`${mod}P`, "Quick open a file (type : and a number to go to a line)"],
+      [`${shift}${mod}P`, "Command palette"],
+      [`${shift}${mod}F`, "Find in files"],
+      [`${mod}B`, "Toggle sidebar"],
+      [`${mod}J`, "Toggle terminal"],
+      ["Ctrl+Tab", "Next tab (with Shift: previous)"],
+    ]],
+    ["Editing", [
+      [`${mod}S`, "Save"],
+      [`${alt}${mod}S`, "Save all"],
+      [`${mod}W`, "Close tab"],
+      [`${shift}${mod}T`, "Reopen closed tab"],
+    ]],
+    ["Chat", [
+      ["Enter", "Send (Shift+Enter: new line)"],
+      ["↑ / ↓", "Earlier / later prompts, in an empty box"],
+      ["/", "Slash commands"],
+      ["Esc", "Stop Kara"],
+    ]],
+  ];
+  for (const [title, rows] of groups) {
+    const label = document.createElement("div");
+    label.className = "panel-section-label";
+    label.textContent = title;
+    panelBody.appendChild(label);
+    const body = document.createElement("div");
+    body.className = "diagnostics";
+    for (const [keys, what] of rows) {
+      const row = document.createElement("div");
+      row.className = "diag-row";
+      const k = document.createElement("span");
+      k.className = "diag-val shortcut-keys";
+      k.textContent = keys;
+      const w = document.createElement("span");
+      w.className = "diag-key";
+      w.textContent = what;
+      row.append(w, k);
+      body.appendChild(row);
+    }
+    panelBody.appendChild(body);
+  }
 }
 

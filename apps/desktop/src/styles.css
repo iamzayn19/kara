@@ -1570,3 +1570,8 @@ body.drop-target #app {
 .icon-text-btn:hover {
   border-color: var(--krypton);
 }
+
+.shortcut-keys {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--fg);
+}
