@@ -624,6 +624,11 @@ impl Server {
 
     async fn doctor(&self) -> Result<Value, RpcError> {
         let (config, paths, registry) = self.local_context().await?;
+        let locations = json!({
+            "config": paths.config_file(),
+            "data": paths.data_dir,
+            "logs": paths.logs_dir(),
+        });
         let status = tokio::task::spawn_blocking(move || {
             kara_inference::local::status(&config, &paths, &registry)
         })
@@ -635,6 +640,7 @@ impl Server {
             "recommendation": status.recommendation,
             "localRuntime": status.runtime,
             "guidance": status.recommendation.model.is_none().then(kara_inference::source::remote_options),
+            "paths": locations,
         }))
     }
 

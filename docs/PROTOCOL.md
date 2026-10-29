@@ -22,7 +22,7 @@ client for permission decisions.
 | `session/list` | `{}` | `{current, sessions: [{id, updated, model, title, turns}]}` for this repository |
 | `session/resume` | `{id}` | `{session}`; `-32001` (busy) while a prompt runs |
 | `session/command` | `{name, args?}` with name `clear`, `compact`, `permissions`, `revert`, `privacy` or `matrix` | command-specific JSON |
-| `doctor` | `{}` | hardware, memory budget, recommendation, llama.cpp location |
+| `doctor` | `{}` | hardware, memory budget, recommendation, llama.cpp location, and `paths: {config, data, logs}` |
 | `models/list` | `{}` | `{models: [{id, name, sizeBytes, license, source, revision, installed, fits, reason, memoryNeeded, recommended}], summary}` |
 | `models/select` | `{id \| "auto", download: bool}` | the new model info. With `download: true` the client asserts that the user consented to the download. |
 | `fs/list` | `{path?}` (relative; empty for the root) | `{entries: [{name, path, isDir}]}`: one level, gitignore-aware, folders first |

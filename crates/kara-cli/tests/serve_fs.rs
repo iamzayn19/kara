@@ -478,3 +478,18 @@ fn git_info_reports_branch_and_changes() {
     assert!(r["branch"].is_null(), "{r}");
     assert_eq!(r["head"].as_str().unwrap().len(), 7);
 }
+
+#[test]
+fn doctor_reports_where_kara_keeps_its_files() {
+    let (ws, home) = project();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+    let r = rpc.call("doctor", json!({})).unwrap();
+    let home = home.path().canonicalize().unwrap();
+    for key in ["config", "data", "logs"] {
+        let p = std::path::PathBuf::from(r["paths"][key].as_str().unwrap());
+        assert!(
+            p.canonicalize().unwrap_or(p.clone()).starts_with(&home),
+            "{key}: {p:?} not under KARA_HOME"
+        );
+    }
+}
