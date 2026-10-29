@@ -22,10 +22,25 @@ pub struct Terminal {
 
 fn default_shell() -> String {
     if cfg!(windows) {
-        std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string())
+        let path = std::env::var("PATH").unwrap_or_default();
+        windows_shell(&path, |p| p.is_file())
     } else {
         std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
     }
+}
+
+/// PowerShell 7 if installed, else the Windows PowerShell every Windows
+/// ships, like VS Code and Windows Terminal; cmd.exe only as a last resort.
+fn windows_shell(path_var: &str, exists: impl Fn(&std::path::Path) -> bool) -> String {
+    for name in ["pwsh.exe", "powershell.exe"] {
+        for dir in path_var.split(';').filter(|d| !d.is_empty()) {
+            let candidate = std::path::Path::new(dir).join(name);
+            if exists(&candidate) {
+                return candidate.to_string_lossy().into_owned();
+            }
+        }
+    }
+    std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
 }
 
 impl Terminal {
@@ -149,7 +164,32 @@ fn take_utf8(pending: &mut Vec<u8>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::take_utf8;
+    use super::{take_utf8, windows_shell};
+
+    #[test]
+    fn windows_shell_prefers_pwsh_then_windows_powershell() {
+        let path = r"C:\Windows\System32;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Program Files\PowerShell\7";
+        let only = |names: &'static [&'static str]| {
+            move |p: &std::path::Path| names.iter().any(|n| p.to_string_lossy().ends_with(n))
+        };
+        assert!(windows_shell(
+            path,
+            only(&[
+                "7/pwsh.exe",
+                "7\\pwsh.exe",
+                r"v1.0/powershell.exe",
+                r"v1.0\powershell.exe"
+            ])
+        )
+        .ends_with("pwsh.exe"));
+        assert!(windows_shell(
+            path,
+            only(&[r"v1.0/powershell.exe", r"v1.0\powershell.exe"])
+        )
+        .ends_with("powershell.exe"));
+        let fallback = windows_shell(path, |_| false);
+        assert!(fallback.to_lowercase().ends_with("cmd.exe"), "{fallback}");
+    }
 
     #[test]
     fn utf8_split_across_reads_is_not_mangled() {
