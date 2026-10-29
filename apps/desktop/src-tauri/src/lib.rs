@@ -1,3 +1,4 @@
+mod cli;
 mod rpc;
 mod terminal;
 
@@ -73,6 +74,20 @@ fn kara_home_dir() -> Option<String> {
 }
 
 #[tauri::command]
+async fn kara_connect(app: AppHandle, url: String, token: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || cli::connect(&app, &url, &token))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn kara_config_set(app: AppHandle, key: String, value: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || cli::config_set(&app, &key, &value))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn terminal_spawn(app: AppHandle, state: State<'_, AppState>, cwd: String) -> Result<u64, String> {
     state.terminal.spawn(app, cwd)
 }
@@ -109,6 +124,8 @@ pub fn run() {
             kara_respond,
             kara_stop,
             kara_home_dir,
+            kara_connect,
+            kara_config_set,
             terminal_spawn,
             terminal_kill,
             terminal_write,
