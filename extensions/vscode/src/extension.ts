@@ -143,7 +143,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     // Kara Core does the work: verify the server, store the token, update config.
     const result = await new Promise<{ ok: boolean; out: string }>((resolve) => {
-      execFile(binary, ["connect", url, "--token", token], (err, stdout, stderr) =>
+      execFile(binary, ["connect", url, "--token", token], { windowsHide: true }, (err, stdout, stderr) =>
         resolve({ ok: !err, out: `${stdout}${stderr}`.trim() }),
       );
     });

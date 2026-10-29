@@ -51,6 +51,8 @@ export class AgentProcess implements vscode.Disposable {
       cwd: workspace,
       stdio: ["pipe", "pipe", "pipe"],
       env: { ...process.env, NO_COLOR: "1" },
+      // Otherwise Windows opens a console window for kara.exe.
+      windowsHide: true,
     });
     this.proc = proc;
     const client = new RpcClient((line) => proc.stdin?.write(line));
