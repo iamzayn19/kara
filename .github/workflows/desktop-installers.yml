@@ -89,8 +89,18 @@ jobs:
           $msi = Get-ChildItem msi/*.msi | Select-Object -First 1
           $p = Start-Process msiexec.exe -ArgumentList "/i", "`"$($msi.FullName)`"", "/qn", "/l*v", "$env:RUNNER_TEMP/msi.log" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP/msi.log" -Tail 40; throw "msiexec failed: $($p.ExitCode)" }
-          $kara = Get-ChildItem "$env:ProgramFiles/Kara", "$env:LOCALAPPDATA/Programs/Kara" -Recurse -Filter kara.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $kara) { throw "kara.exe not installed by the .msi" }
+          # Where the .msi put Kara, from its own log rather than a guess.
+          $dirs = Select-String -Path "$env:RUNNER_TEMP/msi.log" -Pattern "Property\(S\): (INSTALLDIR|APPLICATIONFOLDER|INSTALLFOLDER) = (.+)" |
+            ForEach-Object { $_.Matches[0].Groups[2].Value.Trim() }
+          $dirs = @($dirs) + "$env:ProgramFiles/Kara", "${env:ProgramFiles(x86)}/Kara", "$env:LOCALAPPDATA/Kara", "$env:LOCALAPPDATA/Programs/Kara"
+          $kara = Get-ChildItem $dirs -Recurse -Filter kara.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $kara) {
+            "Install folders considered: $($dirs -join '; ')"
+            Get-ChildItem $dirs -Recurse -ErrorAction SilentlyContinue | Select-Object -First 40 FullName
+            Select-String -Path "$env:RUNNER_TEMP/msi.log" -Pattern "binaries|kara\.exe|Error|Return value 3" | Select-Object -First 30
+            throw "kara.exe not installed by the .msi"
+          }
+          "installed at $($kara.FullName)"
           & $kara.FullName --version
           if ($LASTEXITCODE -ne 0) { throw "kara --version failed" }
       - name: Install and run (Linux .deb)
