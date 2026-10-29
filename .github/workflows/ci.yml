@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch makes the older run moot; cancel it so
+# results for the latest commit don't queue behind it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
