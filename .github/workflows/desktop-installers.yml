@@ -84,15 +84,21 @@ jobs:
         shell: pwsh
         working-directory: apps/desktop/src-tauri/target/release/bundle
         run: |
-          $uninstall = Get-ChildItem "$env:LOCALAPPDATA/Kara" -Filter uninstall.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          $nsisDir = "$env:LOCALAPPDATA/Kara"
+          $uninstall = Get-ChildItem $nsisDir -Filter uninstall.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($uninstall) { Start-Process $uninstall.FullName -ArgumentList "/S" -Wait }
+          # NSIS's silent uninstaller returns before it finishes deleting;
+          # wait, so the .exe's copy can't stand in for the .msi's below.
+          for ($i = 0; $i -lt 60 -and (Test-Path "$nsisDir/binaries/kara.exe"); $i++) { Start-Sleep 1 }
+          if (Test-Path "$nsisDir/binaries/kara.exe") { throw "the .exe install didn't uninstall" }
           $msi = Get-ChildItem msi/*.msi | Select-Object -First 1
           $p = Start-Process msiexec.exe -ArgumentList "/i", "`"$($msi.FullName)`"", "/qn", "/l*v", "$env:RUNNER_TEMP/msi.log" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP/msi.log" -Tail 40; throw "msiexec failed: $($p.ExitCode)" }
           # Where the .msi put Kara, from its own log rather than a guess.
           $dirs = Select-String -Path "$env:RUNNER_TEMP/msi.log" -Pattern "Property\(S\): (INSTALLDIR|APPLICATIONFOLDER|INSTALLFOLDER) = (.+)" |
             ForEach-Object { $_.Matches[0].Groups[2].Value.Trim() }
-          $dirs = @($dirs) + "$env:ProgramFiles/Kara", "${env:ProgramFiles(x86)}/Kara", "$env:LOCALAPPDATA/Kara", "$env:LOCALAPPDATA/Programs/Kara"
+          "install folder from the .msi log: $($dirs -join '; ')"
+          $dirs = @($dirs) + "$env:ProgramFiles/Kara", "${env:ProgramFiles(x86)}/Kara", "$env:LOCALAPPDATA/Programs/Kara"
           $kara = Get-ChildItem $dirs -Recurse -Filter kara.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $kara) {
             "Install folders considered: $($dirs -join '; ')"
