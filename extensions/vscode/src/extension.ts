@@ -143,7 +143,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     // Kara Core does the work: verify the server, store the token, update config.
     const result = await new Promise<{ ok: boolean; out: string }>((resolve) => {
-      execFile(binary, ["connect", url, "--token", token], { windowsHide: true }, (err, stdout, stderr) =>
+      // Token via the environment, not argv, where other local users
+      // could read it from the process list.
+      execFile(binary, ["connect", url], { windowsHide: true, env: { ...process.env, KARA_REMOTE_TOKEN: token } }, (err, stdout, stderr) =>
         resolve({ ok: !err, out: `${stdout}${stderr}`.trim() }),
       );
     });

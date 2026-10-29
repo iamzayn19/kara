@@ -5,6 +5,8 @@
 - Published as `iamzayn19.kara-agent` ("Kara Agent").
 - Uses the Kara diamond mark for the marketplace and activity-bar icons.
 - Windows: no console window flashes up for `kara serve` or `kara connect`.
+- "Connect to a Kara machine" passes the token to `kara connect` through the
+  environment instead of the command line, where other local users could see it.
 
 ## 0.1.0
 
