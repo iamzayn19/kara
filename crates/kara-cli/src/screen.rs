@@ -268,6 +268,36 @@ impl Input {
         self.cursor = self.cursor.saturating_sub(1);
     }
 
+    /// Ctrl-U: delete from the start of the line to the cursor.
+    fn kill_to_start(&mut self) {
+        let chars = self.chars();
+        self.text = chars[self.cursor..].iter().collect();
+        self.cursor = 0;
+    }
+
+    /// Ctrl-K: delete from the cursor to the end of the line.
+    fn kill_to_end(&mut self) {
+        let chars = self.chars();
+        self.text = chars[..self.cursor].iter().collect();
+    }
+
+    /// Ctrl-W / Alt-Backspace: delete the word before the cursor (and the
+    /// spaces after it), like a shell.
+    fn delete_word_back(&mut self) {
+        let chars = self.chars();
+        let mut start = self.cursor;
+        while start > 0 && chars[start - 1].is_whitespace() {
+            start -= 1;
+        }
+        while start > 0 && !chars[start - 1].is_whitespace() {
+            start -= 1;
+        }
+        let mut out: Vec<char> = chars[..start].to_vec();
+        out.extend_from_slice(&chars[self.cursor..]);
+        self.text = out.into_iter().collect();
+        self.cursor = start;
+    }
+
     fn right(&mut self) {
         self.cursor = (self.cursor + 1).min(self.chars().len());
     }
@@ -480,6 +510,21 @@ pub fn interactive(
             KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => {
                 input.set(String::new());
             }
+            KeyCode::Char(c) if k.modifiers.contains(KeyModifiers::CONTROL) => match c {
+                'a' => input.cursor = 0,
+                'e' => input.cursor = input.chars().len(),
+                'b' => input.left(),
+                'f' => input.right(),
+                'u' => input.kill_to_start(),
+                'k' => input.kill_to_end(),
+                'w' => input.delete_word_back(),
+                // Other Ctrl combinations must not type their letter.
+                _ => {}
+            },
+            KeyCode::Backspace if k.modifiers.contains(KeyModifiers::ALT) => {
+                input.delete_word_back()
+            }
+            KeyCode::Char(_) if k.modifiers.contains(KeyModifiers::ALT) => {}
             KeyCode::Char(c) => input.insert(c),
             KeyCode::Backspace => input.backspace(),
             KeyCode::Delete => input.delete(),
@@ -626,4 +671,46 @@ fn drop_to_plain(ui: &Ui, f: impl FnOnce() -> bool) -> bool {
     let _ = execute!(io::stdout(), EnterAlternateScreen);
     let _ = ui.term.lock().unwrap().clear();
     keep_going
+}
+
+#[cfg(test)]
+mod input_tests {
+    use super::Input;
+
+    fn at(text: &str, cursor: usize) -> Input {
+        let mut i = Input::default();
+        i.set(text.to_string());
+        i.cursor = cursor;
+        i
+    }
+
+    #[test]
+    fn kill_to_start_and_end() {
+        let mut i = at("fix the tests", 4);
+        i.kill_to_start();
+        assert_eq!((i.text.as_str(), i.cursor), ("the tests", 0));
+        let mut i = at("fix the tests", 7);
+        i.kill_to_end();
+        assert_eq!((i.text.as_str(), i.cursor), ("fix the", 7));
+    }
+
+    #[test]
+    fn delete_word_back_like_a_shell() {
+        let mut i = at("fix the  tests", 9);
+        i.delete_word_back();
+        assert_eq!((i.text.as_str(), i.cursor), ("fix tests", 4));
+        i.delete_word_back();
+        assert_eq!((i.text.as_str(), i.cursor), ("tests", 0));
+        i.delete_word_back();
+        assert_eq!((i.text.as_str(), i.cursor), ("tests", 0));
+    }
+
+    #[test]
+    fn edits_count_characters_not_bytes() {
+        let mut i = at("کارا ✓ ok", 6);
+        i.delete_word_back();
+        assert_eq!((i.text.as_str(), i.cursor), ("کارا  ok", 5));
+        i.kill_to_end();
+        assert_eq!(i.text, "کارا ");
+    }
 }
