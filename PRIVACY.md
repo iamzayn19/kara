@@ -55,6 +55,10 @@ In Kara's config directory (the same folder on macOS, `~/.config/kara` on
 Linux, `%APPDATA%\Kara` on Windows): `config.toml`, and under `credentials/`
 the tokens for `kara serve --inference` / `kara connect` (owner-only files).
 
+The desktop app also keeps, in its own window storage on this machine, your
+recent projects, its theme and layout, and your last 100 chat prompts (for
+recalling them with ↑). Nothing there leaves the machine.
+
 Delete any of these at any time. Kara never writes session data into your
 repository.
 

@@ -596,6 +596,7 @@ async function send() {
   const text = input.value.trim();
   if (!text) return;
   hideCmdMenu();
+  rememberPrompt(text);
 
   if (text.startsWith("/")) {
     const [cmd, ...rest] = text.slice(1).split(/\s+/);
@@ -1336,8 +1337,60 @@ input.addEventListener("input", () => {
   autosize();
   updateCmdMenu();
 });
+// ↑/↓ in the chat box recall earlier prompts, as in a terminal: only
+// when the caret is on the first/last line, so multi-line editing still
+// moves the caret. Kept per machine, newest 100.
+const PROMPT_HISTORY_KEY = "kara.promptHistory";
+let promptHistory: string[] = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(PROMPT_HISTORY_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+})();
+let promptHistoryIdx: number | undefined;
+
+function rememberPrompt(text: string) {
+  promptHistoryIdx = undefined;
+  if (promptHistory[promptHistory.length - 1] === text) return;
+  promptHistory = [...promptHistory, text].slice(-100);
+  try {
+    localStorage.setItem(PROMPT_HISTORY_KEY, JSON.stringify(promptHistory));
+  } catch {
+    /* storage unavailable: history just isn't kept */
+  }
+}
+
+function recallPrompt(step: -1 | 1): boolean {
+  if (!promptHistory.length) return false;
+  const before = input.value.slice(0, input.selectionStart);
+  const after = input.value.slice(input.selectionEnd);
+  if (step < 0 && before.includes("\n")) return false;
+  if (step > 0 && after.includes("\n")) return false;
+  // Start recalling only from an empty box or one already showing history.
+  if (promptHistoryIdx === undefined && (step > 0 || input.value.trim())) return false;
+  const next = (promptHistoryIdx ?? promptHistory.length) + step;
+  if (next < 0) return true;
+  if (next >= promptHistory.length) {
+    promptHistoryIdx = undefined;
+    input.value = "";
+  } else {
+    promptHistoryIdx = next;
+    input.value = promptHistory[next];
+  }
+  autosize();
+  input.setSelectionRange(input.value.length, input.value.length);
+  return true;
+}
+
 input.addEventListener("keydown", (ev) => {
   const menuOpen = !cmdMenu.classList.contains("hidden");
+  if (!menuOpen && (ev.key === "ArrowUp" || ev.key === "ArrowDown") && !ev.shiftKey && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+    if (recallPrompt(ev.key === "ArrowUp" ? -1 : 1)) {
+      ev.preventDefault();
+      return;
+    }
+  }
   if (menuOpen && (ev.key === "ArrowDown" || ev.key === "ArrowUp")) {
     ev.preventDefault();
     cmdMenuIndex += ev.key === "ArrowDown" ? 1 : -1;
