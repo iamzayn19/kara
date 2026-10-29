@@ -1019,7 +1019,27 @@ async function openSettings() {
     val.textContent = v;
     row.append(key, val);
     aboutBody.appendChild(row);
-  }
+  }  // For bug reports: where Kara's logs and config live.
+  const folders = document.createElement("div");
+  folders.className = "settings-form";
+  aboutBody.appendChild(folders);
+  invoke("kara_request", { method: "doctor", params: {} })
+    .then((d: any) => {
+      for (const [label, path] of [
+        ["Show logs folder", d?.paths?.logs],
+        ["Show config file", d?.paths?.config],
+      ] as [string, string | undefined][]) {
+        if (!path) continue;
+        const b = document.createElement("button");
+        b.className = "icon-text-btn";
+        b.textContent = label;
+        b.title = path;
+        b.addEventListener("click", () => void revealItemInDir(path).catch((e) => activity(String(e), "err")));
+        folders.appendChild(b);
+      }
+    })
+    .catch(() => {});
+
 
   const privLabel = document.createElement("div");
   privLabel.className = "panel-section-label";
