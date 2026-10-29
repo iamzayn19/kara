@@ -61,8 +61,8 @@ job) or `desktop-installers.yml` enforces it.
 | `.dmg` Apple Silicon: builds, mounts, strict codesign passes, bundled CLI runs | ✅ CI · ✅ local | run 40951337032; locally mounted with `-nobrowse`, app launches under the hardened runtime |
 | `.dmg` Intel: same checks | ✅ CI | run 40951337032 (`macos-15-intel`) |
 | Windows `.exe`: silent install, bundled `kara.exe` runs from the install dir | ✅ CI | run 40951337032 |
-| Windows `.msi` builds | ✅ CI | run 40951337032; install not automated yet |
-| Linux `.deb` installs via apt, bundled CLI runs; `.AppImage` builds | ✅ CI | run 40951337032 |
+| Windows `.msi`: silent install (after the `.exe` copy is confirmed gone), bundled `kara.exe` runs from the folder the installer logged | ✅ CI | run 40960131264 (per-user, `%LOCALAPPDATA%\Kara`) |
+| Linux `.deb` installs via apt, bundled CLI runs; `.AppImage` unpacks and its bundled CLI runs | ✅ CI | runs 40951337032, 40960131264 |
 | Developer ID signing / notarization (macOS), Authenticode (Windows) | ❌ | needs paid certificates; builds show a first-run prompt (README) |
 | Click-through of the app on each platform | ⏳ | [MANUAL_TEST_PLAN.md](MANUAL_TEST_PLAN.md) |
 | Real-model session from the desktop app | ⏳ | manual test plan 3.1–3.7; CLI real-model runs are recorded above |
