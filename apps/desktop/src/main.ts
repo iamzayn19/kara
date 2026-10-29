@@ -1421,7 +1421,8 @@ window.addEventListener("keydown", (e) => {
       break;
     case "s":
       e.preventDefault();
-      void saveActiveTab();
+      // Cmd/Ctrl+Alt+S saves every edited tab, as in VS Code.
+      void (e.altKey ? saveAllTabs() : saveActiveTab());
       break;
     case "w":
       if (activeTabId !== "chat") {
@@ -1853,9 +1854,14 @@ async function closeTab(id: string) {
 
 async function saveActiveTab() {
   const tab = openTabs.find((t) => t.id === activeTabId);
-  if (!tab || tab.kind !== "file" || tab.readOnly || !tab.dirty || !editorModule) return;
+  if (tab) await saveTab(tab);
+}
+
+/** Saves one file tab if it has unsaved edits; false if that failed. */
+async function saveTab(tab: OpenTab): Promise<boolean> {
+  if (tab.kind !== "file" || tab.readOnly || !tab.dirty || !editorModule) return true;
   const content = editorModule.fileContent(tab.path);
-  if (content === undefined) return;
+  if (content === undefined) return true;
   try {
     const r: any = await invoke("kara_request", {
       method: "fs/write",
@@ -1867,8 +1873,19 @@ async function saveActiveTab() {
     // Only clear the dot if nothing was typed while the save was in flight.
     tab.dirty = editorModule.fileContent(tab.path) !== content;
     renderEditorTabs();
+    return true;
   } catch (e: any) {
     activity(`Couldn't save ${tab.path}: ${e?.message ?? e}`, "err");
+    return false;
+  }
+}
+
+async function saveAllTabs() {
+  const dirty = openTabs.filter((t) => t.kind === "file" && t.dirty && !t.readOnly);
+  let saved = 0;
+  for (const t of dirty) if (await saveTab(t)) saved++;
+  if (dirty.length > 1 || saved < dirty.length) {
+    activity(saved === dirty.length ? `Saved ${saved} files.` : `Saved ${saved} of ${dirty.length} files; the others are still unsaved.`, saved === dirty.length ? "dim" : "warn");
   }
 }
 
@@ -2012,6 +2029,7 @@ function paletteCommands(): PaletteItem[] {
     { label: "Toggle sidebar", detail: "⌘B", run: toggleSidebar },
     { label: "Toggle light/dark theme", run: toggleTheme },
     { label: "Save file", detail: "⌘S", run: () => void saveActiveTab() },
+    { label: "Save all", detail: "⌥⌘S", run: () => void saveAllTabs() },
     { label: "New session", detail: "⌘N", run: () => void newSession() },
     { label: "Open project…", detail: "⌘O", run: () => void pickProject() },
     { label: "Settings", detail: "⌘,", run: () => void openSettings() },
