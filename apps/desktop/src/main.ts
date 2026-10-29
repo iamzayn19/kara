@@ -159,13 +159,23 @@ function effectiveTheme(): "light" | "dark" {
 /** The toolbar's one-click toggle — always lands on an explicit light or
  * dark (never back to "system"); Settings still has System for anyone who
  * wants to follow the OS instead. */
-function toggleTheme() {
-  setTheme(effectiveTheme() === "light" ? "dark" : "light");
-  // Only touch Monaco if it's already loaded — toggling theme shouldn't
-  // force-load a multi-MB editor bundle for someone who never opened a file.
+/** CSS follows the theme by itself; the editor and terminal are themed
+ * from script. Only touches modules already loaded — a theme change
+ * shouldn't force-load a multi-MB editor bundle nobody opened. */
+function applyThemeToWidgets() {
   if (editorModule) editorModule.setMonacoTheme(editorModule.monacoThemeFor(effectiveTheme()));
   terminalModule?.setTerminalTheme(effectiveTheme());
 }
+
+function toggleTheme() {
+  setTheme(effectiveTheme() === "light" ? "dark" : "light");
+  applyThemeToWidgets();
+}
+
+// With "System" chosen, follow the OS switching light/dark while running.
+window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+  if (currentTheme() === "system") applyThemeToWidgets();
+});
 
 // ── Transcript rendering ──────────────────────────────────────────
 
@@ -883,8 +893,7 @@ async function openSettings() {
     btn.textContent = label;
     btn.addEventListener("click", () => {
       setTheme(value);
-      if (editorModule) editorModule.setMonacoTheme(editorModule.monacoThemeFor(effectiveTheme()));
-      terminalModule?.setTerminalTheme(effectiveTheme());
+      applyThemeToWidgets();
       switcher.querySelectorAll(".theme-opt").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
     });
