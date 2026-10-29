@@ -10,6 +10,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { fuzzyFilter } from "./fuzzy";
 import { joinWorkspacePath } from "./paths";
+import { shortcutKey } from "./keys";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 // Dynamically imported on first use (see loadEditorModule below), not at
 // the top level — Monaco is a multi-MB dependency that has no reason to
@@ -1373,6 +1374,7 @@ btnSlash.addEventListener("click", () => {
 window.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey;
   if (!mod) return;
+  const key = shortcutKey(e);
   // Ctrl+Tab / Ctrl+Shift+Tab cycle tabs (Ctrl on every platform, as in VS Code).
   if (e.key === "Tab" && e.ctrlKey) {
     e.preventDefault();
@@ -1381,24 +1383,24 @@ window.addEventListener("keydown", (e) => {
     void activateTab(ids[(i + (e.shiftKey ? ids.length - 1 : 1)) % ids.length]);
     return;
   }
-  if (e.shiftKey && e.key.toLowerCase() === "t") {
+  if (e.shiftKey && key === "t") {
     e.preventDefault();
     const path = closedFiles.pop();
     if (path) void openFileTab(path);
     return;
   }
-  if (e.key.toLowerCase() === "p") {
+  if (key === "p") {
     e.preventDefault();
     void openPalette(e.shiftKey ? "commands" : "files");
     return;
   }
-  if (e.shiftKey && e.key.toLowerCase() === "f") {
+  if (e.shiftKey && key === "f") {
     e.preventDefault();
     if (sidebar.classList.contains("collapsed")) toggleSidebar();
     showSidebarPanel("search");
     return;
   }
-  switch (e.key.toLowerCase()) {
+  switch (key) {
     case "n":
       e.preventDefault();
       newSession();
