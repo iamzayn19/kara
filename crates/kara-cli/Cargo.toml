@@ -1,6 +1,6 @@
 [package]
 name = "kara-cli"
-description = "Kara: a free, open-source local AI engineering agent. Your code. Your machine. Your AI."
+description = "Kara: a free, open-source, local-first coding agent. Kara runs on your machine; intelligence runs wherever your compute is."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

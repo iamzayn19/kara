@@ -188,7 +188,7 @@ fn banner_lines(session: &Session) -> Vec<Line<'static>> {
         Line::from(vec![
             Span::styled("Kara", theme::accent()),
             Span::raw(format!(
-                " {} · your code, your machine, your AI",
+                " {} · local-first coding agent",
                 kara_core::VERSION
             )),
         ]),
