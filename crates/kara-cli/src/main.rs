@@ -1,4 +1,4 @@
-//! `kara`: the local AI engineering agent.
+//! `kara`: the local-first coding agent.
 
 mod app;
 mod commands;
@@ -19,8 +19,8 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "kara",
     version,
-    about = "Kara: your code, your machine, your AI. A free, local AI engineering agent.",
-    long_about = "Kara is a free, open-source local AI engineering agent.\n\nRun `kara` inside a repository and describe what you want in plain language.\nKara imposes no usage limits; it runs as much as your hardware can handle."
+    about = "Kara runs on your machine. Intelligence runs wherever your compute is.",
+    long_about = "Kara is a free, open-source, local-first coding agent.\n\nRun `kara` inside a repository and describe what you want in plain language.\nKara imposes no usage limits; it runs as much as your hardware can handle."
 )]
 struct Cli {
     /// Repository to work in (default: the git root containing the current directory).
@@ -82,10 +82,10 @@ enum Command {
     Undo,
     /// List recent sessions.
     Sessions,
-    /// Speak JSON-RPC over stdio (used by the VS Code extension).
-    /// Serve an editor over stdio, or share this machine's inference.
+    /// Serve an editor (desktop app, VS Code) over stdio, or share this
+    /// machine's inference with your other machines.
     Serve {
-        /// Speak JSON-RPC over stdin/stdout (used by editors; no port is opened).
+        /// Speak JSON-RPC over stdin/stdout (used by the desktop app and VS Code; no port is opened).
         #[arg(long, conflicts_with = "inference")]
         stdio: bool,
         /// Share this machine's inference with your other Kara machines.
