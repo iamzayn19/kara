@@ -2294,6 +2294,7 @@ function showTreeMenu(x: number, y: number, rel: string, isDir: boolean) {
     ["New file…", () => startTreeCreate(folder, "file")],
     ["New folder…", () => startTreeCreate(folder, "dir")],
     ["Rename…", () => startTreeRename(rel)],
+    [currentWorkspace.includes("\\") ? "Move to Recycle Bin" : "Move to Trash", () => trashTreeItem(rel, isDir)],
     ["Copy path", () => navigator.clipboard.writeText(absolutePath(rel))],
     ["Copy relative path", () => navigator.clipboard.writeText(rel)],
     [reveal, () => revealItemInDir(absolutePath(rel))],
@@ -2441,5 +2442,29 @@ function startTreeRename(rel: string) {
   box?.addEventListener("keydown", (e) => {
     if (e.key === "Escape") row.style.display = "";
   });
+}
+
+async function trashTreeItem(rel: string, isDir: boolean) {
+  const name = rel.split("/").pop() ?? rel;
+  const affected = openTabs.filter((t) => t.kind === "file" && (t.path === rel || t.path.startsWith(rel + "/")));
+  const unsaved = affected.filter((t) => t.dirty).length;
+  const bin = currentWorkspace.includes("\\") ? "Recycle Bin" : "Trash";
+  const ok = await ask(
+    `Move ${isDir ? "the folder " : ""}${name} to the ${bin}?` + (unsaved ? ` ${unsaved} open file${unsaved === 1 ? " has" : "s have"} unsaved changes that will be lost.` : ""),
+    { title: `Move to ${bin}`, kind: "warning", okLabel: `Move to ${bin}`, cancelLabel: "Cancel" },
+  );
+  if (!ok) return;
+  try {
+    await invoke("kara_request", { method: "fs/trash", params: { path: rel } });
+  } catch (e: any) {
+    activity(String(e?.message ?? e), "err");
+    return;
+  }
+  for (const t of affected) {
+    t.dirty = false; // already confirmed above; don't ask again on close
+    await closeTab(t.id);
+  }
+  expandedDirs.delete(rel);
+  await refreshFileTree();
 }
 

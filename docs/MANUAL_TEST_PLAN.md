@@ -60,6 +60,7 @@ itself, and start from a clean slate where a step says so.
 | 4.1 | Files tab: expand folders, open a file | Syntax-highlighted tab; `.gitignore`d folders (e.g. `node_modules`) are absent |
 | 4.1a | Right-click a folder → New file…, type a name, Enter; then New folder…; then Rename… on the new file (Esc once to cancel, then for real) | Each appears in the tree; the new file opens; Esc leaves everything unchanged; a name that exists is refused |
 | 4.1b | Rename a file that's open with unsaved edits; save, then rename it | First refused ("save or close"), then the tab follows the new name |
+| 4.1c | Right-click a file → Move to Trash / Recycle Bin, confirm; then a folder with an open, edited file inside | Gone from the tree and recoverable from the Trash/Recycle Bin; the second warns about unsaved changes and closes the tab |
 | 4.2 | Type in the file | A dot replaces the tab's ✕ |
 | 4.3 | Cmd/Ctrl+S | Saved to disk (check with another editor); dot goes away |
 | 4.4 | Edit a file, switch tabs, come back | Unsaved text and undo history are still there |
