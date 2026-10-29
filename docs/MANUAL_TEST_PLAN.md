@@ -63,6 +63,7 @@ itself, and start from a clean slate where a step says so.
 | 4.4 | Edit a file, switch tabs, come back | Unsaved text and undo history are still there |
 | 4.5 | Open a file, change it in another editor, then edit and save in Kara | Save refused: "changed on disk since it was opened"; the other edit is kept |
 | 4.6 | Close a tab with unsaved changes (Cmd/Ctrl+W) | Asks before discarding |
+| 4.6a | With an unsaved tab: close the window, press Cmd+Q (macOS), and open another project | Each asks first; Keep editing leaves everything as it was |
 | 4.7 | Cmd/Ctrl+J | Terminal panel opens in the project folder; `ls`, colors, arrow-key history and Ctrl+C work; resizing the window reflows it |
 | 4.8 | `exit` in the terminal, close and reopen the panel | A fresh shell |
 | 4.9 | Shift+Cmd/Ctrl+F, search a word | Results grouped by file; clicking one opens the file at that line, selected |

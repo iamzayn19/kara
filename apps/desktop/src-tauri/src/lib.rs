@@ -6,7 +6,7 @@ use kara_protocol::jsonrpc::RpcError;
 use rpc::Session;
 use serde_json::Value;
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use terminal::Terminal;
 
 struct AppState {
@@ -138,6 +138,51 @@ pub fn run() {
             terminal_write,
             terminal_resize
         ])
+        .setup(|app| {
+            #[cfg(target_os = "macos")]
+            replace_quit_item(app.handle())?;
+            let _ = app;
+            Ok(())
+        })
+        .on_menu_event(|app, event| {
+            if event.id() == QUIT_ID {
+                // Same path as the window's close button, so the window can
+                // ask about unsaved edits first; closing the last window
+                // then exits the app.
+                match app.get_webview_window("main") {
+                    Some(w) => {
+                        let _ = w.close();
+                    }
+                    None => app.exit(0),
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+const QUIT_ID: &str = "kara-quit";
+
+/// macOS's built-in Quit (Cmd+Q) terminates the process directly, so the
+/// window never hears about it and unsaved edits would be lost. Swap it
+/// for a menu item of ours that closes the window instead.
+#[cfg(target_os = "macos")]
+fn replace_quit_item(app: &AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem, MenuItemKind};
+    let menu = Menu::default(app)?;
+    if let Some(MenuItemKind::Submenu(app_menu)) = menu.items()?.into_iter().next() {
+        for (i, item) in app_menu.items()?.into_iter().enumerate() {
+            if let MenuItemKind::Predefined(p) = &item {
+                if p.text()?.starts_with("Quit") {
+                    app_menu.remove_at(i)?;
+                    let quit =
+                        MenuItem::with_id(app, QUIT_ID, "Quit Kara", true, Some("CmdOrCtrl+Q"))?;
+                    app_menu.insert(&quit, i)?;
+                    break;
+                }
+            }
+        }
+    }
+    app.set_menu(menu)?;
+    Ok(())
 }
