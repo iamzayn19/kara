@@ -108,6 +108,11 @@ See [INFERENCE.md](INFERENCE.md).
 › Find the race condition in the request counter.
 ```
 
+In the terminal: Enter sends, ↑/↓ recall history, PageUp/PageDown scroll,
+Ctrl-C stops a running task (or clears the line), Ctrl-D on an empty line
+exits. Line editing follows the shell: Ctrl-A/Ctrl-E start/end, Ctrl-U/Ctrl-K
+delete to start/end, Ctrl-W or Alt-Backspace delete a word.
+
 ### Slash commands
 
 | | |
