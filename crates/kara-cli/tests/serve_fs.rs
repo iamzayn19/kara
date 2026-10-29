@@ -4,12 +4,15 @@
 use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::mpsc::{channel, Receiver};
 
 struct Rpc {
     child: Child,
     stdin: Option<ChildStdin>,
-    stdout: BufReader<ChildStdout>,
+    /// Lines from the server, read on a thread so a request that never
+    /// answers fails the test instead of hanging it.
+    lines: Receiver<String>,
     next_id: u64,
 }
 
@@ -17,9 +20,13 @@ impl Rpc {
     /// Starts the server in `workspace` with an isolated KARA_HOME pointed at
     /// a dummy endpoint, so no local model is ever looked for or downloaded.
     fn start(workspace: &Path, home: &Path) -> Self {
+        Self::start_with_endpoint(workspace, home, "http://127.0.0.1:9/v1")
+    }
+
+    fn start_with_endpoint(workspace: &Path, home: &Path, endpoint: &str) -> Self {
         std::fs::write(
             home.join("config.toml"),
-            "[inference]\nprovider = \"openai_compat\"\nendpoint = \"http://127.0.0.1:9/v1\"\nmodel = \"dummy\"\n",
+            format!("[inference]\nprovider = \"openai_compat\"\nendpoint = \"{endpoint}\"\nmodel = \"dummy\"\n"),
         )
         .unwrap();
         let mut child = Command::new(env!("CARGO_BIN_EXE_kara"))
@@ -33,10 +40,18 @@ impl Rpc {
             .unwrap();
         let stdin = child.stdin.take();
         let stdout = BufReader::new(child.stdout.take().unwrap());
+        let (tx, lines) = channel();
+        std::thread::spawn(move || {
+            for line in stdout.lines().map_while(Result::ok) {
+                if tx.send(line).is_err() {
+                    break;
+                }
+            }
+        });
         let mut rpc = Rpc {
             child,
             stdin,
-            stdout,
+            lines,
             next_id: 0,
         };
         rpc.call("initialize", json!({ "workspace": workspace }))
@@ -44,23 +59,29 @@ impl Rpc {
         rpc
     }
 
-    /// Sends a request and returns its result, or the error message.
-    fn call(&mut self, method: &str, params: Value) -> Result<Value, String> {
+    /// Sends a request without waiting; returns its id.
+    fn send(&mut self, method: &str, params: Value) -> u64 {
         self.next_id += 1;
         let id = self.next_id;
         let msg = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
         let stdin = self.stdin.as_mut().expect("stdin open");
         writeln!(stdin, "{msg}").unwrap();
         stdin.flush().unwrap();
+        id
+    }
+
+    /// Sends a request and returns its result, or the error message.
+    fn call(&mut self, method: &str, params: Value) -> Result<Value, String> {
+        let id = self.send(method, params);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
-            let mut line = String::new();
-            assert!(
-                self.stdout.read_line(&mut line).unwrap() > 0,
-                "server exited"
-            );
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            let line = self.lines.recv_timeout(left).unwrap_or_else(|_| {
+                panic!("{method}: no answer within 30s (or the server exited)")
+            });
             let v: Value = serde_json::from_str(&line).unwrap();
             if v.get("id") != Some(&json!(id)) {
-                continue; // notifications and logs
+                continue; // notifications, logs, other requests' answers
             }
             return match v.get("error") {
                 Some(e) => Err(e["message"].as_str().unwrap_or_default().to_string()),
@@ -258,4 +279,49 @@ fn read_caps_large_files_and_gives_them_no_version() {
     let small = rpc.call("fs/read", json!({"path": "src/a.txt"})).unwrap();
     assert_eq!(small["truncated"], false);
     assert!(small["version"].is_string());
+}
+
+/// A running turn holds the session for its whole duration; the editor's
+/// file requests must still answer meanwhile, or the desktop app's tree,
+/// editor and search hang until Kara finishes.
+#[test]
+fn file_requests_answer_while_a_turn_is_running() {
+    // A model server that accepts connections and never replies, so the
+    // prompt below stays in flight.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        let mut held = Vec::new();
+        for conn in listener.incoming() {
+            held.push(conn);
+        }
+    });
+    let (ws, home) = project();
+    let mut rpc = Rpc::start_with_endpoint(
+        ws.path(),
+        home.path(),
+        &format!("http://127.0.0.1:{port}/v1"),
+    );
+    rpc.send("session/prompt", json!({"text": "explain this project"}));
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    // Proof the turn is really in flight (status refuses while one runs).
+    let busy = |rpc: &mut Rpc| rpc.call("session/status", json!({})).unwrap_err();
+    assert!(busy(&mut rpc).contains("busy"));
+
+    for (method, params) in [
+        ("fs/read", json!({"path": "src/a.txt"})),
+        ("fs/list", json!({"path": ""})),
+        ("fs/files", json!({})),
+        ("fs/search", json!({"query": "hello"})),
+    ] {
+        let t0 = std::time::Instant::now();
+        rpc.call(method, params)
+            .unwrap_or_else(|e| panic!("{method}: {e}"));
+        assert!(
+            t0.elapsed() < std::time::Duration::from_secs(2),
+            "{method} waited {:?} for the running turn",
+            t0.elapsed()
+        );
+    }
+    assert!(busy(&mut rpc).contains("busy"), "the turn ended early");
 }

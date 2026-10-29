@@ -93,6 +93,10 @@ struct ServeSession {
 struct Server {
     peer: Peer,
     session: Arc<Mutex<Option<ServeSession>>>,
+    /// The workspace root, kept outside `session`: a prompt holds the
+    /// session lock for its whole turn, and the editor's file requests
+    /// (tree, open, search, save) must not wait for that.
+    root: Arc<std::sync::Mutex<Option<std::path::PathBuf>>>,
     cancel: Arc<std::sync::Mutex<Option<CancellationToken>>>,
     opts: Options,
 }
@@ -277,6 +281,7 @@ impl Server {
         if let Some(old) = guard.as_mut() {
             old.inference.shutdown().await;
         }
+        *self.root.lock().unwrap() = Some(app.root.clone());
         *guard = Some(ServeSession {
             app,
             inference: runtime,
@@ -658,13 +663,17 @@ impl Server {
     /// theoretical risk). Gitignore-aware via the same `ignore` crate the
     /// repo indexer uses, so `.git`, `target`, `node_modules` etc. stay
     /// out exactly as they do there.
+    fn workspace_root(&self) -> Result<std::path::PathBuf, RpcError> {
+        self.root
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or_else(|| invalid("call initialize first"))
+    }
+
     async fn fs_list(&self, params: Value) -> Result<Value, RpcError> {
-        let guard = self.session.lock().await;
-        let s = guard
-            .as_ref()
-            .ok_or_else(|| invalid("call initialize first"))?;
         let rel = params.get("path").and_then(Value::as_str).unwrap_or("");
-        let root = s.app.root.clone();
+        let root = self.workspace_root()?;
         let dir = Self::safe_join(&root, rel)?;
         if !dir.is_dir() {
             return Err(invalid("not a directory"));
@@ -716,12 +725,7 @@ impl Server {
     /// typing doesn't round-trip.
     async fn fs_files(&self) -> Result<Value, RpcError> {
         const LIMIT: usize = 20_000;
-        let guard = self.session.lock().await;
-        let s = guard
-            .as_ref()
-            .ok_or_else(|| invalid("call initialize first"))?;
-        let root = s.app.root.clone();
-        drop(guard);
+        let root = self.workspace_root()?;
         let (files, truncated) =
             tokio::task::spawn_blocking(move || kara_context::search::find_files(&root, "", LIMIT))
                 .await
@@ -732,10 +736,6 @@ impl Server {
     /// Project-wide text search for the desktop app's search panel. Literal
     /// and case-insensitive by default, like an editor's find-in-files.
     async fn fs_search(&self, params: Value) -> Result<Value, RpcError> {
-        let guard = self.session.lock().await;
-        let s = guard
-            .as_ref()
-            .ok_or_else(|| invalid("call initialize first"))?;
         let query = params
             .get("query")
             .and_then(Value::as_str)
@@ -750,8 +750,7 @@ impl Server {
             max_matches: 500,
             ..Default::default()
         };
-        let root = s.app.root.clone();
-        drop(guard);
+        let root = self.workspace_root()?;
         let result =
             tokio::task::spawn_blocking(move || kara_context::search::grep(&root, &query, &opts))
                 .await
@@ -762,15 +761,11 @@ impl Server {
 
     async fn fs_read(&self, params: Value) -> Result<Value, RpcError> {
         const MAX_BYTES: usize = 2_000_000;
-        let guard = self.session.lock().await;
-        let s = guard
-            .as_ref()
-            .ok_or_else(|| invalid("call initialize first"))?;
         let rel = params
             .get("path")
             .and_then(Value::as_str)
             .ok_or_else(|| invalid("path is required"))?;
-        let root = s.app.root.clone();
+        let root = self.workspace_root()?;
         let file = Self::safe_join(&root, rel)?;
         if !file.is_file() {
             return Err(invalid("not a file"));
@@ -818,10 +813,6 @@ impl Server {
     /// (`expectedVersion`, from fs/read), so a save can't silently clobber an edit Kara
     /// made in the meantime.
     async fn fs_write(&self, params: Value) -> Result<Value, RpcError> {
-        let guard = self.session.lock().await;
-        let s = guard
-            .as_ref()
-            .ok_or_else(|| invalid("call initialize first"))?;
         let rel = params
             .get("path")
             .and_then(Value::as_str)
@@ -830,8 +821,7 @@ impl Server {
             .get("content")
             .and_then(Value::as_str)
             .ok_or_else(|| invalid("content is required"))?;
-        let root = s.app.root.clone();
-        drop(guard);
+        let root = self.workspace_root()?;
         let file = Self::safe_join(&root, rel)?;
         if !file.is_file() {
             return Err(invalid("not a file"));
@@ -996,6 +986,7 @@ pub fn serve_stdio(rt: &tokio::runtime::Runtime, opts: &Options) -> anyhow::Resu
         let server = Arc::new(Server {
             peer: peer.clone(),
             session: Arc::new(Mutex::new(None)),
+            root: Arc::new(std::sync::Mutex::new(None)),
             cancel: Arc::new(std::sync::Mutex::new(None)),
             opts: opts.clone(),
         });
