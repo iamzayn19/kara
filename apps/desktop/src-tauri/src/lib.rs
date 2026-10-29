@@ -87,6 +87,12 @@ async fn kara_config_set(app: AppHandle, key: String, value: String) -> Result<S
         .map_err(|e| e.to_string())?
 }
 
+/// For drag-and-drop: the window gets dropped paths but can't stat them.
+#[tauri::command]
+fn path_is_dir(path: String) -> bool {
+    std::path::Path::new(&path).is_dir()
+}
+
 #[tauri::command]
 fn terminal_spawn(app: AppHandle, state: State<'_, AppState>, cwd: String) -> Result<u64, String> {
     state.terminal.spawn(app, cwd)
@@ -124,6 +130,7 @@ pub fn run() {
             kara_respond,
             kara_stop,
             kara_home_dir,
+            path_is_dir,
             kara_connect,
             kara_config_set,
             terminal_spawn,

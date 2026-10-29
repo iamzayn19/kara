@@ -27,6 +27,7 @@ itself, and start from a clean slate where a step says so.
 | 2.2 | Open a project (Cmd/Ctrl+O) | Project name in the toolbar; status bar shows the model and "ready" |
 | 2.3 | Quit and relaunch | Same project reopens; window size and position are kept |
 | 2.4 | Project tab → Recent: switch to another project and back | Each switch clears the old project's tabs, tree and search results |
+| 2.4a | Drag a folder from Finder/Explorer onto the window; then drag a single file | Dashed outline while dragging; the folder opens as the project; the file is ignored with a hint |
 | 2.5 | No model configured and no local model | Clear guidance on how to get one; nothing downloads without asking |
 | 2.6 | Model pill → pick a local model that is not installed | Size, memory and license shown; download only after you confirm; progress bar; checksum verified |
 | 2.7 | Pick a model too large for the machine | Refused with the memory numbers, not loaded |

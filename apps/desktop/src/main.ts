@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { fuzzyFilter } from "./fuzzy";
 import { joinWorkspacePath } from "./paths";
@@ -2257,4 +2258,26 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") hideTreeMenu();
 });
 window.addEventListener("blur", hideTreeMenu);
+
+// ── Drop a folder on the window to open it ───────────────────────
+
+void getCurrentWebview().onDragDropEvent(async (event) => {
+  const p = event.payload;
+  if (p.type === "over") {
+    document.body.classList.add("drop-target");
+    return;
+  }
+  document.body.classList.remove("drop-target");
+  if (p.type !== "drop" || p.paths.length === 0) return;
+  const dir = p.paths[0];
+  if (busy) {
+    activity("Kara is working; stop the current turn before switching projects.", "warn");
+    return;
+  }
+  if (!(await invoke<boolean>("path_is_dir", { path: dir }).catch(() => false))) {
+    activity("Drop a folder to open it as a project.", "dim");
+    return;
+  }
+  if (dir !== currentWorkspace) await openWorkspace(dir);
+});
 
