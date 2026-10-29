@@ -541,6 +541,7 @@ function handleEvent(e: any) {
         void openDiffTab(p);
       }
       void refreshGitPill();
+      void refreshDiffTabs();
       if (e.changed_files?.length) {
         projectFiles = undefined;
         // Shell commands can change files without a file_changed event.
@@ -2581,5 +2582,29 @@ async function refreshGitPill() {
     // An older kara without git/info, or no session yet: just hide it.
     gitPill.classList.add("hidden");
   }
+}
+
+/** Diff tabs show Kara's change as of when they were opened; after a turn
+ * the change may have grown, been reverted or rejected. Re-read them. */
+async function refreshDiffTabs() {
+  const diffs = openTabs.filter((t) => t.kind === "diff");
+  if (!diffs.length) return;
+  let changes: any[];
+  try {
+    const r: any = await invoke("kara_request", { method: "session/changes", params: {} });
+    changes = r.kara ?? [];
+  } catch {
+    return;
+  }
+  for (const tab of diffs) {
+    const match = changes.find((f: any) => f.path === tab.path);
+    if (!match) {
+      tab.label = `${tab.path.split("/").pop()} (diff, no longer changed)`;
+      continue;
+    }
+    tab.content = { before: match.before ?? "", after: match.after ?? "" };
+    if (tab.id === activeTabId) void activateTab(tab.id);
+  }
+  renderEditorTabs();
 }
 
