@@ -400,3 +400,41 @@ fn create_and_rename_stay_inside_and_never_overwrite() {
             .is_symlink());
     }
 }
+
+#[test]
+fn trash_refuses_anything_outside_the_workspace() {
+    let (ws, home) = project();
+    let outside = ws
+        .path()
+        .parent()
+        .unwrap()
+        .join(format!("kara-trash-victim-{}", std::process::id()));
+    std::fs::write(&outside, "keep me").unwrap();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+    let rel = format!("../{}", outside.file_name().unwrap().to_str().unwrap());
+    for bad in [rel.as_str(), "src/..", "", "nope.txt"] {
+        assert!(
+            rpc.call("fs/trash", json!({"path": bad})).is_err(),
+            "{bad:?}"
+        );
+    }
+    assert!(outside.exists());
+    std::fs::remove_file(&outside).unwrap();
+    assert!(ws.path().join("src/a.txt").exists());
+}
+
+/// Really moves a file to the OS trash, so it only runs on CI (GitHub sets
+/// CI=true) rather than filling a developer's Trash on every test run.
+#[test]
+fn trash_moves_a_file_out_of_the_workspace() {
+    if std::env::var_os("CI").is_none() {
+        return;
+    }
+    let (ws, home) = project();
+    let name = format!("kara-trash-test-{}.txt", std::process::id());
+    std::fs::write(ws.path().join(&name), "bye").unwrap();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+    rpc.call("fs/trash", json!({"path": name})).unwrap();
+    assert!(!ws.path().join(&name).exists());
+    assert!(ws.path().join("src/a.txt").exists());
+}

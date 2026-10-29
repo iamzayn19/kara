@@ -35,6 +35,7 @@ pub mod methods {
     pub const FS_FILES: &str = "fs/files";
     pub const FS_CREATE: &str = "fs/create";
     pub const FS_RENAME: &str = "fs/rename";
+    pub const FS_TRASH: &str = "fs/trash";
 
     // server -> client notifications
     pub const EVENT: &str = "event";

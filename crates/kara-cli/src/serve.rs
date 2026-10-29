@@ -196,6 +196,7 @@ impl Server {
             methods::FS_FILES => self.fs_files().await,
             methods::FS_CREATE => self.fs_create(params).await,
             methods::FS_RENAME => self.fs_rename(params).await,
+            methods::FS_TRASH => self.fs_trash(params).await,
             methods::SELECT_MODEL => {
                 let me = self.clone();
                 tokio::spawn(async move {
@@ -857,6 +858,45 @@ impl Server {
                 .map_err(internal)?;
         }
         Ok(json!({ "path": rel.trim_end_matches('/') }))
+    }
+
+    /// Move a file or folder to the OS trash (Trash, Recycle Bin,
+    /// freedesktop trash): deleting from the file tree stays recoverable.
+    async fn fs_trash(&self, params: Value) -> Result<Value, RpcError> {
+        let rel = params
+            .get("path")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("path is required"))?
+            .trim_end_matches('/')
+            .to_string();
+        let root = self.workspace_root()?;
+        // As in fs_rename: resolve the parent so a symlink is trashed
+        // itself, not whatever it points to.
+        let (parent, name) = rel.rsplit_once('/').unwrap_or(("", rel.as_str()));
+        if name.is_empty() || name == "." || name == ".." {
+            return Err(invalid("can't delete the workspace itself"));
+        }
+        let target = Self::safe_join(&root, parent)?.join(name);
+        if target.symlink_metadata().is_err() {
+            return Err(invalid(format!("{rel} doesn't exist")));
+        }
+        tokio::task::spawn_blocking(move || {
+            #[allow(unused_mut)]
+            let mut ctx = trash::TrashContext::default();
+            // The crate's macOS default scripts Finder through osascript,
+            // which needs an Automation permission prompt; the file
+            // manager API moves to the Trash directly.
+            #[cfg(target_os = "macos")]
+            {
+                use trash::macos::{DeleteMethod, TrashContextExtMacos};
+                ctx.set_delete_method(DeleteMethod::NsFileManager);
+            }
+            ctx.delete(&target)
+        })
+        .await
+        .map_err(internal)?
+        .map_err(|e| invalid(format!("couldn't move {rel} to the trash: {e}")))?;
+        Ok(json!({ "path": rel }))
     }
 
     /// Rename or move within the workspace. Never replaces an existing path.
