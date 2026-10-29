@@ -65,6 +65,8 @@ itself, and start from a clean slate where a step says so.
 | 4.3 | Cmd/Ctrl+S | Saved to disk (check with another editor); dot goes away |
 | 4.4 | Edit a file, switch tabs, come back | Unsaved text and undo history are still there |
 | 4.5 | Open a file, change it in another editor, then edit and save in Kara | Save refused: "changed on disk since it was opened"; the other edit is kept |
+| 4.5a | Open a file, ask Kara to change it; also edit it in another editor and switch back to Kara | The open tab updates to the new content each time, keeping its scroll position |
+| 4.5b | Same, but with your own unsaved edits in the tab | Your edits stay; a warning says it changed on disk; saving is refused (4.5) |
 | 4.6 | Close a tab with unsaved changes (Cmd/Ctrl+W) | Asks before discarding |
 | 4.6a | With an unsaved tab: close the window, press Cmd+Q (macOS), and open another project | Each asks first; Keep editing leaves everything as it was |
 | 4.7 | Cmd/Ctrl+J | Terminal panel opens in the project folder; `ls`, colors, arrow-key history and Ctrl+C work; resizing the window reflows it |

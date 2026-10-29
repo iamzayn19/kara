@@ -512,6 +512,7 @@ function handleEvent(e: any) {
     }
     case "file_changed":
       fileChangedRow(e.change);
+      void reloadOpenFiles([e.change.path]);
       break;
     case "test_finished": {
       const r = e.report;
@@ -537,7 +538,11 @@ function handleEvent(e: any) {
         pendingDiffPath = undefined;
         void openDiffTab(p);
       }
-      if (e.changed_files?.length) projectFiles = undefined;
+      if (e.changed_files?.length) {
+        projectFiles = undefined;
+        // Shell commands can change files without a file_changed event.
+        void reloadOpenFiles(e.changed_files);
+      }
       pendingPlan = e.outcome === "awaiting_approval";
       if (e.changed_files?.length) {
         activity("Changed:", "accent");
@@ -1732,6 +1737,8 @@ interface OpenTab {
   content?: { before: string; after: string } | string;
   /** fs/read's content hash, sent back on save to detect on-disk changes. */
   version?: string;
+  /** Changed on disk while it had unsaved edits; warned about once. */
+  staleWarned?: boolean;
   readOnly?: boolean;
   dirty?: boolean;
 }
@@ -2468,4 +2475,41 @@ async function trashTreeItem(rel: string, isDir: boolean) {
   expandedDirs.delete(rel);
   await refreshFileTree();
 }
+
+// ── Open files follow changes on disk ────────────────────────────
+
+/** Re-reads open file tabs (all of them, or those in `paths`) and updates
+ * the ones whose content changed on disk: a tab without unsaved edits is
+ * reloaded in place; one with edits keeps them and gets a warning, and its
+ * save will be refused as before. */
+async function reloadOpenFiles(paths?: string[]) {
+  if (!editorModule) return;
+  const wanted = paths ? new Set(paths) : undefined;
+  for (const tab of openTabs) {
+    if (tab.kind !== "file" || tab.readOnly || (wanted && !wanted.has(tab.path))) continue;
+    let r: any;
+    try {
+      r = await invoke("kara_request", { method: "fs/read", params: { path: tab.path } });
+    } catch {
+      continue; // deleted or unreadable; the tab stays as it was
+    }
+    if (!r.version || r.version === tab.version || r.binary) continue;
+    if (tab.dirty) {
+      if (!tab.staleWarned) {
+        tab.staleWarned = true;
+        activity(`${tab.label} changed on disk while you were editing it. Your edits are kept; reopen the file to see the new version.`, "warn");
+      }
+      continue;
+    }
+    editorModule.replaceFileContent(tab.path, r.content ?? "");
+    tab.content = r.content ?? "";
+    tab.version = r.version;
+    // replaceFileContent fires the change listener; this wasn't the user.
+    tab.dirty = false;
+  }
+  renderEditorTabs();
+}
+
+// Edits made in another editor while Kara was in the background.
+window.addEventListener("focus", () => void reloadOpenFiles());
 

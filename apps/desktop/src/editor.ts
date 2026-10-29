@@ -119,6 +119,17 @@ export function showFile(
   if (!opts.readOnly) viewer.focus();
 }
 
+/** Replaces an open file's text after it changed on disk, keeping the
+ * scroll position and cursor where they were if it's on screen. */
+export function replaceFileContent(path: string, content: string) {
+  const model = fileModels.get(path);
+  if (!model || model.getValue() === content) return;
+  const shown = viewer?.getModel() === model;
+  const state = shown ? viewer!.saveViewState() : null;
+  model.setValue(content);
+  if (shown && state) viewer!.restoreViewState(state);
+}
+
 export function fileContent(path: string): string | undefined {
   return fileModels.get(path)?.getValue();
 }
