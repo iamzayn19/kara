@@ -1197,7 +1197,22 @@ async function pickProject() {
   await openWorkspace(dir);
 }
 
+/** Asks before an action that would throw away unsaved editor tabs;
+ * true when there are none or the user chose to discard them. */
+async function confirmDiscardUnsaved(action: string): Promise<boolean> {
+  const dirty = openTabs.filter((t) => t.dirty).map((t) => t.label);
+  if (!dirty.length) return true;
+  const list = dirty.length === 1 ? dirty[0] : `${dirty.length} files (${dirty.slice(0, 3).join(", ")}${dirty.length > 3 ? ", …" : ""})`;
+  return ask(`${list} ${dirty.length === 1 ? "has" : "have"} unsaved changes. ${action} anyway and discard them?`, {
+    title: "Unsaved changes",
+    kind: "warning",
+    okLabel: "Discard",
+    cancelLabel: "Keep editing",
+  });
+}
+
 async function openWorkspace(dir: string) {
+  if (!(await confirmDiscardUnsaved("Switch projects"))) return;
   clearTranscript();
   pendingPlan = false;
   resetEditorTabs();
@@ -2307,5 +2322,10 @@ void getCurrentWebview().onDragDropEvent(async (event) => {
     return;
   }
   if (dir !== currentWorkspace) await openWorkspace(dir);
+});
+
+// Quitting must not silently drop unsaved edits either.
+void getCurrentWindow().onCloseRequested(async (event) => {
+  if (!(await confirmDiscardUnsaved("Quit"))) event.preventDefault();
 });
 
