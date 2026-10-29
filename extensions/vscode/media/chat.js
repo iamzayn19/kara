@@ -244,11 +244,47 @@
     }
   });
 
+  // Up/Down recall earlier prompts, only from the first/last line so
+  // multi-line editing still moves the caret. Kept in the webview state.
+  const state = vscode.getState() || {};
+  let history = Array.isArray(state.history) ? state.history : [];
+  let histIdx = undefined;
+  function remember(text) {
+    histIdx = undefined;
+    if (history[history.length - 1] === text) return;
+    history = history.concat(text).slice(-100);
+    vscode.setState({ ...(vscode.getState() || {}), history });
+  }
+  function recall(step) {
+    if (!history.length) return false;
+    const before = input.value.slice(0, input.selectionStart);
+    const after = input.value.slice(input.selectionEnd);
+    if (step < 0 && before.includes("\n")) return false;
+    if (step > 0 && after.includes("\n")) return false;
+    if (histIdx === undefined && (step > 0 || input.value.trim())) return false;
+    const next = (histIdx === undefined ? history.length : histIdx) + step;
+    if (next < 0) return true;
+    if (next >= history.length) {
+      histIdx = undefined;
+      input.value = "";
+    } else {
+      histIdx = next;
+      input.value = history[next];
+    }
+    input.setSelectionRange(input.value.length, input.value.length);
+    return true;
+  }
+
   input.addEventListener("keydown", (e) => {
+    if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (recall(e.key === "ArrowUp" ? -1 : 1)) e.preventDefault();
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       const text = input.value;
       if (text.trim()) {
+        remember(text.trim());
         vscode.postMessage({ type: "send", text });
         input.value = "";
       }
