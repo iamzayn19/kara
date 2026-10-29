@@ -219,6 +219,82 @@ fn banner_lines(session: &Session) -> Vec<Line<'static>> {
     ]
 }
 
+/// Entries kept in the shared input history file (rustyline's default).
+const HISTORY_MAX: usize = 100;
+
+/// Reads the input history shared with the line-mode prompt, in
+/// rustyline's FileHistory format: an optional `#V2` header, then one
+/// entry per line with newlines and backslashes escaped.
+fn load_history(path: &std::path::Path) -> Vec<String> {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let mut lines = text.lines().peekable();
+    let v2 = lines.peek() == Some(&"#V2");
+    if v2 {
+        lines.next();
+    }
+    let mut out: Vec<String> = lines
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            if v2 {
+                unescape_history(l)
+            } else {
+                l.to_string()
+            }
+        })
+        .collect();
+    let excess = out.len().saturating_sub(HISTORY_MAX);
+    out.drain(..excess);
+    out
+}
+
+fn unescape_history(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('n') => out.push('\n'),
+            Some('\\') => out.push('\\'),
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
+            None => out.push('\\'),
+        }
+    }
+    out
+}
+
+/// Writes the history back in the same format, owner-readable only on
+/// Unix, through a temporary file so a crash can't leave it half written.
+fn save_history(path: &std::path::Path, entries: &[String]) -> std::io::Result<()> {
+    use std::io::Write;
+    let start = entries.len().saturating_sub(HISTORY_MAX);
+    let mut text = String::from("#V2\n");
+    for e in &entries[start..] {
+        text.push_str(&e.replace('\\', "\\\\").replace('\n', "\\n"));
+        text.push('\n');
+    }
+    let tmp = path.with_extension("tmp");
+    {
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let mut f = opts.open(&tmp)?;
+        f.write_all(text.as_bytes())?;
+    }
+    std::fs::rename(&tmp, path)
+}
+
 /// Single-line input editor: enough for the common case, not a rustyline
 /// replacement (no multi-line continuation, no fuzzy completion yet).
 #[derive(Default)]
@@ -487,6 +563,8 @@ pub fn interactive(
     }
 
     let mut input = Input::default();
+    let history_file = session.app.paths.history_file();
+    input.history = load_history(&history_file);
     ui.draw(input.line(), "›");
 
     loop {
@@ -581,7 +659,10 @@ pub fn interactive(
                     ui.draw(input.line(), "›");
                     continue;
                 }
-                input.history.push(line.clone());
+                if input.history.last() != Some(&line) {
+                    input.history.push(line.clone());
+                    let _ = save_history(&history_file, &input.history);
+                }
 
                 if line.starts_with('/') {
                     ui.scroll_to_bottom();
@@ -712,5 +793,58 @@ mod input_tests {
         assert_eq!((i.text.as_str(), i.cursor), ("کارا  ok", 5));
         i.kill_to_end();
         assert_eq!(i.text, "کارا ");
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::{load_history, save_history};
+
+    #[test]
+    fn round_trips_multiline_and_backslashes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history");
+        let entries = vec![
+            "fix the tests".to_string(),
+            "line one\nline two".to_string(),
+            r"cd C:\repo\new".to_string(),
+        ];
+        save_history(&path, &entries).unwrap();
+        assert_eq!(load_history(&path), entries);
+    }
+
+    #[test]
+    fn reads_what_rustyline_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history");
+        std::fs::write(&path, "#V2\ntest\\n \\abc\n123\\n\\\\n\n").unwrap();
+        assert_eq!(load_history(&path), vec!["test\n \\abc", "123\n\\n"]);
+        // A pre-V2 file is plain lines.
+        std::fs::write(&path, "one\ntwo\n").unwrap();
+        assert_eq!(load_history(&path), vec!["one", "two"]);
+    }
+
+    #[test]
+    fn keeps_the_latest_hundred() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history");
+        let entries: Vec<String> = (0..150).map(|i| format!("task {i}")).collect();
+        save_history(&path, &entries).unwrap();
+        let back = load_history(&path);
+        assert_eq!(back.len(), 100);
+        assert_eq!(back[0], "task 50");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn history_file_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history");
+        save_history(&path, &["x".to_string()]).unwrap();
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
     }
 }
