@@ -75,6 +75,7 @@ itself, and start from a clean slate where a step says so.
 | 4.10 | Toggle Aa (match case) and .* (regex), then type an invalid regex like `(` | Results update; invalid regex shows an error, not a crash |
 | 4.11 | Cmd/Ctrl+P, type part of a file name (e.g. `mts` for `main.ts`) | Best match first, matched letters highlighted; Enter opens it |
 | 4.12 | Shift+Cmd/Ctrl+P, or type `>` in quick open | Commands list; "Mode: Plan" switches the mode; a slash command fills the chat box |
+| 4.12a | Status bar in a git repo: switch branch in a terminal and come back; let Kara change a file; check out a commit (detached) | "⎇ branch · N changed" updates on focus and after the turn; detached shows "detached at <sha>"; hidden outside a repo |
 | 4.13 | Toggle light/dark theme (toolbar) | Whole app, editor and diffs switch; red/blue stay readable in both |
 
 ## 5. Terminal CLI

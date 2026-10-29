@@ -38,6 +38,7 @@ const input = document.querySelector<HTMLTextAreaElement>("#input")!;
 const sendBtn = document.querySelector<HTMLButtonElement>("#send")!;
 const sessionState = document.querySelector<HTMLElement>("#session-state")!;
 const modelPill = document.querySelector<HTMLButtonElement>("#model-pill")!;
+const gitPill = document.querySelector<HTMLElement>("#git-pill")!;
 const permPill = document.querySelector<HTMLButtonElement>("#perm-pill")!;
 const contextPill = document.querySelector<HTMLButtonElement>("#context-pill")!;
 const btnNew = document.querySelector<HTMLButtonElement>("#btn-new")!;
@@ -538,6 +539,7 @@ function handleEvent(e: any) {
         pendingDiffPath = undefined;
         void openDiffTab(p);
       }
+      void refreshGitPill();
       if (e.changed_files?.length) {
         projectFiles = undefined;
         // Shell commands can change files without a file_changed event.
@@ -1159,6 +1161,7 @@ async function startWorkspace(workspace: string) {
       .catch(() => {});
     sessionState.textContent = "ready";
     setProjectControlsEnabled(true);
+    void refreshGitPill();
     startSessionTimer();
     void updateContextPill();
     void refreshTreeBadgesIfVisible();
@@ -1833,6 +1836,7 @@ async function saveActiveTab() {
     });
     tab.version = r.version;
     tab.content = content;
+    void refreshGitPill();
     // Only clear the dot if nothing was typed while the save was in flight.
     tab.dirty = editorModule.fileContent(tab.path) !== content;
     renderEditorTabs();
@@ -2511,5 +2515,31 @@ async function reloadOpenFiles(paths?: string[]) {
 }
 
 // Edits made in another editor while Kara was in the background.
-window.addEventListener("focus", () => void reloadOpenFiles());
+window.addEventListener("focus", () => {
+  void reloadOpenFiles();
+  void refreshGitPill();
+});
+
+// ── Git branch in the status bar ─────────────────────────────────
+
+async function refreshGitPill() {
+  if (!currentWorkspace) {
+    gitPill.classList.add("hidden");
+    return;
+  }
+  try {
+    const g: any = await invoke("kara_request", { method: "git/info", params: {} });
+    if (!g.repo) {
+      gitPill.classList.add("hidden");
+      return;
+    }
+    const where = g.branch ?? (g.head ? `detached at ${g.head}` : "no commits yet");
+    gitPill.textContent = `⎇ ${where}` + (g.changed ? ` · ${g.changed} changed` : "");
+    gitPill.title = g.branch ? `Branch ${g.branch}${g.head ? ` at ${g.head}` : ""}` : where;
+    gitPill.classList.remove("hidden");
+  } catch {
+    // An older kara without git/info, or no session yet: just hide it.
+    gitPill.classList.add("hidden");
+  }
+}
 
