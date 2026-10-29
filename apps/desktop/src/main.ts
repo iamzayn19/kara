@@ -164,6 +164,7 @@ function toggleTheme() {
   // Only touch Monaco if it's already loaded — toggling theme shouldn't
   // force-load a multi-MB editor bundle for someone who never opened a file.
   if (editorModule) editorModule.setMonacoTheme(editorModule.monacoThemeFor(effectiveTheme()));
+  terminalModule?.setTerminalTheme(effectiveTheme());
 }
 
 // ── Transcript rendering ──────────────────────────────────────────
@@ -883,6 +884,7 @@ async function openSettings() {
     btn.addEventListener("click", () => {
       setTheme(value);
       if (editorModule) editorModule.setMonacoTheme(editorModule.monacoThemeFor(effectiveTheme()));
+      terminalModule?.setTerminalTheme(effectiveTheme());
       switcher.querySelectorAll(".theme-opt").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
     });
@@ -1152,7 +1154,7 @@ async function openWorkspace(dir: string) {
   // A shell started in the old project would stay there.
   if (terminalModule) {
     await terminalModule.stopTerminal();
-    if (!terminalPanel.classList.contains("hidden")) await terminalModule.openTerminal(terminalMount, currentWorkspace || dir);
+    if (!terminalPanel.classList.contains("hidden")) await terminalModule.openTerminal(terminalMount, currentWorkspace || dir, effectiveTheme());
   }
 }
 
@@ -1330,7 +1332,7 @@ async function toggleTerminal() {
   if (opening) {
     terminalPanel.classList.remove("hidden");
     const { openTerminal } = await loadTerminalModule();
-    await openTerminal(terminalMount, currentWorkspace || (await invoke<string | null>("kara_home_dir")) || ".");
+    await openTerminal(terminalMount, currentWorkspace || (await invoke<string | null>("kara_home_dir")) || ".", effectiveTheme());
   } else {
     terminalPanel.classList.add("hidden");
   }

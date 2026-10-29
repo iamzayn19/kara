@@ -7,6 +7,11 @@ import "@xterm/xterm/css/xterm.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
+const THEMES = {
+  dark: { background: "#0a0b0f", foreground: "#ececf2", cursor: "#ef4b55", cursorAccent: "#0a0b0f", selectionBackground: "#5b8cff44" },
+  light: { background: "#eef0f4", foreground: "#16171d", cursor: "#d42f3a", cursorAccent: "#eef0f4", selectionBackground: "#2f62d933" },
+};
+
 let term: Terminal | undefined;
 let fitAddon: FitAddon | undefined;
 let spawned = false;
@@ -17,12 +22,12 @@ let spawned = false;
 let currentId = 0;
 let stoppedUpTo = 0;
 
-export async function openTerminal(container: HTMLElement, cwd: string) {
+export async function openTerminal(container: HTMLElement, cwd: string, theme: "light" | "dark") {
   if (!term) {
     term = new Terminal({
       fontSize: 12.5,
       fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-      theme: { background: "#0a0b0f", foreground: "#ececf2", cursor: "#ef4b55", selectionBackground: "#5b8cff44" },
+      theme: THEMES[theme],
       cursorBlink: true,
     });
     fitAddon = new FitAddon();
@@ -62,6 +67,10 @@ export function fitTerminal() {
 function reportSize() {
   if (!term) return;
   invoke("terminal_resize", { rows: term.rows, cols: term.cols }).catch(() => {});
+}
+
+export function setTerminalTheme(theme: "light" | "dark") {
+  if (term) term.options.theme = THEMES[theme];
 }
 
 /** Stops the shell (e.g. the project changed) and clears the screen; the
