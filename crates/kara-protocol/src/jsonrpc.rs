@@ -33,6 +33,8 @@ pub mod methods {
     pub const FS_SEARCH: &str = "fs/search";
     pub const FS_WRITE: &str = "fs/write";
     pub const FS_FILES: &str = "fs/files";
+    pub const FS_CREATE: &str = "fs/create";
+    pub const FS_RENAME: &str = "fs/rename";
 
     // server -> client notifications
     pub const EVENT: &str = "event";

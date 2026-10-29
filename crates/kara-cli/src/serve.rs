@@ -194,6 +194,8 @@ impl Server {
             methods::FS_SEARCH => self.fs_search(params).await,
             methods::FS_WRITE => self.fs_write(params).await,
             methods::FS_FILES => self.fs_files().await,
+            methods::FS_CREATE => self.fs_create(params).await,
+            methods::FS_RENAME => self.fs_rename(params).await,
             methods::SELECT_MODEL => {
                 let me = self.clone();
                 tokio::spawn(async move {
@@ -641,6 +643,29 @@ impl Server {
     /// instead, with their own permission checks; this is the editor's
     /// file explorer browsing a project the user already opened on
     /// purpose, a different trust boundary.
+    /// A path that doesn't exist yet: its parent must already exist inside
+    /// the workspace (checked like safe_join) and its last component must be
+    /// a plain name, so nothing can be created outside via `..` or links.
+    fn safe_new_path(root: &std::path::Path, rel: &str) -> Result<std::path::PathBuf, RpcError> {
+        let rel = rel.trim_end_matches('/');
+        let (parent, name) = match rel.rsplit_once('/') {
+            Some((p, n)) => (p, n),
+            None => ("", rel),
+        };
+        if name.is_empty() || name == "." || name == ".." || name.contains(['\\', ':']) {
+            return Err(invalid(format!("not a valid name: {name:?}")));
+        }
+        let dir = Self::safe_join(root, parent)?;
+        if !dir.is_dir() {
+            return Err(invalid(format!("{parent} is not a folder")));
+        }
+        let target = dir.join(name);
+        if target.symlink_metadata().is_ok() {
+            return Err(invalid(format!("{rel} already exists")));
+        }
+        Ok(target)
+    }
+
     fn safe_join(root: &std::path::Path, rel: &str) -> Result<std::path::PathBuf, RpcError> {
         let candidate = if rel.is_empty() {
             root.to_path_buf()
@@ -812,6 +837,56 @@ impl Server {
     /// refuses if the file changed on disk since the editor read it
     /// (`expectedVersion`, from fs/read), so a save can't silently clobber an edit Kara
     /// made in the meantime.
+    /// New empty file or folder from the desktop file tree. Never overwrites.
+    async fn fs_create(&self, params: Value) -> Result<Value, RpcError> {
+        let rel = params
+            .get("path")
+            .and_then(Value::as_str)
+            .ok_or_else(|| invalid("path is required"))?;
+        let dir = params.get("kind").and_then(Value::as_str) == Some("dir");
+        let target = Self::safe_new_path(&self.workspace_root()?, rel)?;
+        if dir {
+            tokio::fs::create_dir(&target).await.map_err(internal)?;
+        } else {
+            // create_new: fails rather than truncating if it appeared meanwhile.
+            tokio::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&target)
+                .await
+                .map_err(internal)?;
+        }
+        Ok(json!({ "path": rel.trim_end_matches('/') }))
+    }
+
+    /// Rename or move within the workspace. Never replaces an existing path.
+    async fn fs_rename(&self, params: Value) -> Result<Value, RpcError> {
+        let get = |k: &str| {
+            params
+                .get(k)
+                .and_then(Value::as_str)
+                .ok_or_else(|| invalid(format!("{k} is required")))
+        };
+        let (from, to) = (get("from")?, get("to")?);
+        let root = self.workspace_root()?;
+        // Resolve the parent, not the entry itself: canonicalizing a
+        // symlink would rename the file it points to instead of the link.
+        let from = from.trim_end_matches('/');
+        let (parent, name) = from.rsplit_once('/').unwrap_or(("", from));
+        if name.is_empty() || name == "." || name == ".." {
+            return Err(invalid("can't rename the workspace itself"));
+        }
+        let source = Self::safe_join(&root, parent)?.join(name);
+        if source.symlink_metadata().is_err() {
+            return Err(invalid(format!("{from} doesn't exist")));
+        }
+        let target = Self::safe_new_path(&root, to)?;
+        tokio::fs::rename(&source, &target)
+            .await
+            .map_err(internal)?;
+        Ok(json!({ "path": to.trim_end_matches('/') }))
+    }
+
     async fn fs_write(&self, params: Value) -> Result<Value, RpcError> {
         let rel = params
             .get("path")

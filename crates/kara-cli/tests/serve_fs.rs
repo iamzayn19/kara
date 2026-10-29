@@ -325,3 +325,78 @@ fn file_requests_answer_while_a_turn_is_running() {
     }
     assert!(busy(&mut rpc).contains("busy"), "the turn ended early");
 }
+
+#[test]
+fn create_and_rename_stay_inside_and_never_overwrite() {
+    let (ws, home) = project();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+
+    rpc.call("fs/create", json!({"path": "src/new.rs"}))
+        .unwrap();
+    assert_eq!(std::fs::read(ws.path().join("src/new.rs")).unwrap(), b"");
+    rpc.call("fs/create", json!({"path": "docs", "kind": "dir"}))
+        .unwrap();
+    assert!(ws.path().join("docs").is_dir());
+
+    // Never overwrite: an existing file keeps its content.
+    let err = rpc
+        .call("fs/create", json!({"path": "src/a.txt"}))
+        .unwrap_err();
+    assert!(err.contains("already exists"), "{err}");
+    assert_eq!(
+        std::fs::read_to_string(ws.path().join("src/a.txt")).unwrap(),
+        "hello\n"
+    );
+
+    // Nothing outside the workspace, by .. or by a missing parent.
+    for bad in [
+        "../escape.txt",
+        "src/../../escape.txt",
+        "nope/x.txt",
+        "src/..",
+        "",
+    ] {
+        assert!(
+            rpc.call("fs/create", json!({"path": bad})).is_err(),
+            "{bad}"
+        );
+    }
+    assert!(!ws.path().parent().unwrap().join("escape.txt").exists());
+
+    rpc.call(
+        "fs/rename",
+        json!({"from": "src/new.rs", "to": "docs/moved.rs"}),
+    )
+    .unwrap();
+    assert!(ws.path().join("docs/moved.rs").is_file());
+    assert!(!ws.path().join("src/new.rs").exists());
+    let err = rpc
+        .call(
+            "fs/rename",
+            json!({"from": "docs/moved.rs", "to": "src/a.txt"}),
+        )
+        .unwrap_err();
+    assert!(err.contains("already exists"), "{err}");
+    assert!(rpc
+        .call("fs/rename", json!({"from": "src/a.txt", "to": "../a.txt"}))
+        .is_err());
+    assert!(rpc
+        .call("fs/rename", json!({"from": "", "to": "x"}))
+        .is_err());
+
+    // Renaming a symlink renames the link, not the file it points to.
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("a.txt", ws.path().join("src/link")).unwrap();
+        rpc.call("fs/rename", json!({"from": "src/link", "to": "src/link2"}))
+            .unwrap();
+        assert!(ws.path().join("src/a.txt").is_file());
+        assert!(ws
+            .path()
+            .join("src/link2")
+            .symlink_metadata()
+            .unwrap()
+            .file_type()
+            .is_symlink());
+    }
+}

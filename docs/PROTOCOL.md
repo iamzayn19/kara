@@ -29,6 +29,8 @@ client for permission decisions.
 | `fs/read` | `{path}` | `{binary, content, truncated, version}`; at most 2 MB is read (`truncated` if there was more); `version` is a content hash for `fs/write`, `null` for a truncated read |
 | `fs/write` | `{path, content, expectedVersion?}` | `{version}`. Existing files inside the workspace only; with `expectedVersion`, error `-32001` if the file changed on disk since that read |
 | `fs/search` | `{query, regex?, caseSensitive?, wholeWord?}` | `{matches: [{path, line, text}], files_with_matches, files_searched, truncated}`; literal and case-insensitive by default, at most 500 matches |
+| `fs/create` | `{path, kind?: "file" \| "dir"}` | `{path}`: a new empty file (default) or folder; the parent must exist; never overwrites |
+| `fs/rename` | `{from, to}` | `{path}`: rename or move within the workspace; never replaces an existing path; a symlink is renamed, not its target |
 | `fs/files` | `{}` | `{files: [path], truncated}`: every file, gitignore-aware, sorted, at most 20,000 |
 | `shutdown` | `{}` | `null`, then the process exits after stopping the model runtime |
 
