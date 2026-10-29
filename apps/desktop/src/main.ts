@@ -84,6 +84,9 @@ let spinnerFrame = 0;
 let availableCommands: { name: string; description: string }[] = [];
 /** `model.provider` from initialize: local, kara, ollama, lmstudio, vllm or openai_compat. */
 let inferenceProvider = "local";
+/** A diff asked for while a turn was running (session/changes is busy
+ * then); opened when the turn finishes. */
+let pendingDiffPath: string | undefined;
 /** karaVersion from initialize: the engine this window is talking to. */
 let engineVersion = "";
 /** Cached fs/files result; dropped when the project changes or Kara
@@ -529,6 +532,11 @@ function handleEvent(e: any) {
       break;
     case "turn_finished":
       pendingAssistant = undefined;
+      if (pendingDiffPath) {
+        const p = pendingDiffPath;
+        pendingDiffPath = undefined;
+        void openDiffTab(p);
+      }
       if (e.changed_files?.length) projectFiles = undefined;
       pendingPlan = e.outcome === "awaiting_approval";
       if (e.changed_files?.length) {
@@ -637,7 +645,8 @@ async function undo() {
     if (r.conflicts?.length) parts.push(`kept (edited since): ${r.conflicts.join(", ")}`);
     activity(parts.length ? `Undo: ${parts.join("; ")}` : "Nothing to undo.", "dim");
   } catch (e: any) {
-    activity(`error: ${e?.message ?? e}`, "err");
+    const msg = String(e?.message ?? e);
+    activity(msg === "busy" ? "Kara is still working; stop the turn (Esc) or wait for it to finish, then undo." : `error: ${msg}`, msg === "busy" ? "warn" : "err");
   }
 }
 
@@ -1864,6 +1873,11 @@ async function openDiffTab(path: string) {
     }
     activateTab(id);
   } catch (e: any) {
+    if (String(e?.message ?? e) === "busy") {
+      pendingDiffPath = path;
+      activity(`Kara is still working; ${path.split("/").pop()}'s diff opens when this turn finishes.`, "dim");
+      return;
+    }
     activity(`error: ${e?.message ?? e}`, "err");
   }
 }
