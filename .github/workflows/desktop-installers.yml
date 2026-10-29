@@ -25,7 +25,7 @@ jobs:
       matrix:
         include:
           - { name: macOS (Apple Silicon), os: macos-14, bundles: "app,dmg", out: "dmg/*.dmg" }
-          - { name: macOS (Intel), os: macos-13, bundles: "app,dmg", out: "dmg/*.dmg" }
+          - { name: macOS (Intel), os: macos-15-intel, bundles: "app,dmg", out: "dmg/*.dmg" }
           - { name: Windows (x64), os: windows-latest, bundles: "nsis,msi", out: "nsis/*.exe msi/*.msi" }
           - { name: Linux (x64), os: ubuntu-22.04, bundles: "deb,appimage", out: "deb/*.deb appimage/*.AppImage" }
     runs-on: ${{ matrix.os }}
@@ -53,14 +53,37 @@ jobs:
       - run: npm ci
       # beforeBuildCommand builds the CLI and copies it into the bundle.
       - run: npx tauri build --bundles ${{ matrix.bundles }}
-      - name: Check the bundled CLI runs
-        shell: bash
+      # Install each installer the way a user would and run Kara from the
+      # installed copy, so a package that builds but doesn't install fails.
+      - name: Install and run (macOS .dmg)
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop/src-tauri/target/release/bundle
         run: |
-          case "$RUNNER_OS" in
-            macOS) bin=$(ls -d src-tauri/target/release/bundle/macos/*.app)/Contents/Resources/binaries/kara ;;
-            Windows) bin=src-tauri/binaries/kara.exe ;;
-            Linux) bin=src-tauri/binaries/kara ;;
-          esac
+          mnt="$RUNNER_TEMP/kara-dmg"
+          mkdir -p "$mnt"
+          hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" dmg/*.dmg
+          # A bundle without a whole-app signature is reported as "damaged"
+          # when downloaded on Apple Silicon; ad-hoc signing must cover it.
+          codesign --verify --deep --strict --verbose=2 "$mnt/Kara.app"
+          "$mnt/Kara.app/Contents/Resources/binaries/kara" --version
+          hdiutil detach "$mnt"
+      - name: Install and run (Windows .exe)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: apps/desktop/src-tauri/target/release/bundle
+        run: |
+          $setup = Get-ChildItem nsis/*-setup.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList "/S" -Wait
+          $kara = Get-ChildItem "$env:LOCALAPPDATA/Kara" -Recurse -Filter kara.exe | Select-Object -First 1
+          if (-not $kara) { Get-ChildItem "$env:LOCALAPPDATA/Kara" -Recurse | Select-Object FullName; throw "kara.exe not installed" }
+          & $kara.FullName --version
+          if ($LASTEXITCODE -ne 0) { throw "kara --version failed" }
+      - name: Install and run (Linux .deb)
+        if: runner.os == 'Linux'
+        working-directory: apps/desktop/src-tauri/target/release/bundle
+        run: |
+          sudo apt-get install -y ./deb/*.deb
+          bin=$(dpkg -L kara | grep '/binaries/kara$')
           "$bin" --version
       - name: Collect installers
         shell: bash
