@@ -99,13 +99,20 @@ impl Session {
         }
         let binary = locate_kara_binary(&app)
             .ok_or_else(|| "the `kara` binary was not found (bundled or on PATH)".to_string())?;
-        let mut child = Command::new(&binary)
-            .args(["serve", "--stdio"])
+        let mut cmd = Command::new(&binary);
+        cmd.args(["serve", "--stdio"])
             .current_dir(&workspace)
             .env("NO_COLOR", "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+        // The release app has no console of its own, so Windows would open a
+        // visible console window for kara.exe (and keep it up for the whole
+        // session). CREATE_NO_WINDOW gives it a hidden one instead, which the
+        // processes Kara starts (llama-server, test commands) share.
+        #[cfg(windows)]
+        cmd.creation_flags(0x0800_0000);
+        let mut child = cmd
             .spawn()
             .map_err(|e| format!("could not start Kara: {e}"))?;
 
