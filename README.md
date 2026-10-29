@@ -209,7 +209,8 @@ Java, C, C++, C#, PHP, Swift, Kotlin, Shell, HTML/CSS and SQL
 [SECURITY.md](SECURITY.md) · [PRIVACY.md](PRIVACY.md) ·
 [LANGUAGE_SUPPORT.md](LANGUAGE_SUPPORT.md) · [DEVELOPMENT.md](DEVELOPMENT.md) ·
 [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md) ·
-[Configuration](docs/CONFIGURATION.md) · [Protocol](docs/PROTOCOL.md)
+[Configuration](docs/CONFIGURATION.md) · [Protocol](docs/PROTOCOL.md) ·
+[Manual test plan](docs/MANUAL_TEST_PLAN.md)
 
 ## License
 
