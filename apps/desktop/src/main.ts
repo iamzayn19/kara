@@ -743,10 +743,25 @@ function showDownloadProgress(label: string) {
   track.appendChild(fill);
   wrap.appendChild(text);
   wrap.appendChild(track);
+  const cancelBtn = document.createElement("button");
+  cancelBtn.className = "icon-text-btn";
+  cancelBtn.textContent = "Cancel download";
+  cancelBtn.title = "Stops now; the part already downloaded is kept and the next download resumes";
+  cancelBtn.addEventListener("click", async () => {
+    cancelBtn.disabled = true;
+    cancelBtn.textContent = "Cancelling…";
+    downloadCancelled = true;
+    await invoke("kara_request", { method: "models/cancel", params: {} }).catch(() => {});
+  });
+  wrap.appendChild(cancelBtn);
   panelBody.appendChild(wrap);
   progressFill = fill;
   progressText = text;
 }
+
+/** Set when the user pressed Cancel, so the error that follows reads as
+ * what it is rather than a failure. */
+let downloadCancelled = false;
 
 /** Driven by `kara://log` events with level "progress" (see RpcUi::progress
  * in serve.rs) — structured done/total, not just a log line, so this can
@@ -842,6 +857,7 @@ async function openModelPicker() {
           ).catch(() => false);
           if (!ok) return;
         }
+        downloadCancelled = false;
         showDownloadProgress(m.installed ? `Starting ${m.name}…` : `Downloading ${m.name} ${m.quantization}…`);
         modelPill.textContent = `loading ${m.name}…`;
         try {
@@ -851,7 +867,13 @@ async function openModelPicker() {
           closePanel();
         } catch (e: any) {
           closePanel();
-          activity(`error: ${e?.message ?? e}`, "err");
+          if (downloadCancelled) {
+            modelPill.textContent = "no model";
+            modelPill.className = "pill warn";
+            activity(`Download of ${m.name} cancelled. What's downloaded so far is kept; choosing it again resumes.`, "dim");
+          } else {
+            activity(`error: ${e?.message ?? e}`, "err");
+          }
         }
       });
       panelBody.appendChild(row);
