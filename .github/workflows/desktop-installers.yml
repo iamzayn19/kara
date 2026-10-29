@@ -110,6 +110,17 @@ jobs:
           sudo apt-get install -y ./deb/*.deb
           bin=$(dpkg -L kara | grep '/binaries/kara$')
           "$bin" --version
+      # Runners have no FUSE to mount it; an AppImage can unpack itself.
+      - name: Unpack and run (Linux .AppImage)
+        if: runner.os == 'Linux'
+        working-directory: apps/desktop/src-tauri/target/release/bundle
+        run: |
+          app=$(ls appimage/*.AppImage)
+          chmod +x "$app"
+          cd "$RUNNER_TEMP" && "$OLDPWD/$app" --appimage-extract > /dev/null
+          bin=$(find "$RUNNER_TEMP/squashfs-root" -path '*/binaries/kara' -type f | head -1)
+          test -n "$bin" || { echo "no bundled kara in the AppImage"; exit 1; }
+          "$bin" --version
       - name: Collect installers
         shell: bash
         run: |
