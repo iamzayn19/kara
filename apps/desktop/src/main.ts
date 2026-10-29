@@ -2096,7 +2096,7 @@ async function openPalette(kind: "files" | "commands") {
   if (kind === "files" && !currentWorkspace) kind = "commands";
   paletteBackdrop.classList.remove("hidden");
   paletteInput.value = kind === "commands" ? ">" : "";
-  paletteInput.placeholder = "Search files by name (type > for commands)";
+  paletteInput.placeholder = "Search files by name (> for commands, :line to go to a line)";
   paletteInput.focus();
   renderPalette();
   if (kind === "files" && !projectFiles) {
@@ -2146,6 +2146,26 @@ function renderPalette() {
   const query = commandMode ? raw.slice(1).trim() : raw.trim();
   paletteList.replaceChildren();
   paletteRows = [];
+
+  // ":42" jumps to a line in the open file, as in VS Code's quick open.
+  const lineMatch = /^:(\d*)$/.exec(raw.trim());
+  if (lineMatch) {
+    const tab = openTabs.find((t) => t.id === activeTabId && t.kind === "file");
+    if (!tab) {
+      appendPaletteMessage("Open a file first to go to a line in it");
+    } else if (!lineMatch[1]) {
+      appendPaletteMessage(`Type a line number in ${tab.label}`);
+    } else {
+      const line = Number(lineMatch[1]);
+      paletteRows.push({ label: `Go to line ${line}`, run: () => void activateTab(tab.id, line) });
+      const label = document.createDocumentFragment();
+      label.append(`Go to line ${line}`);
+      appendPaletteRow(label, tab.label);
+    }
+    paletteSelected = 0;
+    updatePaletteSelection();
+    return;
+  }
 
   if (commandMode) {
     for (const { item, match } of fuzzyFilter(query, paletteCommands(), (c) => c.label, 50)) {
