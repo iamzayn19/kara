@@ -148,6 +148,28 @@ PATH or downloads the release binary into Kara's data directory (checksums
 verified). It never downloads a model on its own, and the CLI and editor
 share one set of models.
 
+## Desktop app
+
+[`apps/desktop`](apps/desktop) is a full editor window around the same Kara:
+chat with Execute/Plan/Review modes, a file explorer, a Monaco editor with
+side-by-side diffs, an integrated terminal (Cmd/Ctrl+J), find in files
+(Shift+Cmd/Ctrl+F), quick open (Cmd/Ctrl+P) and a command palette
+(Shift+Cmd/Ctrl+P). Each installer ships its own `kara` binary, so nothing
+else needs to be installed first.
+
+Installers (`.dmg` for Apple Silicon and Intel Macs, `.exe`/`.msi` for
+Windows, `.deb`/`.AppImage` for Linux) come from the
+[Desktop installers](.github/workflows/desktop-installers.yml) workflow. They
+are not signed with a developer certificate yet:
+
+- macOS: open the `.dmg`, drag Kara to Applications, then right-click Kara and
+  choose Open the first time (or allow it under System Settings → Privacy &
+  Security).
+- Windows: SmartScreen shows "Windows protected your PC"; choose More info →
+  Run anyway.
+
+From source: `cd apps/desktop && npm ci && npm run tauri dev`.
+
 ## Files and configuration
 
 | | Configuration | Data (models, cache, logs, sessions, managed binary) |
