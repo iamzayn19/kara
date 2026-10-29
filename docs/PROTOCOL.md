@@ -32,6 +32,7 @@ client for permission decisions.
 | `fs/create` | `{path, kind?: "file" \| "dir"}` | `{path}`: a new empty file (default) or folder; the parent must exist; never overwrites |
 | `fs/rename` | `{from, to}` | `{path}`: rename or move within the workspace; never replaces an existing path; a symlink is renamed, not its target |
 | `fs/trash` | `{path}` | `{path}`: moves a file or folder inside the workspace to the OS trash (recoverable); a symlink is trashed, not its target |
+| `git/info` | `{}` | `{repo, branch, head, changed}`: current branch (null when detached), short HEAD, number of changed files |
 | `fs/files` | `{}` | `{files: [path], truncated}`: every file, gitignore-aware, sorted, at most 20,000 |
 | `shutdown` | `{}` | `null`, then the process exits after stopping the model runtime |
 

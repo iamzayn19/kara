@@ -450,3 +450,31 @@ fn read_flags_text_that_is_not_utf8() {
     let r = rpc.call("fs/read", json!({"path": "src/a.txt"})).unwrap();
     assert_eq!(r["utf8"], true);
 }
+
+#[test]
+fn git_info_reports_branch_and_changes() {
+    let (ws, home) = project();
+    let git = |args: &[&str]| {
+        Command::new("git")
+            .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid"])
+            .args(args)
+            .current_dir(ws.path())
+            .output()
+            .unwrap()
+    };
+    git(&["checkout", "-q", "-b", "feature/x"]);
+    git(&["add", "."]);
+    git(&["commit", "-q", "-m", "init"]);
+    std::fs::write(ws.path().join("src/a.txt"), "changed\n").unwrap();
+    let mut rpc = Rpc::start(ws.path(), home.path());
+    let r = rpc.call("git/info", json!({})).unwrap();
+    assert_eq!(r["repo"], true);
+    assert_eq!(r["branch"], "feature/x");
+    assert_eq!(r["head"].as_str().unwrap().len(), 7);
+    assert_eq!(r["changed"], 1);
+
+    git(&["checkout", "-q", "--detach"]);
+    let r = rpc.call("git/info", json!({})).unwrap();
+    assert!(r["branch"].is_null(), "{r}");
+    assert_eq!(r["head"].as_str().unwrap().len(), 7);
+}

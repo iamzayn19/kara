@@ -197,6 +197,7 @@ impl Server {
             methods::FS_CREATE => self.fs_create(params).await,
             methods::FS_RENAME => self.fs_rename(params).await,
             methods::FS_TRASH => self.fs_trash(params).await,
+            methods::GIT_INFO => self.git_info().await,
             methods::SELECT_MODEL => {
                 let me = self.clone();
                 tokio::spawn(async move {
@@ -864,6 +865,27 @@ impl Server {
                 .map_err(internal)?;
         }
         Ok(json!({ "path": rel.trim_end_matches('/') }))
+    }
+
+    /// Branch, short HEAD and changed-file count for the desktop status bar.
+    /// Reads only the root, like the fs methods, so it answers mid-turn.
+    async fn git_info(&self) -> Result<Value, RpcError> {
+        let root = self.workspace_root()?;
+        tokio::task::spawn_blocking(move || {
+            use kara_context::git;
+            if !git::is_repo(&root) {
+                return json!({ "repo": false });
+            }
+            json!({
+                "repo": true,
+                // rev-parse --abbrev-ref prints "HEAD" when detached.
+                "branch": git::branch(&root).filter(|b| b != "HEAD"),
+                "head": git::head(&root).map(|h| h.chars().take(7).collect::<String>()),
+                "changed": git::dirty_paths(&root).len(),
+            })
+        })
+        .await
+        .map_err(internal)
     }
 
     /// Move a file or folder to the OS trash (Trash, Recycle Bin,
