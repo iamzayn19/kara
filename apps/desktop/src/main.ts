@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getVersion } from "@tauri-apps/api/app";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { fuzzyFilter } from "./fuzzy";
 import { joinWorkspacePath } from "./paths";
@@ -83,6 +84,8 @@ let spinnerFrame = 0;
 let availableCommands: { name: string; description: string }[] = [];
 /** `model.provider` from initialize: local, kara, ollama, lmstudio, vllm or openai_compat. */
 let inferenceProvider = "local";
+/** karaVersion from initialize: the engine this window is talking to. */
+let engineVersion = "";
 /** Cached fs/files result; dropped when the project changes or Kara
  * reports changed files at the end of a turn. */
 let projectFiles: string[] | undefined;
@@ -975,6 +978,30 @@ async function openSettings() {
     diagBody.textContent = String(e?.message ?? e);
   }
 
+  const aboutLabel = document.createElement("div");
+  aboutLabel.className = "panel-section-label";
+  aboutLabel.textContent = "About";
+  panelBody.appendChild(aboutLabel);
+  const aboutBody = document.createElement("div");
+  aboutBody.className = "diagnostics";
+  panelBody.appendChild(aboutBody);
+  const appVersion = await getVersion().catch(() => "unknown");
+  for (const [k, v] of [
+    ["Kara desktop", appVersion],
+    ["Kara engine", engineVersion || "not running (open a project)"],
+  ]) {
+    const row = document.createElement("div");
+    row.className = "diag-row";
+    const key = document.createElement("span");
+    key.className = "diag-key";
+    key.textContent = k;
+    const val = document.createElement("span");
+    val.className = "diag-val";
+    val.textContent = v;
+    row.append(key, val);
+    aboutBody.appendChild(row);
+  }
+
   const privLabel = document.createElement("div");
   privLabel.className = "panel-section-label";
   privLabel.textContent = "Privacy";
@@ -1095,6 +1122,7 @@ async function startWorkspace(workspace: string) {
     const info: any = await invoke("kara_start", { workspace });
     currentWorkspace = info?.workspace ?? workspace;
     inferenceProvider = info?.model?.provider ?? "local";
+    engineVersion = info?.karaVersion ?? "";
     modelPill.textContent = info?.model?.available ? info.model.label : "no model";
     modelPill.className = info?.model?.available ? "pill ready" : "pill warn";
     permissionsMode = info?.permissionsMode ?? "";
