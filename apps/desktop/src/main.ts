@@ -4,6 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { fuzzyFilter } from "./fuzzy";
 // Dynamically imported on first use (see loadEditorModule below), not at
@@ -1093,6 +1094,11 @@ async function startWorkspace(workspace: string) {
     availableCommands = info?.commands ?? [];
     projectName.textContent = info?.workspace ? shortPath(info.workspace) : "no project open";
     projectName.title = info?.workspace ?? "";
+    // What the taskbar, Window menu and Alt-Tab show.
+    const folder = info?.workspace?.split(/[\\/]/).filter(Boolean).pop();
+    void getCurrentWindow()
+      .setTitle(folder ? `${folder} — Kara` : "Kara")
+      .catch(() => {});
     sessionState.textContent = "ready";
     setProjectControlsEnabled(true);
     startSessionTimer();
