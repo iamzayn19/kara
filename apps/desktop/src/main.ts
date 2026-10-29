@@ -1167,6 +1167,8 @@ function resetEditorTabs() {
   composerWrap.classList.remove("hidden");
   editorContainer.classList.add("hidden");
   fileTree.innerHTML = "";
+  expandedDirs.clear();
+  treeStale = false;
   changedPaths = new Map();
   filesBadge.textContent = "";
   filesBadge.classList.add("hidden");
@@ -1372,6 +1374,7 @@ function showSidebarPanel(panel: string) {
   sidebarPanelFiles.classList.toggle("hidden", panel !== "files");
   sidebarPanelSearch.classList.toggle("hidden", panel !== "search");
   if (panel === "files" && !fileTree.hasChildNodes()) void loadFileTree();
+  else if (panel === "files" && treeStale) void refreshFileTree();
   if (panel === "search") {
     searchInput.focus();
     searchInput.select();
@@ -1514,8 +1517,10 @@ async function loadFileTree() {
   fileTree.appendChild(loading);
   try {
     const [entries] = await Promise.all([fsListDir(""), loadChangedPaths()]);
-    fileTree.innerHTML = "";
-    renderTreeLevel(fileTree, entries, 0);
+    const next = document.createElement("div");
+    await renderTreeLevel(next, entries, 0);
+    fileTree.replaceChildren(...next.childNodes);
+    treeStale = false;
   } catch (e: any) {
     fileTree.innerHTML = "";
     const err = document.createElement("div");
@@ -1525,24 +1530,8 @@ async function loadFileTree() {
   }
 }
 
-/** Re-syncs badges on already-rendered rows in place, so expanded folders
- * don't collapse — unlike loadFileTree(), this doesn't refetch structure. */
-function applyBadges() {
-  for (const row of fileTree.querySelectorAll<HTMLElement>(".tree-row")) {
-    const path = row.dataset.path;
-    if (!path) continue;
-    row.querySelector(".tree-badge")?.remove();
-    const kind = changedPaths.get(path);
-    if (!kind) continue;
-    const badge = document.createElement("span");
-    badge.className = "tree-badge " + (kind === "+" ? "added" : "modified");
-    badge.textContent = kind;
-    row.appendChild(badge);
-  }
-}
-
-/** Called after each turn — refreshes badges without disturbing the tree's
- * expanded state, but only if there's actually a tree on screen to update. */
+/** Called after each turn: updates the Files tab count, and the tree itself
+ * (structure and badges, keeping open folders) if one has been loaded. */
 async function refreshTreeBadgesIfVisible() {
   if (!currentWorkspace) return;
   await loadChangedPaths();
@@ -1551,9 +1540,9 @@ async function refreshTreeBadgesIfVisible() {
   // tabs. The actual tree rows only get touched if they're on screen.
   filesBadge.textContent = String(changedPaths.size);
   filesBadge.classList.toggle("hidden", changedPaths.size === 0);
-  if (!sidebarPanelFiles.classList.contains("hidden") && fileTree.hasChildNodes()) {
-    applyBadges();
-  }
+  if (!fileTree.hasChildNodes()) return;
+  if (sidebarPanelFiles.classList.contains("hidden")) treeStale = true;
+  else await refreshFileTree();
 }
 
 async function fsListDir(path: string): Promise<{ name: string; path: string; isDir: boolean }[]> {
@@ -1561,14 +1550,19 @@ async function fsListDir(path: string): Promise<{ name: string; path: string; is
   return r.entries ?? [];
 }
 
-function renderTreeLevel(container: HTMLElement, entries: { name: string; path: string; isDir: boolean }[], depth: number) {
+/** Folders the user has open, so a refresh rebuilds them expanded. */
+const expandedDirs = new Set<string>();
+/** Set when files changed while the tree wasn't on screen. */
+let treeStale = false;
+
+async function renderTreeLevel(container: HTMLElement, entries: { name: string; path: string; isDir: boolean }[], depth: number) {
   for (const entry of entries) {
     const row = document.createElement("button");
     row.className = "tree-row";
     row.style.paddingLeft = `${6 + depth * 14}px`;
     const icon = document.createElement("span");
     icon.className = "tree-icon";
-    icon.textContent = treeIcon(entry.isDir);
+    icon.textContent = treeIcon(entry.isDir, expandedDirs.has(entry.path));
     const name = document.createElement("span");
     name.className = "tree-name";
     name.textContent = entry.name;
@@ -1583,36 +1577,60 @@ function renderTreeLevel(container: HTMLElement, entries: { name: string; path: 
       badge.textContent = changeKind;
       row.appendChild(badge);
     }
-
-    if (entry.isDir) {
-      let expanded = false;
-      let childContainer: HTMLElement | undefined;
-      row.addEventListener("click", async () => {
-        expanded = !expanded;
-        icon.textContent = treeIcon(true, expanded);
-        if (!expanded) {
-          childContainer?.remove();
-          childContainer = undefined;
-          return;
-        }
-        childContainer = document.createElement("div");
-        childContainer.className = "sidebar-empty";
-        childContainer.style.paddingLeft = `${20 + depth * 14}px`;
-        childContainer.textContent = "Loading…";
-        row.insertAdjacentElement("afterend", childContainer);
-        try {
-          const children = await fsListDir(entry.path);
-          childContainer.className = "";
-          childContainer.removeAttribute("style");
-          renderTreeLevel(childContainer, children, depth + 1);
-        } catch (e: any) {
-          childContainer.textContent = String(e?.message ?? e);
-        }
-      });
-    } else {
-      row.addEventListener("click", () => void openFileTab(entry.path));
-    }
     container.appendChild(row);
+
+    if (!entry.isDir) {
+      row.addEventListener("click", () => void openFileTab(entry.path));
+      continue;
+    }
+
+    let childContainer: HTMLElement | undefined;
+    const expand = async () => {
+      childContainer = document.createElement("div");
+      childContainer.className = "sidebar-empty";
+      childContainer.style.paddingLeft = `${20 + depth * 14}px`;
+      childContainer.textContent = "Loading…";
+      row.insertAdjacentElement("afterend", childContainer);
+      try {
+        const children = await fsListDir(entry.path);
+        childContainer.className = "";
+        childContainer.removeAttribute("style");
+        childContainer.textContent = "";
+        await renderTreeLevel(childContainer, children, depth + 1);
+      } catch (e: any) {
+        childContainer.textContent = String(e?.message ?? e);
+      }
+    };
+    row.addEventListener("click", async () => {
+      const open = !expandedDirs.has(entry.path);
+      if (open) expandedDirs.add(entry.path);
+      else expandedDirs.delete(entry.path);
+      icon.textContent = treeIcon(true, open);
+      if (open) await expand();
+      else {
+        childContainer?.remove();
+        childContainer = undefined;
+      }
+    });
+    if (expandedDirs.has(entry.path)) await expand();
+  }
+}
+
+/** Rebuilds the tree off-screen with the same folders open, then swaps it
+ * in, so files Kara created or deleted show up without a flicker or losing
+ * the user's place. */
+async function refreshFileTree() {
+  if (!currentWorkspace) return;
+  treeStale = false;
+  try {
+    const [entries] = await Promise.all([fsListDir(""), loadChangedPaths()]);
+    const next = document.createElement("div");
+    await renderTreeLevel(next, entries, 0);
+    const scroll = sidebar.scrollTop;
+    fileTree.replaceChildren(...next.childNodes);
+    sidebar.scrollTop = scroll;
+  } catch {
+    // Keep the current tree; the next refresh retries.
   }
 }
 
