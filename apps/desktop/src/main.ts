@@ -2015,6 +2015,8 @@ function paletteCommands(): PaletteItem[] {
     { label: "Open project…", detail: "⌘O", run: () => void pickProject() },
     { label: "Settings", detail: "⌘,", run: () => void openSettings() },
     { label: "Undo Kara's last change", run: () => void undo() },
+    { label: "Reopen closed tab", detail: "⇧⌘T", run: () => { const p = closedFiles.pop(); if (p) void openFileTab(p); } },
+    ...activeFileCommands(),
     { label: "Mode: Execute", detail: "understand, edit, test, review", run: mode("execute") },
     { label: "Mode: Plan", detail: "read-only, propose a plan", run: mode("plan") },
     { label: "Mode: Review", detail: "read-only risk review", run: mode("review") },
@@ -2032,6 +2034,18 @@ function paletteCommands(): PaletteItem[] {
     });
   }
   return cmds;
+}
+
+/** Commands about the file in the active tab, when there is one. */
+function activeFileCommands(): PaletteItem[] {
+  const tab = openTabs.find((t) => t.id === activeTabId);
+  if (!tab) return [];
+  const reveal = navigator.platform.toLowerCase().includes("mac") ? "Finder" : currentWorkspace.includes("\\") ? "File Explorer" : "file manager";
+  return [
+    { label: "Copy path of active file", detail: tab.path, run: () => void navigator.clipboard.writeText(absolutePath(tab.path)) },
+    { label: "Copy relative path of active file", detail: tab.path, run: () => void navigator.clipboard.writeText(tab.path) },
+    { label: `Reveal active file in ${reveal}`, detail: tab.path, run: () => void revealItemInDir(absolutePath(tab.path)).catch((e) => activity(String(e), "err")) },
+  ];
 }
 
 async function openPalette(kind: "files" | "commands") {
