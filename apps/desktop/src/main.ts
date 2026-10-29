@@ -7,6 +7,8 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { fuzzyFilter } from "./fuzzy";
+import { joinWorkspacePath } from "./paths";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 // Dynamically imported on first use (see loadEditorModule below), not at
 // the top level — Monaco is a multi-MB dependency that has no reason to
 // load on every launch for someone who never opens a file.
@@ -1598,6 +1600,10 @@ async function renderTreeLevel(container: HTMLElement, entries: { name: string; 
       row.appendChild(badge);
     }
     container.appendChild(row);
+    row.addEventListener("contextmenu", (ev) => {
+      ev.preventDefault();
+      showTreeMenu(ev.clientX, ev.clientY, entry.path, entry.isDir);
+    });
 
     if (!entry.isDir) {
       row.addEventListener("click", () => void openFileTab(entry.path));
@@ -2195,4 +2201,60 @@ function renderInferenceSettings() {
     }
   }
 }
+
+// ── File tree context menu ───────────────────────────────────────
+
+function absolutePath(rel: string): string {
+  return joinWorkspacePath(currentWorkspace, rel);
+}
+
+let treeMenu: HTMLElement | undefined;
+
+function hideTreeMenu() {
+  treeMenu?.remove();
+  treeMenu = undefined;
+}
+
+function showTreeMenu(x: number, y: number, rel: string, isDir: boolean) {
+  hideTreeMenu();
+  const menu = document.createElement("div");
+  menu.className = "context-menu";
+  menu.setAttribute("role", "menu");
+  const reveal = navigator.platform.toLowerCase().includes("mac") ? "Reveal in Finder" : currentWorkspace.includes("\\") ? "Reveal in File Explorer" : "Reveal in file manager";
+  const items: [string, () => void | Promise<void>][] = [
+    ...(isDir ? [] : ([["Open", () => openFileTab(rel)]] as [string, () => Promise<void>][])),
+    ["Copy path", () => navigator.clipboard.writeText(absolutePath(rel))],
+    ["Copy relative path", () => navigator.clipboard.writeText(rel)],
+    [reveal, () => revealItemInDir(absolutePath(rel))],
+  ];
+  for (const [label, run] of items) {
+    const item = document.createElement("button");
+    item.className = "context-menu-item";
+    item.setAttribute("role", "menuitem");
+    item.textContent = label;
+    item.addEventListener("click", async () => {
+      hideTreeMenu();
+      try {
+        await run();
+      } catch (e: any) {
+        activity(`${label} failed: ${e?.message ?? e}`, "err");
+      }
+    });
+    menu.appendChild(item);
+  }
+  document.body.appendChild(menu);
+  // Keep it on screen near the window edges.
+  const r = menu.getBoundingClientRect();
+  menu.style.left = `${Math.min(x, window.innerWidth - r.width - 4)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - r.height - 4)}px`;
+  treeMenu = menu;
+}
+
+window.addEventListener("mousedown", (e) => {
+  if (treeMenu && !treeMenu.contains(e.target as Node)) hideTreeMenu();
+});
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideTreeMenu();
+});
+window.addEventListener("blur", hideTreeMenu);
 
