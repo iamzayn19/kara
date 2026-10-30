@@ -156,10 +156,12 @@ share one set of models.
 ## Desktop app
 
 [`apps/desktop`](apps/desktop) is a full editor window around the same Kara:
-chat with Execute/Plan/Review modes, a file explorer, a Monaco editor with
-side-by-side diffs, an integrated terminal (Cmd/Ctrl+J), find in files
-(Shift+Cmd/Ctrl+F), quick open (Cmd/Ctrl+P) and a command palette
-(Shift+Cmd/Ctrl+P). Each installer ships its own `kara` binary, so nothing
+chat with Execute/Plan/Review modes, a file explorer (new, rename, move to
+Trash/Recycle Bin), a Monaco editor with side-by-side diffs whose open
+files follow Kara's edits, an integrated terminal (Cmd/Ctrl+J), find in
+files (Shift+Cmd/Ctrl+F), quick open (Cmd/Ctrl+P), a command palette
+(Shift+Cmd/Ctrl+P) and the git branch in the status bar. Cmd/Ctrl+/ lists
+every shortcut. Each installer ships its own `kara` binary, so nothing
 else needs to be installed first.
 
 On a machine too small for a local model, Settings → *Where inference runs*
