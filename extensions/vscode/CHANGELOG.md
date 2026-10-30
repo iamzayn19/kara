@@ -6,6 +6,7 @@
 - Uses the Kara diamond mark for the marketplace and activity-bar icons.
 - Windows: no console window flashes up for `kara serve` or `kara connect`.
 - Up/Down in the chat box recall earlier prompts.
+- A model download can be cancelled from its progress notification; it resumes next time.
 - "Connect to a Kara machine" passes the token to `kara connect` through the
   environment instead of the command line, where other local users could see it.
 

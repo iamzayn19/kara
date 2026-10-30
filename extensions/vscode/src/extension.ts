@@ -238,15 +238,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
     }
     output.show(true);
-    await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: `Kara: starting ${m.name}`, cancellable: false },
-      async () => {
-        const model: any = await agent!.request("models/select", { id: m.id, download: true });
-        if (agent?.info) {
-          agent.info.model = model;
-        }
-      },
-    );
+    let cancelled = false;
+    try {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Kara: starting ${m.name}`, cancellable: true },
+        async (_progress, token) => {
+          // Cancel stops a download; what's downloaded is kept for resuming.
+          token.onCancellationRequested(() => {
+            cancelled = true;
+            void agent?.request("models/cancel").catch(() => undefined);
+          });
+          const model: any = await agent!.request("models/select", { id: m.id, download: true });
+          if (agent?.info) {
+            agent.info.model = model;
+          }
+        },
+      );
+    } catch (e) {
+      if (!cancelled) {
+        throw e;
+      }
+      void vscode.window.showInformationMessage(`Kara: download of ${m.name} cancelled. Choosing it again resumes where it stopped.`);
+    }
     updateStatusBar();
     chat.updateStatus();
   }
