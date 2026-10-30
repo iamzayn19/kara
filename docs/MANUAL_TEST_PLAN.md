@@ -49,6 +49,7 @@ itself, and start from a clean slate where a step says so.
 | 3.6 | Plan mode: ask for a change | Plan only, no files touched; Approve plan button carries it out |
 | 3.7 | Review mode | Risk review of the current diff; no files touched |
 | 3.8 | Esc while Kara is working | The turn stops |
+| 3.8a | Start a task, switch to another app until it ends | A system notification "Kara · <project>: Done. N files changed" (the OS asks for permission the first time); none while Kara's window is focused |
 | 3.9 | Permission pill: Ask every time, then ask for something that runs a command | A prompt asks first; denying it stops that step |
 | 3.10 | Click the context pill | Conversation is compacted; usage drops |
 | 3.11 | New session (Cmd/Ctrl+N), then resume the old one from Sessions | History is back |

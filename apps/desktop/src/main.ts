@@ -12,6 +12,7 @@ import { fuzzyFilter } from "./fuzzy";
 import { joinWorkspacePath } from "./paths";
 import { shortcutKey } from "./keys";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 // Dynamically imported on first use (see loadEditorModule below), not at
 // the top level — Monaco is a multi-MB dependency that has no reason to
 // load on every launch for someone who never opens a file.
@@ -536,6 +537,7 @@ function handleEvent(e: any) {
       break;
     case "turn_finished":
       pendingAssistant = undefined;
+      void notifyTurnFinished(e);
       if (pendingDiffPath) {
         const p = pendingDiffPath;
         pendingDiffPath = undefined;
@@ -2813,6 +2815,35 @@ function openShortcuts() {
       body.appendChild(row);
     }
     panelBody.appendChild(body);
+  }
+}
+
+// ── Tell the user when a turn ends while they're elsewhere ───────
+
+/** A system notification when a turn finishes and the window isn't
+ * focused, so a long task can run in the background. Asks for the OS
+ * permission the first time; silently skipped if it's refused. */
+async function notifyTurnFinished(e: any) {
+  if (document.hasFocus()) return;
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) granted = (await requestPermission()) === "granted";
+    if (!granted) return;
+    const changed = e.changed_files?.length ?? 0;
+    const body =
+      e.outcome === "awaiting_approval"
+        ? "The plan is ready for your approval."
+        : e.outcome === "completed"
+          ? changed
+            ? `Done. ${changed} file${changed === 1 ? "" : "s"} changed.`
+            : "Done."
+          : e.outcome === "cancelled"
+            ? "Stopped."
+            : "Stopped on an error.";
+    const folder = currentWorkspace.split(/[\\/]/).filter(Boolean).pop() ?? "Kara";
+    sendNotification({ title: `Kara · ${folder}`, body });
+  } catch {
+    /* notifications unavailable on this system */
   }
 }
 

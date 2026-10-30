@@ -39,6 +39,7 @@ portable-pty = "0.8"
 # extension already speak; the desktop app is a third client of the same
 # protocol, not a reimplementation.
 kara-protocol = { path = "../../../crates/kara-protocol" }
+tauri-plugin-notification = "2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
